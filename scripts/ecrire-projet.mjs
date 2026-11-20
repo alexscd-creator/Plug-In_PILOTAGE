@@ -1,4 +1,4 @@
-// Écrit le projet après confirmation : `.pilotage/projet.json`, `plan.md`, `equipe/<prénom>/portes.md`, `agents/<id>.md`.
+// Écrit le projet après confirmation (avec son vocabulaire, ses définitions de réglages et leurs valeurs) : `.pilotage/projet.json`, `plan.md`, `equipe/<prénom>/portes.md`, `agents/<id>.md`.
 // Usage : node scripts/ecrire-projet.mjs <dossier> <reponses.json>
 // Codes : 0 écrit ; 1 réponses invalides (rien n'est écrit) ; 3 projet.json existe déjà (rien n'est écrit) ;
 //   4 écriture impossible (tout ce que ce lancement avait créé est retiré, rien n'est resté) ;
@@ -40,6 +40,7 @@ if (typeof reponses !== 'object' || reponses === null || Array.isArray(reponses)
 const r = parseProjet(JSON.stringify({
   version: 1, nom: reponses.nom, but: reponses.but, fini: reponses.fini, preset: reponses.preset, equipe: reponses.equipe,
   poles: reponses.poles, phases: reponses.phases, agents: reponses.agents, workflow: reponses.workflow,
+  vocabulaire: reponses.vocabulaire, reglagesDef: reponses.reglagesDef, reglages: reponses.reglages,
 }))
 if (!r.ok) echec(r.erreurs)
 const projet = r.projet

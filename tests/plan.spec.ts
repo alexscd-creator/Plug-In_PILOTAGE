@@ -4,9 +4,10 @@ import { test } from 'node:test'
 import { avancementPhase, estCopieDeConflit, genererPlan, parsePlan, portePossible, serializePlan } from '../hooks/model/plan.ts'
 import type { Tache } from '../hooks/model/plan.ts'
 import type { Projet } from '../hooks/model/projet.ts'
+import { DEFAUT_VOCABULAIRE } from '../hooks/model/projet.ts'
 
 const projet: Projet = {
-  version: 1, nom: 'Demo', but: 'b', fini: 'f', preset: 'p', equipe: ['Lea'], poles: [], agents: [], workflow: { outils: [] },
+  version: 1, nom: 'Demo', but: 'b', fini: 'f', preset: 'p', equipe: ['Lea'], poles: [], agents: [], workflow: { outils: [] }, vocabulaire: { ...DEFAUT_VOCABULAIRE }, reglagesDef: [], reglages: {},
   phases: [
     { id: 'cadrage', titre: 'Cadrage', taches: ['Ecrire le but', 'Lister les risques'] },
     { id: 'maquettes', titre: 'Maquettes', taches: ['Dessiner l’écran'] },

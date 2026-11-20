@@ -16,8 +16,8 @@ const charger = (): Preset[] =>
   })
 const reponses = { nom: 'Mon projet', but: 'Un but', fini: 'Publié', equipe: ['Léa', 'Sam'] }
 
-test('les trois presets existent', () => {
-  assert.deepEqual(fichiers.sort(), ['application.json', 'autre.json', 'jeu-roblox.json'])
+test('les quatre presets existent', () => {
+  assert.deepEqual(fichiers.sort(), ['application.json', 'autre.json', 'jeu-roblox.json', 'site-web.json'])
 })
 
 test('chaque preset passe parsePreset et donne un projet accepté par parseProjet', () => {

@@ -2,9 +2,12 @@
 // Les fichiers `presets/*.json` sont lus ailleurs ; ici on ne reçoit que leur texte déjà lu.
 
 import { parseProjet } from './projet.ts'
-import type { Pole, PhaseDef, AgentDef, Workflow, Projet } from './projet.ts'
+import type { Pole, PhaseDef, AgentDef, Workflow, Projet, Vocabulaire, ReglageDef } from './projet.ts'
 
-export type Preset = { id: string; titre: string; poles: Pole[]; phases: PhaseDef[]; agents: AgentDef[]; workflow: Workflow }
+export type Preset = {
+  id: string; titre: string; poles: Pole[]; phases: PhaseDef[]; agents: AgentDef[]; workflow: Workflow
+  vocabulaire: Vocabulaire; reglagesDef: ReglageDef[]
+}
 
 const ID_PAR_DEFAUT = 'autre'
 
@@ -18,10 +21,11 @@ export function parsePreset(texte: string): Preset | null {
   const r = parseProjet(JSON.stringify({
     version: 1, nom: o.titre, but: o.titre, fini: o.titre, preset: o.id, equipe: ['x'],
     poles: o.poles, phases: o.phases, agents: o.agents, workflow: o.workflow,
+    vocabulaire: o.vocabulaire, reglagesDef: o.reglagesDef,
   }))
   if (!r.ok) return null
-  const { poles, phases, agents, workflow } = r.projet
-  return { id: o.id, titre: o.titre, poles, phases, agents, workflow }
+  const { poles, phases, agents, workflow, vocabulaire, reglagesDef } = r.projet
+  return { id: o.id, titre: o.titre, poles, phases, agents, workflow, vocabulaire, reglagesDef }
 }
 
 /** Crée un projet à partir d'un preset et des réponses du questionnaire (copies, le preset reste intact). */
@@ -40,7 +44,15 @@ export function preparerProjet(
     phases: preset.phases.map(p => ({ ...p, taches: [...p.taches] })),
     agents: preset.agents.map(a => ({ ...a, skills: [...a.skills] })),
     workflow: { outils: preset.workflow.outils.map(o => ({ ...o })) },
+    vocabulaire: { ...preset.vocabulaire },
+    reglagesDef: preset.reglagesDef.map(d => ({ ...d, ...(d.options ? { options: [...d.options] } : {}) })),
+    reglages: Object.fromEntries(preset.reglagesDef.filter(d => d.defaut !== undefined).map(d => [d.id, d.defaut as string | boolean])),
   }
+}
+
+/** Libellé d'interface qui suit le type de projet (ex. « Nom du site » ou « Nom de l'application »). */
+export function libelle(p: Projet, cle: keyof Vocabulaire): string {
+  return p.vocabulaire[cle]
 }
 
 /** Workflow proposé par le preset, ou celui de « autre » si l'identifiant est inconnu. */

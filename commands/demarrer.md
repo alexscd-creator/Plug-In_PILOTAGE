@@ -1,11 +1,11 @@
 ---
-description: Démarrer un projet Pilotage avec une conversation guidée (nom, équipe, workflow, pôles, phases, agents), puis créer le dossier .pilotage.
+description: Démarrer un projet Pilotage avec une conversation guidée (type de projet, nom, réglages du type, équipe, workflow, pôles, phases, agents), puis créer le dossier .pilotage.
 argument-hint: "[nom du projet]"
 ---
 
 # /demarrer
 
-Démarre un projet Pilotage dans le dossier courant (le dossier de la session). Argument facultatif : `$ARGUMENTS` (nom du projet, à confirmer à l'étape 1).
+Démarre un projet Pilotage dans le dossier courant (le dossier de la session). Argument facultatif : `$ARGUMENTS` (nom du projet, à confirmer à l'étape 2 du guide, une fois le type de projet choisi : le libellé du nom suit le type).
 
 ## 1. Vérifier qu'il n'y a pas déjà un projet
 
@@ -20,13 +20,13 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/check-projet.mjs" "<dossier courant>"
 
 ## 2. Mener la conversation
 
-Charger le skill `demarrage-guide` et le suivre, dans la conversation principale (jamais un sous-agent) : une question à la fois, les huit étapes dans l'ordre. Demander aussi qui est l'utilisateur actuel parmi l'équipe (pour `config.json`).
+Charger le skill `demarrage-guide` et le suivre, dans la conversation principale (jamais un sous-agent) : une question à la fois, les neuf étapes dans l'ordre (le type de projet d'abord, puis le nom avec le vocabulaire du type, puis les réglages propres au type). Demander aussi qui est l'utilisateur actuel parmi l'équipe (pour `config.json`).
 
 ## 3. Écrire, seulement après la confirmation explicite
 
 Les fichiers du projet ne s'écrivent **jamais à la main** : le script `ecrire-projet.mjs` les produit avec les vrais sérialiseurs du modèle (échappement, identifiants, noms de dossier sûrs). Ne pas écrire à la main `projet.json`, `plan.md` ni les fichiers d'agents.
 
-1. Écrire les réponses confirmées dans un fichier JSON temporaire (dossier du scratchpad de la session ou dossier temporaire du système, jamais dans le projet) : `{"nom", "but", "fini", "preset", "equipe": [...], "poles": [{"id","titre"}], "phases": [{"id","titre","taches":[...]}], "agents": [{"id","titre","pole","skills":[...],"pourquoi"}], "workflow": {"outils": [{"role","outil"}]}}`. Les identifiants de pôles, phases et agents : minuscules, chiffres et tirets seulement.
+1. Écrire les réponses confirmées dans un fichier JSON temporaire (dossier du scratchpad de la session ou dossier temporaire du système, jamais dans le projet) : `{"nom", "but", "fini", "preset", "equipe": [...], "vocabulaire": {"type","nomDuProjet","leProjet","unProjet","objectif","fini"}, "reglagesDef": [{"id","libelle","genre","options","defaut","aide"}], "reglages": {"<id du réglage>": "<texte, option choisie ou true/false>"}, "poles": [{"id","titre"}], "phases": [{"id","titre","taches":[...]}], "agents": [{"id","titre","pole","skills":[...],"pourquoi"}], "workflow": {"outils": [{"role","outil"}]}}`. Les identifiants de pôles, phases, agents et réglages : minuscules, chiffres et tirets seulement. `vocabulaire` et `reglagesDef` se recopient tels quels du preset choisi (ou du défaut neutre pour « autre ») ; `reglages` contient seulement les valeurs retenues, chacune conforme à sa définition (texte, une des options, ou vrai/faux).
 2. Lancer : `node "${CLAUDE_PLUGIN_ROOT}/scripts/ecrire-projet.mjs" "<dossier courant>" "<reponses.json>"`. Codes de sortie : 0 écrit ; 1 réponses invalides (erreurs affichées, rien n'est écrit : corriger avec l'utilisateur et relancer) ; 3 un projet existe déjà (s'arrêter) ; 4 écriture impossible (rien n'est resté, tout ce qui avait été créé est retiré : dire le message à l'utilisateur) ; 5 dossier introuvable ou qui n'est pas un dossier (rien n'est créé) ; 64 usage incorrect (mauvais arguments).
 
 Le script crée `.pilotage/projet.json`, `.pilotage/plan.md`, `.pilotage/equipe/<prenom>/portes.md` (vide ; `<prenom>` = prénom en minuscules, sans accent, caractères spéciaux remplacés par des tirets) et `.pilotage/agents/<id>.md`. Il refuse d'écraser un projet existant.

@@ -141,3 +141,50 @@ test('échec en cours d\'écriture : tout ce qui a été créé est retiré, le 
   assert.equal(readFileSync(join(d, '.pilotage', 'equipe', 'jean-luc'), 'utf8'), 'FICHIER')
   assert.equal(readFileSync(join(d, '.pilotage', 'garde.txt'), 'utf8'), 'GARDE')
 })
+
+const vocab = { type: 'Site web', nomDuProjet: 'Nom du site', leProjet: 'le site', unProjet: 'un site', objectif: 'Objectif du site', fini: 'Ce que « en ligne » veut dire' }
+const defs = [
+  { id: 'domaine', libelle: 'Domaine', genre: 'texte' },
+  { id: 'hebergement', libelle: 'Hébergement', genre: 'choix', options: ['à choisir', 'cloud'], defaut: 'à choisir' },
+  { id: 'paiement', libelle: 'Paiement', genre: 'oui-non', defaut: false },
+]
+
+test('vocabulaire, reglagesDef et reglages sont écrits dans projet.json', () => {
+  const d = nouveau()
+  const r = lancer(d, { ...base(), vocabulaire: vocab, reglagesDef: defs, reglages: { domaine: 'exemple.fr', hebergement: 'cloud', paiement: true } })
+  assert.equal(r.status, 0, r.stderr)
+  const p = parseProjet(readFileSync(join(d, '.pilotage/projet.json'), 'utf8'))
+  assert.ok(p.ok)
+  assert.deepEqual(p.projet.vocabulaire, vocab)
+  assert.deepEqual(p.projet.reglagesDef, defs)
+  assert.deepEqual(p.projet.reglages, { domaine: 'exemple.fr', hebergement: 'cloud', paiement: true })
+  assert.equal(spawnSync('node', [check, d], { encoding: 'utf8' }).stdout.trim(), 'projet ok')
+})
+
+test('réponses sans les nouveaux champs : vocabulaire neutre par défaut', () => {
+  const d = nouveau()
+  assert.equal(lancer(d, base()).status, 0)
+  const p = parseProjet(readFileSync(join(d, '.pilotage/projet.json'), 'utf8'))
+  assert.ok(p.ok)
+  assert.equal(p.projet.vocabulaire.nomDuProjet, 'Nom du projet')
+  assert.deepEqual(p.projet.reglagesDef, [])
+  assert.deepEqual(p.projet.reglages, {})
+})
+
+test('vocabulaire ou réglages invalides : code 1, rien écrit', () => {
+  const cas = [
+    { ...base(), vocabulaire: { ...vocab, nomDuProjet: '' } },
+    { ...base(), vocabulaire: 'x' },
+    { ...base(), reglagesDef: [{ id: 'Bad Id', libelle: 'X', genre: 'texte' }] },
+    { ...base(), reglagesDef: defs, reglages: { paiement: 'oui' } },
+    { ...base(), reglagesDef: defs, reglages: { hebergement: 'mutualisé' } },
+    { ...base(), reglagesDef: defs, reglages: { inconnu: 'x' } },
+  ]
+  for (const rep of cas) {
+    const d = nouveau()
+    const r = lancer(d, rep)
+    assert.equal(r.status, 1, JSON.stringify(rep).slice(0, 80))
+    assert.doesNotMatch(r.stderr, /\n\s+at /)
+    assert.ok(!existsSync(join(d, '.pilotage')))
+  }
+})

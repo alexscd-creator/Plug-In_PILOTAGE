@@ -1,10 +1,14 @@
 // Modèle du projet (`projet.json`) : logique pure, sans fs ni process (les hooks tournent hors Node).
-// Les pôles, phases et agents viennent des données : rien n'est codé en dur pour un jeu précis.
+// Les pôles, phases et agents viennent des données : rien n'est codé en dur pour un type de projet précis.
 
 export type Pole = { id: string; titre: string }
 export type PhaseDef = { id: string; titre: string; taches: string[] }
 export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string }
 export type Workflow = { outils: { role: string; outil: string }[] }
+/** Libellés affichés dans l'interface : ils suivent le type de projet (« Nom du site », « Nom de l'application »...). */
+export type Vocabulaire = { type: string; nomDuProjet: string; leProjet: string; unProjet: string; objectif: string; fini: string }
+/** Réglage propre à un type de projet : sa définition (les valeurs sont dans `reglages`). */
+export type ReglageDef = { id: string; libelle: string; genre: 'texte' | 'choix' | 'oui-non'; options?: string[]; defaut?: string | boolean; aide?: string }
 export type Projet = {
   version: 1
   nom: string
@@ -16,7 +20,19 @@ export type Projet = {
   phases: PhaseDef[]
   agents: AgentDef[]
   workflow: Workflow
+  vocabulaire: Vocabulaire
+  reglagesDef: ReglageDef[]
+  reglages: Record<string, string | boolean>
 }
+
+/** Vocabulaire neutre : celui d'un fichier de projet qui n'en a pas (version 1 plus ancienne ou écrite à la main). */
+export const DEFAUT_VOCABULAIRE: Vocabulaire = {
+  type: 'Projet', nomDuProjet: 'Nom du projet', leProjet: 'le projet', unProjet: 'un projet',
+  objectif: 'Objectif du projet', fini: 'Ce que « fini » veut dire',
+}
+const CLES_VOCABULAIRE = ['type', 'nomDuProjet', 'leProjet', 'unProjet', 'objectif', 'fini'] as const
+const GENRES = ['texte', 'choix', 'oui-non'] as const
+const ID_REGLAGE = /^[a-z0-9-]+$/
 
 export type ResultatProjet = { ok: true; projet: Projet } | { ok: false; erreurs: string[] }
 
@@ -56,6 +72,71 @@ function doublons(ids: string[], chemin: string, erreurs: string[]): void {
     if (vus.has(id)) erreurs.push(`${chemin} : l'identifiant « ${id} » est utilisé deux fois.`)
     vus.add(id)
   }
+}
+
+function lireVocabulaire(v: unknown, erreurs: string[]): Vocabulaire {
+  if (v === undefined) return { ...DEFAUT_VOCABULAIRE }
+  if (!estObjet(v)) { erreurs.push('Le vocabulaire doit être un objet.'); return { ...DEFAUT_VOCABULAIRE } }
+  const sortie = { ...DEFAUT_VOCABULAIRE }
+  for (const cle of CLES_VOCABULAIRE) {
+    const x = v[cle]
+    if (!texteNonVide(x)) erreurs.push(`Le vocabulaire : « ${cle} » doit être un texte non vide.`)
+    else sortie[cle] = x
+  }
+  return sortie
+}
+
+function lireReglagesDef(v: unknown, erreurs: string[]): ReglageDef[] {
+  if (v === undefined) return []
+  const defs: ReglageDef[] = []
+  listeObjets(v, 'reglagesDef', erreurs).forEach((o, i) => {
+    const n = `Réglage ${i + 1}`
+    let ok = true
+    const faux = (m: string) => { erreurs.push(`${n} : ${m}`); ok = false }
+    if (!texteNonVide(o.id)) faux("l'identifiant est manquant.")
+    else if (!ID_REGLAGE.test(o.id)) faux(`l'identifiant « ${o.id.slice(0, 30)} » doit s'écrire en minuscules, chiffres et tirets seulement.`)
+    if (!texteNonVide(o.libelle)) faux('le libellé est manquant.')
+    const genre = GENRES.find(g => g === o.genre)
+    if (!genre) faux(`le genre doit être « texte », « choix » ou « oui-non » (trouvé : ${JSON.stringify(o.genre) ?? 'absent'}).`)
+    let options: string[] | undefined
+    if (genre === 'choix') {
+      if (!Array.isArray(o.options) || o.options.length === 0 || o.options.some(x => !texteNonVide(x))) faux('les options doivent être une liste non vide de textes non vides.')
+      else options = o.options as string[]
+    } else if (o.options !== undefined) faux("les options ne servent qu'au genre « choix ».")
+    let defaut: string | boolean | undefined
+    if (o.defaut !== undefined) {
+      if (genre === 'oui-non' && typeof o.defaut === 'boolean') defaut = o.defaut
+      else if (genre === 'texte' && typeof o.defaut === 'string') defaut = o.defaut
+      else if (genre === 'choix' && typeof o.defaut === 'string' && options?.includes(o.defaut)) defaut = o.defaut
+      else if (genre) faux(`le défaut ne convient pas au genre « ${genre} »${genre === 'choix' ? ' (il doit être une des options)' : ''}.`)
+    }
+    if (o.aide !== undefined && typeof o.aide !== 'string') faux("l'aide doit être un texte.")
+    if (!ok || !genre) return
+    const def: ReglageDef = { id: o.id as string, libelle: o.libelle as string, genre }
+    if (options) def.options = [...options]
+    if (defaut !== undefined) def.defaut = defaut
+    if (typeof o.aide === 'string') def.aide = o.aide
+    defs.push(def)
+  })
+  doublons(defs.map(d => d.id), 'Réglages', erreurs)
+  return defs
+}
+
+function lireReglages(v: unknown, defs: ReglageDef[], erreurs: string[]): Record<string, string | boolean> {
+  if (v === undefined) return {}
+  if (!estObjet(v)) { erreurs.push('Les valeurs de réglages (reglages) doivent former un objet.'); return {} }
+  const sortie: Record<string, string | boolean> = {}
+  for (const def of defs) {
+    if (!(def.id in v)) continue
+    const x = v[def.id]
+    if (def.genre === 'oui-non' && typeof x !== 'boolean') erreurs.push(`Réglage « ${def.id} » : la valeur doit être oui ou non (vrai ou faux).`)
+    else if (def.genre === 'texte' && typeof x !== 'string') erreurs.push(`Réglage « ${def.id} » : la valeur doit être un texte.`)
+    else if (def.genre === 'choix' && !(typeof x === 'string' && def.options?.includes(x))) erreurs.push(`Réglage « ${def.id} » : la valeur doit être une des options (${(def.options ?? []).join(', ')}).`)
+    else sortie[def.id] = x as string | boolean
+  }
+  const connus = new Set(defs.map(d => d.id))
+  for (const id of Object.keys(v)) if (!connus.has(id)) erreurs.push(`Réglage « ${id.slice(0, 30)} » : aucune définition dans reglagesDef.`)
+  return sortie
 }
 
 export function parseProjet(texte: string): ResultatProjet {
@@ -121,8 +202,12 @@ export function parseProjet(texte: string): ResultatProjet {
     else outils.push({ role: o.role, outil: o.outil })
   })
 
+  const vocabulaire = lireVocabulaire(brut.vocabulaire, erreurs)
+  const reglagesDef = lireReglagesDef(brut.reglagesDef, erreurs)
+  const reglages = lireReglages(brut.reglages, reglagesDef, erreurs)
+
   if (erreurs.length) return { ok: false, erreurs }
-  return { ok: true, projet: { version: 1, nom, but, fini, preset, equipe, poles, phases, agents, workflow: { outils } } }
+  return { ok: true, projet: { version: 1, nom, but, fini, preset, equipe, poles, phases, agents, workflow: { outils }, vocabulaire, reglagesDef, reglages } }
 }
 
 /** JSON indenté, clés dans un ordre fixe. */
@@ -133,6 +218,12 @@ export function serializeProjet(p: Projet): string {
     phases: p.phases.map(x => ({ id: x.id, titre: x.titre, taches: x.taches })),
     agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi })),
     workflow: { outils: p.workflow.outils.map(x => ({ role: x.role, outil: x.outil })) },
+    vocabulaire: CLES_VOCABULAIRE.reduce((acc, k) => ({ ...acc, [k]: (p.vocabulaire ?? DEFAUT_VOCABULAIRE)[k] }), {} as Vocabulaire),
+    reglagesDef: (p.reglagesDef ?? []).map(d => ({
+      id: d.id, libelle: d.libelle, genre: d.genre,
+      ...(d.options ? { options: [...d.options] } : {}), ...(d.defaut !== undefined ? { defaut: d.defaut } : {}), ...(d.aide !== undefined ? { aide: d.aide } : {}),
+    })),
+    reglages: Object.fromEntries((p.reglagesDef ?? []).filter(d => p.reglages && d.id in p.reglages).map(d => [d.id, p.reglages[d.id]])),
   }
   return JSON.stringify(o, null, 2) + '\n'
 }

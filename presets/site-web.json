@@ -1,0 +1,37 @@
+{
+  "id": "site-web",
+  "titre": "Site web",
+  "vocabulaire": { "type": "Site web", "nomDuProjet": "Nom du site", "leProjet": "le site", "unProjet": "un site", "objectif": "Objectif du site", "fini": "Ce que « en ligne » veut dire" },
+  "reglagesDef": [
+    { "id": "domaine", "libelle": "Domaine", "genre": "texte", "aide": "L'adresse du site, par exemple exemple.fr." },
+    { "id": "hebergement", "libelle": "Hébergement", "genre": "choix", "options": ["à choisir", "mutualisé", "cloud", "statique"], "defaut": "à choisir" },
+    { "id": "langue-du-site", "libelle": "Langue du site", "genre": "choix", "options": ["français", "anglais", "plusieurs langues"], "defaut": "français" }
+  ],
+  "poles": [
+    { "id": "strategie", "titre": "Stratégie" },
+    { "id": "technique", "titre": "Technique" },
+    { "id": "creation", "titre": "Création" },
+    { "id": "qualite", "titre": "Qualité" }
+  ],
+  "phases": [
+    { "id": "cadrage", "titre": "Cadrage", "taches": ["Définir le public et l'objectif du site", "Lister les pages et les contenus"] },
+    { "id": "conception", "titre": "Conception", "taches": ["Dessiner les maquettes des pages clés", "Choisir l'hébergement et les outils"] },
+    { "id": "realisation", "titre": "Réalisation", "taches": ["Mettre en place le socle technique", "Intégrer les pages et les contenus"] },
+    { "id": "recette", "titre": "Recette", "taches": ["Tester sur ordinateur et sur téléphone", "Corriger les défauts bloquants"] },
+    { "id": "mise-en-ligne", "titre": "Mise en ligne", "taches": ["Configurer le domaine et publier", "Suivre les premiers retours"] }
+  ],
+  "agents": [
+    { "id": "chef-de-chantier", "titre": "Chef de chantier", "pole": "strategie", "skills": ["fiche-chantier"], "pourquoi": "Il garde la vue d'ensemble et découpe le travail, pour que personne ne travaille sur le même sujet par accident." },
+    { "id": "developpeur", "titre": "Développeur", "pole": "technique", "skills": [], "pourquoi": "Il écrit et vérifie le code ; le garder à part évite de mélanger la conception et la réalisation." },
+    { "id": "designer", "titre": "Designer", "pole": "creation", "skills": [], "pourquoi": "Il s'occupe de la lisibilité et de la cohérence des pages, un regard différent de celui qui code." },
+    { "id": "gardien", "titre": "Gardien qualité", "pole": "qualite", "skills": [], "pourquoi": "Il relit sans avoir construit : un regard indépendant repère ce que l'auteur ne voit plus." }
+  ],
+  "workflow": {
+    "outils": [
+      { "role": "Assistant IA (vibe-coding)", "outil": "Claude" },
+      { "role": "Sauvegarde et partage du code", "outil": "GitHub" },
+      { "role": "Design des pages", "outil": "Figma" },
+      { "role": "Partage hors code", "outil": "Fichiers .md partagés (Vault Drive ou Notion)" }
+    ]
+  }
+}

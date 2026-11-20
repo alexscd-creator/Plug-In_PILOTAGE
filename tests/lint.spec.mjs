@@ -20,6 +20,7 @@ const PHRASES_SKILL = [
   'Une question à la fois.', 'Attendre la confirmation avant d\'écrire.', 'Proposer le workflow.', 'Les pôles du projet.',
   'Jamais de secret.', 'Rester dans la conversation principale, jamais dans un sous-agent.',
   'Enregistrer mon-workflow.json.', 'Ne jamais écraser un projet existant (écrasement interdit).',
+  'Le vocabulaire suit le type de projet.', 'Les réglages propres au type.',
 ]
 const PHRASES_COMMANDE = ['check-projet', 'projet.json', 'plan.md', 'confirmation', 'config.json', 'ecrire-projet']
 
@@ -76,6 +77,57 @@ test('une commande demarrer incomplète échoue, complète passe', () => {
   ecrire(d, 'commands/demarrer.md', fm('demarrer', PHRASES_COMMANDE.slice(1).join('\n')))
   assert.equal(lint(d).status, 1)
   ecrire(d, 'commands/demarrer.md', fm('demarrer', PHRASES_COMMANDE.join('\n')))
+  assert.equal(lint(d).status, 0)
+})
+test('un skill demarrage-guide sans vocabulaire, réglages ou type de projet échoue', () => {
+  for (const mot of ['vocabulaire', 'réglages', 'type de projet']) {
+    const d = nouveau()
+    const corps = PHRASES_SKILL.map(p => p.replace(new RegExp(mot, 'i'), 'xxx')).join('\n')
+    ecrire(d, 'skills/demarrage-guide/SKILL.md', fm('demarrage-guide', corps))
+    const r = lint(d)
+    assert.equal(r.status, 1, mot)
+    assert.match(r.stderr, new RegExp(mot), mot)
+  }
+})
+
+test('neutralité : « studio » ou « jeu » dans skills, commandes, hooks, scripts ou README échoue avec fichier:ligne', () => {
+  const cas = [
+    ['skills/un/SKILL.md', fm('un', 'ligne 1\nvotre studio ici')],
+    ['skills/un/SKILL.md', fm('un', 'faire un jeu vidéo')],
+    ['skills/un/SKILL.md', fm('un', 'les JEUX du soir')],
+    ['commands/autre.md', '---\ndescription: test\n---\nvotre studio'],
+    ['hooks/model/x.ts', '// le studio'],
+    ['scripts/x.mjs', '// un jeu'],
+    ['README.md', 'Bienvenue au studio'],
+  ]
+  for (const [rel, texte] of cas) {
+    const d = nouveau()
+    ecrire(d, rel, texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, rel + ' : ' + texte)
+    assert.ok(r.stderr.includes(rel + ':'), r.stderr)
+    assert.match(r.stderr, /:\d+/)
+  }
+})
+
+test('neutralité : le numéro de ligne est donné', () => {
+  const d = nouveau()
+  ecrire(d, 'skills/un/SKILL.md', fm('un', 'a\nb\nvotre studio'))
+  assert.match(lint(d).stderr, /skills\/un\/SKILL\.md:7 /)
+})
+
+test('neutralité : « votre projet » passe, et un mot qui contient « jeu » ou « studio » passe', () => {
+  const d = nouveau()
+  ecrire(d, 'skills/un/SKILL.md', fm('un', 'votre projet, un enjeu, studios ?'))
+  ecrire(d, 'README.md', "Le projet de l'équipe.")
+  assert.equal(lint(d).status, 0)
+})
+
+test('neutralité : les presets, les tests et la documentation ne sont pas scannés', () => {
+  const d = nouveau()
+  ecrire(d, 'presets/jeu-roblox.json', '{"titre":"Jeu Roblox","outil":"Roblox Studio"}')
+  ecrire(d, 'tests/x.spec.mjs', '// un jeu de test, un studio')
+  ecrire(d, 'docs/maquette.md', 'le studio, le jeu')
   assert.equal(lint(d).status, 0)
 })
 

@@ -1,6 +1,8 @@
 {
   "id": "autre",
   "titre": "Autre projet",
+  "vocabulaire": { "type": "Projet", "nomDuProjet": "Nom du projet", "leProjet": "le projet", "unProjet": "un projet", "objectif": "Objectif du projet", "fini": "Ce que « fini » veut dire" },
+  "reglagesDef": [],
   "poles": [
     { "id": "strategie", "titre": "Stratégie" },
     { "id": "realisation", "titre": "Réalisation" },

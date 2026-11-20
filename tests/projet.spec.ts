@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseProjet, serializeProjet, memeMembre } from '../hooks/model/projet.ts'
+import { parseProjet, serializeProjet, memeMembre, DEFAUT_VOCABULAIRE } from '../hooks/model/projet.ts'
 import type { Projet } from '../hooks/model/projet.ts'
 
 const valide = (): Projet => ({
@@ -17,6 +17,13 @@ const valide = (): Projet => ({
   ],
   agents: [{ id: 'dev', titre: 'Développeur', pole: 'code', skills: ['luau'], pourquoi: 'Écrit le code' }],
   workflow: { outils: [{ role: 'éditeur', outil: 'Studio' }] },
+  vocabulaire: { type: 'Site web', nomDuProjet: 'Nom du site', leProjet: 'le site', unProjet: 'un site', objectif: 'Objectif du site', fini: 'Ce que « en ligne » veut dire' },
+  reglagesDef: [
+    { id: 'domaine', libelle: 'Domaine', genre: 'texte', aide: 'Adresse du site' },
+    { id: 'hebergement', libelle: 'Hébergement', genre: 'choix', options: ['à choisir', 'cloud'], defaut: 'à choisir' },
+    { id: 'paiement', libelle: 'Paiement', genre: 'oui-non', defaut: false },
+  ],
+  reglages: { domaine: 'exemple.fr', hebergement: 'cloud', paiement: true },
 })
 
 const erreurs = (o: unknown): string[] => {
@@ -86,4 +93,81 @@ test('memeMembre', () => {
   assert.equal(memeMembre('jean-luc', 'jean luc'), true)
   assert.equal(memeMembre('Jean_Luc2', 'JEAN LUC'), true)
   assert.equal(memeMembre('alex', 'sam'), false)
+})
+
+const sansNouveaux = () => { const { vocabulaire, reglagesDef, reglages, ...reste } = valide(); void vocabulaire; void reglagesDef; void reglages; return reste }
+
+test('compatibilité : un fichier sans vocabulaire ni réglages est accepté et complété par le défaut neutre', () => {
+  const r = parseProjet(JSON.stringify(sansNouveaux()))
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.projet.version, 1)
+  assert.deepEqual(r.projet.vocabulaire, DEFAUT_VOCABULAIRE)
+  assert.deepEqual(r.projet.reglagesDef, [])
+  assert.deepEqual(r.projet.reglages, {})
+  assert.equal(DEFAUT_VOCABULAIRE.nomDuProjet, 'Nom du projet')
+  assert.equal(DEFAUT_VOCABULAIRE.leProjet, 'le projet')
+  assert.equal(DEFAUT_VOCABULAIRE.unProjet, 'un projet')
+  assert.equal(DEFAUT_VOCABULAIRE.objectif, 'Objectif du projet')
+  assert.equal(DEFAUT_VOCABULAIRE.fini, 'Ce que « fini » veut dire')
+})
+
+test('serializeProjet écrit les nouveaux champs après workflow, dans un ordre fixe', () => {
+  const t = serializeProjet(valide())
+  const ordre = ['"workflow"', '"vocabulaire"', '"reglagesDef"', '"reglages"'].map(k => t.indexOf(k))
+  assert.ok(ordre.every(i => i > 0), 'toutes les clés présentes')
+  assert.deepEqual([...ordre].sort((a, b) => a - b), ordre)
+  const v = t.indexOf('"vocabulaire"')
+  const pos = ['"type"', '"nomDuProjet"', '"leProjet"', '"unProjet"', '"objectif"'].map(k => t.indexOf(k, v))
+  assert.deepEqual([...pos].sort((a, b) => a - b), pos)
+  assert.ok(pos.every(i => i > v))
+})
+
+test('vocabulaire invalide : erreurs françaises nommant le champ', () => {
+  assert.ok(erreurs({ ...valide(), vocabulaire: 'x' }).some(e => e.includes('vocabulaire')))
+  assert.ok(erreurs({ ...valide(), vocabulaire: [] }).some(e => e.includes('vocabulaire')))
+  for (const cle of ['type', 'nomDuProjet', 'leProjet', 'unProjet', 'objectif', 'fini']) {
+    const v: Record<string, unknown> = { ...valide().vocabulaire }
+    v[cle] = ''
+    assert.ok(erreurs({ ...valide(), vocabulaire: v }).some(e => e.includes('vocabulaire') && e.includes(cle)), cle)
+    delete v[cle]
+    assert.ok(erreurs({ ...valide(), vocabulaire: v }).some(e => e.includes('vocabulaire') && e.includes(cle)), cle)
+  }
+})
+
+test('reglagesDef invalide : forme, id, doublon, genre, options, défaut', () => {
+  const def = (o: Record<string, unknown>) => ({ ...valide(), reglagesDef: [o], reglages: {} })
+  assert.ok(erreurs({ ...valide(), reglagesDef: 'x', reglages: {} }).some(e => e.includes('reglagesDef')))
+  assert.ok(erreurs(def({ id: 'Bad Id', libelle: 'X', genre: 'texte' })).some(e => e.includes('Bad Id')))
+  assert.ok(erreurs(def({ id: '', libelle: 'X', genre: 'texte' })).some(e => e.includes('identifiant')))
+  assert.ok(erreurs(def({ id: 'a', libelle: '', genre: 'texte' })).some(e => e.includes('libellé')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'nombre' })).some(e => e.includes('genre')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'choix' })).some(e => e.includes('options')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'choix', options: [] })).some(e => e.includes('options')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'choix', options: ['x'], defaut: 'y' })).some(e => e.includes('défaut')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'oui-non', defaut: 'oui' })).some(e => e.includes('défaut')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'texte', defaut: true })).some(e => e.includes('défaut')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'texte', options: ['x'] })).some(e => e.includes('options')))
+  assert.ok(erreurs(def({ id: 'a', libelle: 'X', genre: 'texte', aide: 3 })).some(e => e.includes('aide')))
+  const deux = { ...valide(), reglagesDef: [{ id: 'a', libelle: 'A', genre: 'texte' }, { id: 'a', libelle: 'B', genre: 'texte' }], reglages: {} }
+  assert.ok(erreurs(deux).some(e => e.includes('« a »') && e.includes('deux fois')))
+})
+
+test('reglages invalide : id inconnu, type qui ne convient pas, valeur hors options', () => {
+  const avec = (reglages: unknown) => ({ ...valide(), reglages })
+  assert.ok(erreurs(avec([])).some(e => e.includes('reglages')))
+  assert.ok(erreurs(avec({ inconnu: 'x' })).some(e => e.includes('inconnu')))
+  assert.ok(erreurs(avec({ paiement: 'oui' })).some(e => e.includes('paiement')))
+  assert.ok(erreurs(avec({ domaine: true })).some(e => e.includes('domaine')))
+  assert.ok(erreurs(avec({ hebergement: 'mutualisé' })).some(e => e.includes('hebergement')))
+  assert.ok(erreurs(avec({ hebergement: 3 })).some(e => e.includes('hebergement')))
+})
+
+test('toutes les erreurs de vocabulaire et de réglages sont listées ensemble, jamais d\'exception', () => {
+  const r = parseProjet(JSON.stringify({ ...valide(), vocabulaire: { type: '' }, reglagesDef: [{ id: 'A b' }], reglages: { z: 1 } }))
+  assert.equal(r.ok, false)
+  if (!r.ok) assert.ok(r.erreurs.length >= 4)
+  for (const bad of [null, 5, 'x', [], {}]) {
+    assert.doesNotThrow(() => parseProjet(JSON.stringify({ ...valide(), vocabulaire: bad, reglagesDef: bad, reglages: bad })))
+  }
 })

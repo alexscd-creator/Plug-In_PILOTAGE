@@ -1,6 +1,12 @@
 {
   "id": "jeu-roblox",
   "titre": "Jeu Roblox",
+  "vocabulaire": { "type": "Jeu Roblox", "nomDuProjet": "Nom du jeu", "leProjet": "le jeu", "unProjet": "un jeu", "objectif": "Objectif du jeu", "fini": "Ce que « publié » veut dire" },
+  "reglagesDef": [
+    { "id": "connexion-roblox-studio", "libelle": "Connexion à Roblox Studio", "genre": "oui-non", "defaut": false, "aide": "Activer si Claude doit piloter Roblox Studio." },
+    { "id": "moderation-du-chat", "libelle": "Modération du chat", "genre": "choix", "options": ["aucune", "filtre Roblox", "filtre renforcé"], "defaut": "aucune" },
+    { "id": "cible-mobile", "libelle": "Cible mobile", "genre": "oui-non", "defaut": true, "aide": "Le jeu doit rester jouable sur téléphone." }
+  ],
   "poles": [
     { "id": "strategie", "titre": "Stratégie" },
     { "id": "technique", "titre": "Technique" },

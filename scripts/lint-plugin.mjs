@@ -1,6 +1,7 @@
 // Vérifie les agents et skills du plugin : frontmatter avec name et description,
 // name identique au nom du fichier (agent) ou du dossier (skill), pas de <plugin> dans les chemins,
-// et les phrases exigées du démarrage guidé (skill + commande).
+// les phrases exigées du démarrage guidé (skill + commande), et la neutralité du vocabulaire
+// (ni « studio » ni « jeu » dans skills, commandes, hooks, scripts, README : seules les données des presets et les tests peuvent en parler).
 // Usage : node scripts/lint-plugin.mjs [dossier racine]
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, basename, resolve } from 'node:path'
@@ -56,6 +57,9 @@ export const REGLES_DEMARRAGE = [
   [/jamais[^.\n]*sous-agent/i, '« jamais » un sous-agent'],
   [/mon-workflow\.json/, 'mon-workflow.json'],
   [/écras/i, "le refus d'écraser (écras...)"],
+  [/vocabulaire/i, 'le vocabulaire (qui suit le type de projet)'],
+  [/réglages/i, 'les réglages propres au type'],
+  [/type de projet/i, 'le type de projet'],
 ]
 export const REGLES_DEMARRER = [
   [/check-projet/, 'check-projet'],
@@ -65,6 +69,33 @@ export const REGLES_DEMARRER = [
   [/config\.json/, 'config.json'],
   [/ecrire-projet/, 'ecrire-projet'],
 ]
+
+// Neutralité : le plugin ne parle ni de « studio » ni de « jeu » en dehors des données des presets (presets/), des tests et de docs/.
+export const MOTS_INTERDITS = /\bstudio\b|\bjeux?\b/i
+const EXTENSIONS_SCANNEES = /\.(md|mjs|js|ts|tsx|json)$/
+function fichiersDe(dossier) {
+  if (!existsSync(dossier)) return []
+  const sortie = []
+  for (const nom of readdirSync(dossier)) {
+    if (nom === 'node_modules') continue
+    const chemin = join(dossier, nom)
+    if (statSync(chemin).isDirectory()) sortie.push(...fichiersDe(chemin))
+    else if (EXTENSIONS_SCANNEES.test(nom)) sortie.push(chemin)
+  }
+  return sortie
+}
+function verifierNeutralite() {
+  const propre = join(root, 'scripts', 'lint-plugin.mjs') // ce fichier porte le motif lui-même
+  const fichiers = ['skills', 'commands', 'hooks', 'scripts'].flatMap(d => fichiersDe(join(root, d)))
+  if (existsSync(join(root, 'README.md'))) fichiers.push(join(root, 'README.md'))
+  for (const fichier of fichiers) {
+    if (fichier === propre) continue
+    readFileSync(fichier, 'utf8').split(/\r?\n/).forEach((ligne, i) => {
+      const m = MOTS_INTERDITS.exec(ligne)
+      if (m) erreurs.push(`${relatif(fichier)}:${i + 1} : « ${m[0]} » est interdit (écrire « projet » ou « équipe »)`)
+    })
+  }
+}
 
 const agents = join(root, 'agents')
 if (existsSync(agents)) {
@@ -89,6 +120,8 @@ if (existsSync(skills)) {
 const estPlugin = existsSync(join(root, '.claude-plugin', 'plugin.json'))
 if (estPlugin || existsSync(join(skills, 'demarrage-guide'))) exiger('skills/demarrage-guide/SKILL.md', REGLES_DEMARRAGE)
 if (estPlugin || existsSync(join(root, 'commands', 'demarrer.md'))) exiger('commands/demarrer.md', REGLES_DEMARRER)
+
+verifierNeutralite()
 
 if (erreurs.length) {
   console.error(erreurs.join('\n'))

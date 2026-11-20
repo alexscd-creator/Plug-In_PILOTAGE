@@ -5,11 +5,12 @@ import type { FsLike } from '../hooks/model/activation.ts'
 const BS = String.fromCharCode(92)
 const win = (s: string): string => s.replaceAll('/', BS)
 import type { Projet } from '../hooks/model/projet.ts'
+import { DEFAUT_VOCABULAIRE } from '../hooks/model/projet.ts'
 
 const projet: Projet = {
   version: 1, nom: 'Mon jeu', but: 'b', fini: 'f', preset: 'roblox', equipe: ['Léa', 'Sam'],
   poles: [{ id: 'code', titre: 'Code' }], phases: [{ id: 'p1', titre: 'Idées', taches: [] }],
-  agents: [], workflow: { outils: [] },
+  agents: [], workflow: { outils: [] }, vocabulaire: { ...DEFAUT_VOCABULAIRE }, reglagesDef: [], reglages: {},
 }
 const VALIDE = JSON.stringify(projet)
 
