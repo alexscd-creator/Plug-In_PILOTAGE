@@ -84,3 +84,60 @@ test('réponses invalides : code 1, rien écrit', () => {
     assert.ok(!existsSync(join(d, '.pilotage')))
   }
 })
+
+const sansTrace = r => assert.doesNotMatch(r.stderr + r.stdout, /\n\s+at |node:internal/)
+
+test('prénom de 300 caractères : code 1, rien écrit, pas de trace', () => {
+  const d = nouveau(); const rep = base(); rep.equipe = ['a'.repeat(300)]
+  const r = lancer(d, rep)
+  assert.equal(r.status, 1); sansTrace(r)
+  assert.ok(!existsSync(join(d, '.pilotage')))
+})
+
+test('identifiant d\'agent de 100 caractères : code 1, rien écrit', () => {
+  const d = nouveau(); const rep = base(); rep.agents[0].id = 'a'.repeat(100)
+  const r = lancer(d, rep)
+  assert.equal(r.status, 1); sansTrace(r)
+  assert.ok(!existsSync(join(d, '.pilotage')))
+})
+
+test('noms réservés Windows (id con, prénom nul) : code 1', () => {
+  const d1 = nouveau(); const r1 = base(); r1.agents[0].id = 'con'
+  assert.equal(lancer(d1, r1).status, 1)
+  const d2 = nouveau(); const r2 = base(); r2.equipe = ['nul']
+  assert.equal(lancer(d2, r2).status, 1)
+  assert.ok(!existsSync(join(d1, '.pilotage')) && !existsSync(join(d2, '.pilotage')))
+})
+
+test('un fichier passé comme dossier : code 5', () => {
+  const d = nouveau(); const f = join(d, 'fichier.txt'); writeFileSync(f, 'x')
+  const r = lancer(f, base())
+  assert.equal(r.status, 5); sansTrace(r)
+})
+
+test('dossier inexistant : code 5, pas créé', () => {
+  const d = join(nouveau(), 'absent', 'profond')
+  const r = lancer(d, base())
+  assert.equal(r.status, 5); sansTrace(r)
+  assert.ok(!existsSync(d))
+})
+
+test('.pilotage est un fichier : code 4, rien de créé, fichier intact', () => {
+  const d = nouveau(); writeFileSync(join(d, '.pilotage'), 'FICHIER')
+  const r = lancer(d, base())
+  assert.equal(r.status, 4); sansTrace(r)
+  assert.equal(readFileSync(join(d, '.pilotage'), 'utf8'), 'FICHIER')
+  assert.deepEqual(readdirSync(d), ['.pilotage'])
+})
+
+test('échec en cours d\'écriture : tout ce qui a été créé est retiré, le reste est intact', () => {
+  const d = nouveau()
+  mkdirSync(join(d, '.pilotage', 'equipe'), { recursive: true })
+  writeFileSync(join(d, '.pilotage', 'equipe', 'jean-luc'), 'FICHIER') // bloque equipe/jean-luc/portes.md
+  writeFileSync(join(d, '.pilotage', 'garde.txt'), 'GARDE')
+  const r = lancer(d, base())
+  assert.equal(r.status, 4); sansTrace(r)
+  assert.deepEqual(tout(d).map(x => x.replace(/[^a-z0-9.-]/gi, '/')).sort(), ['.pilotage', '.pilotage/equipe', '.pilotage/equipe/jean-luc', '.pilotage/garde.txt'])
+  assert.equal(readFileSync(join(d, '.pilotage', 'equipe', 'jean-luc'), 'utf8'), 'FICHIER')
+  assert.equal(readFileSync(join(d, '.pilotage', 'garde.txt'), 'utf8'), 'GARDE')
+})
