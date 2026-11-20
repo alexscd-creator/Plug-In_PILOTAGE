@@ -5,7 +5,7 @@
   "reglagesDef": [
     { "id": "domaine", "libelle": "Domaine", "genre": "texte", "aide": "L'adresse du site, par exemple exemple.fr." },
     { "id": "hebergement", "libelle": "Hébergement", "genre": "choix", "options": ["à choisir", "mutualisé", "cloud", "statique"], "defaut": "à choisir" },
-    { "id": "langue-du-site", "libelle": "Langue du site", "genre": "choix", "options": ["français", "anglais", "plusieurs langues"], "defaut": "français" }
+    { "id": "paiement-en-ligne", "libelle": "Paiement en ligne", "genre": "oui-non", "defaut": false, "aide": "Activer si le site encaisse des paiements." }
   ],
   "poles": [
     { "id": "strategie", "titre": "Stratégie" },

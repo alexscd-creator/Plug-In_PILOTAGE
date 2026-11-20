@@ -2,6 +2,6 @@
   "name": "pilotage",
   "version": "0.1.0",
   "description": "Outil générique de gestion de projet : chantiers, idées et suivi dans un panneau.",
-  "author": { "name": "studio" },
+  "author": { "name": "Pilotage" },
   "types": "./types/index.d.ts"
 }

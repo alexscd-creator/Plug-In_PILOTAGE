@@ -1,6 +1,6 @@
 {
   "name": "pilotage-local",
-  "owner": { "name": "studio" },
+  "owner": { "name": "Pilotage" },
   "description": "Marketplace local de Pilotage.",
   "plugins": [
     {

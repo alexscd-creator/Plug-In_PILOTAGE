@@ -123,6 +123,31 @@ test('neutralité : « votre projet » passe, et un mot qui contient « jeu » o
   assert.equal(lint(d).status, 0)
 })
 
+test('neutralité : un manifeste dont l’auteur est « studio » échoue, « Pilotage » passe', () => {
+  for (const [rel, cle] of [['.claude-plugin/plugin.json', 'author'], ['.claude-plugin/marketplace.json', 'owner']]) {
+    const d = nouveau()
+    // la présence de plugin.json exige le démarrage guidé complet
+    ecrire(d, 'skills/demarrage-guide/SKILL.md', fm('demarrage-guide', PHRASES_SKILL.join('\n')))
+    ecrire(d, 'commands/demarrer.md', fm('demarrer', PHRASES_COMMANDE.join('\n')))
+    ecrire(d, rel, JSON.stringify({ name: 'x', [cle]: { name: 'studio' } }, null, 2))
+    const r = lint(d)
+    assert.equal(r.status, 1, rel)
+    assert.ok(r.stderr.includes(rel + ':'), r.stderr)
+    ecrire(d, rel, JSON.stringify({ name: 'x', [cle]: { name: 'Pilotage' } }, null, 2))
+    assert.equal(lint(d).status, 0, rel)
+  }
+})
+
+test('neutralité : package.json, types, agents et templates sont scannés', () => {
+  for (const [rel, texte] of [['package.json', '{"description":"outil de jeu"}'], ['types/index.d.ts', '// le studio'], ['agents/a.md', fm('a', 'un jeu')], ['templates/t.md', 'le studio']]) {
+    const d = nouveau()
+    ecrire(d, rel, texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, rel)
+    assert.ok(r.stderr.includes(rel + ':'), r.stderr)
+  }
+})
+
 test('neutralité : les presets, les tests et la documentation ne sont pas scannés', () => {
   const d = nouveau()
   ecrire(d, 'presets/jeu-roblox.json', '{"titre":"Jeu Roblox","outil":"Roblox Studio"}')

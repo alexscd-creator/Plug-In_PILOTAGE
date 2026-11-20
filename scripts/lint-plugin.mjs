@@ -1,7 +1,7 @@
 // Vérifie les agents et skills du plugin : frontmatter avec name et description,
 // name identique au nom du fichier (agent) ou du dossier (skill), pas de <plugin> dans les chemins,
 // les phrases exigées du démarrage guidé (skill + commande), et la neutralité du vocabulaire
-// (ni « studio » ni « jeu » dans skills, commandes, hooks, scripts, README : seules les données des presets et les tests peuvent en parler).
+// (ni « studio » ni « jeu » dans skills, commandes, hooks, scripts, agents, templates, types, manifestes, package.json, README : seules les données des presets et les tests peuvent en parler).
 // Usage : node scripts/lint-plugin.mjs [dossier racine]
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, basename, resolve } from 'node:path'
@@ -86,8 +86,8 @@ function fichiersDe(dossier) {
 }
 function verifierNeutralite() {
   const propre = join(root, 'scripts', 'lint-plugin.mjs') // ce fichier porte le motif lui-même
-  const fichiers = ['skills', 'commands', 'hooks', 'scripts'].flatMap(d => fichiersDe(join(root, d)))
-  if (existsSync(join(root, 'README.md'))) fichiers.push(join(root, 'README.md'))
+  const fichiers = ['skills', 'commands', 'hooks', 'scripts', 'agents', 'templates', 'types', '.claude-plugin'].flatMap(d => fichiersDe(join(root, d)))
+  for (const nom of ['README.md', 'package.json']) if (existsSync(join(root, nom))) fichiers.push(join(root, nom))
   for (const fichier of fichiers) {
     if (fichier === propre) continue
     readFileSync(fichier, 'utf8').split(/\r?\n/).forEach((ligne, i) => {

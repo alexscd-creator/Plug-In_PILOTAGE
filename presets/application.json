@@ -3,8 +3,8 @@
   "titre": "Application",
   "vocabulaire": { "type": "Application", "nomDuProjet": "Nom de l'application", "leProjet": "l'application", "unProjet": "une application", "objectif": "Objectif de l'application", "fini": "Ce que « livré » veut dire" },
   "reglagesDef": [
-    { "id": "plateforme-cible", "libelle": "Plateforme cible", "genre": "choix", "options": ["web", "mobile", "bureau"], "defaut": "web", "aide": "Où l'application sera utilisée en premier." },
-    { "id": "langage-principal", "libelle": "Langage principal", "genre": "texte", "aide": "Par exemple TypeScript, Kotlin ou Python." }
+    { "id": "plateformes", "libelle": "Plateformes", "genre": "choix", "options": ["web", "mobile", "bureau"], "defaut": "web", "aide": "Où l'application sera utilisée en premier." },
+    { "id": "publication", "libelle": "Publication", "genre": "choix", "options": ["à définir", "magasin d'applications", "site web", "interne"], "defaut": "à définir" }
   ],
   "poles": [
     { "id": "produit", "titre": "Produit" },

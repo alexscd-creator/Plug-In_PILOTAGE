@@ -36,30 +36,29 @@ test('autre : aucun réglage propre au type', () => {
   assert.deepEqual(charger('autre').reglagesDef, [])
 })
 
-test('site-web : domaine, hébergement, langue du site', () => {
-  const d = charger('site-web').reglagesDef
-  assert.deepEqual(d.map(x => x.id), ['domaine', 'hebergement', 'langue-du-site'])
-  assert.equal(d[0]!.genre, 'texte')
-  assert.deepEqual(d[1]!.options, ['à choisir', 'mutualisé', 'cloud', 'statique'])
-  assert.equal(d[1]!.genre, 'choix')
-  assert.equal(d[2]!.genre, 'choix')
+const resume = (id: string) => charger(id).reglagesDef.map(d => [d.id, d.libelle, d.genre, d.options ?? null, d.defaut ?? null])
+
+test('site-web : réglages de la maquette (Domaine, Hébergement, Paiement en ligne)', () => {
+  assert.deepEqual(resume('site-web'), [
+    ['domaine', 'Domaine', 'texte', null, null],
+    ['hebergement', 'Hébergement', 'choix', ['à choisir', 'mutualisé', 'cloud', 'statique'], 'à choisir'],
+    ['paiement-en-ligne', 'Paiement en ligne', 'oui-non', null, false],
+  ])
 })
 
-test('jeu-roblox : connexion, modération, cible mobile', () => {
-  const d = charger('jeu-roblox').reglagesDef
-  assert.deepEqual(d.map(x => x.id), ['connexion-roblox-studio', 'moderation-du-chat', 'cible-mobile'])
-  assert.equal(d[0]!.libelle, 'Connexion à Roblox Studio')
-  assert.equal(d[0]!.genre, 'oui-non')
-  assert.equal(d[0]!.defaut, false)
-  assert.deepEqual(d[1]!.options, ['aucune', 'filtre Roblox', 'filtre renforcé'])
-  assert.equal(d[2]!.defaut, true)
+test('jeu-roblox : réglages de la maquette (connexion, modération et charte joueur, public visé)', () => {
+  assert.deepEqual(resume('jeu-roblox'), [
+    ['connexion-roblox-studio', 'Connexion à Roblox Studio', 'oui-non', null, false],
+    ['moderation-et-charte-joueur', 'Modération et charte joueur', 'oui-non', null, true],
+    ['public-vise', 'Public visé', 'choix', ['tout public', '10 ans et plus', '13 ans et plus'], 'tout public'],
+  ])
 })
 
-test('application : plateforme cible et langage principal', () => {
-  const d = charger('application').reglagesDef
-  assert.deepEqual(d.map(x => x.id), ['plateforme-cible', 'langage-principal'])
-  assert.deepEqual(d[0]!.options, ['web', 'mobile', 'bureau'])
-  assert.equal(d[1]!.genre, 'texte')
+test('application : réglages de la maquette (Plateformes, Publication)', () => {
+  assert.deepEqual(resume('application'), [
+    ['plateformes', 'Plateformes', 'choix', ['web', 'mobile', 'bureau'], 'web'],
+    ['publication', 'Publication', 'choix', ['à définir', "magasin d'applications", 'site web', 'interne'], 'à définir'],
+  ])
 })
 
 test('preparerProjet copie vocabulaire et définitions, amorce reglages avec les défauts, sans lier au preset', () => {
@@ -67,10 +66,8 @@ test('preparerProjet copie vocabulaire et définitions, amorce reglages avec les
   const p = preparerProjet(preset, reponses)
   assert.deepEqual(p.vocabulaire, preset.vocabulaire)
   assert.deepEqual(p.reglagesDef, preset.reglagesDef)
-  assert.equal(p.reglages['connexion-roblox-studio'], false)
-  assert.equal(p.reglages['cible-mobile'], true)
-  assert.equal('domaine' in p.reglages, false)
-  p.vocabulaire.type = 'X'; p.reglagesDef[0]!.libelle = 'X'; p.reglages['cible-mobile'] = false
+  assert.deepEqual(p.reglages, { 'connexion-roblox-studio': false, 'moderation-et-charte-joueur': true, 'public-vise': 'tout public' })
+  p.vocabulaire.type = 'X'; p.reglagesDef[0]!.libelle = 'X'; p.reglages['public-vise'] = 'x'
   assert.equal(preset.vocabulaire.type, 'Jeu Roblox')
   assert.equal(preset.reglagesDef[0]!.libelle, 'Connexion à Roblox Studio')
   const site = charger('site-web')
