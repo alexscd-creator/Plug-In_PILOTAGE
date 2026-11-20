@@ -49,8 +49,8 @@ test('les cinq statuts, fichier et auteur sont relus', () => {
 
 test('l’édition à la main garde les ids ; les lignes mal formées sont ignorées sans exception', () => {
   const md = ['## Cadrage (cadrage)', '- [x] cadrage-2 | Fait', 'n’importe quoi', '- [?] z | inconnu', '- [ ] | sans id', '- [ ] sans-titre', '- [ ] cadrage-2 | doublon'].join('\n')
-  assert.deepEqual(parsePlan(md), [{ id: 'cadrage-2', phase: 'cadrage', titre: 'Fait', statut: 'termine' }])
-  assert.deepEqual(parsePlan('- [ ] a | avant tout titre'), [])
+  assert.deepEqual(parsePlan(md), [{ id: 'cadrage-2', phase: 'cadrage', titre: 'Fait', statut: 'termine' }, { id: 'z', phase: 'cadrage', titre: 'inconnu', statut: 'a faire' }])
+  assert.deepEqual(parsePlan('- [ ] a | avant tout titre'), [{ id: 'a', phase: '', titre: 'avant tout titre', statut: 'a faire' }])
   assert.deepEqual(parsePlan(''), [])
   assert.deepEqual(parsePlan('\u0000\r\n## (\n- [ '), [])
 })
@@ -80,7 +80,7 @@ test('portePossible : refuse avec les tâches ouvertes, accepte si tout est term
   assert.equal(r.ok, false)
   assert.deepEqual(r.ouvertes.map(x => x.id), ['2', '3'])
   const ok = portePossible([t('1', 'cadrage', 'termine'), t('2', 'cadrage', 'reporte'), t('3', 'cadrage', 'abandonne')], 'cadrage')
-  assert.deepEqual(ok, { ok: true, ouvertes: [] })
+  assert.deepEqual(ok, { ok: true, ouvertes: [], total: 3 })
   assert.equal(portePossible([], 'vide').ok, true)
 })
 
@@ -95,4 +95,37 @@ test('estCopieDeConflit : copies Drive/Git détectées, noms ordinaires non', ()
     assert.equal(estCopieDeConflit(n), true, n)
   for (const n of ['a.md', 'plan.md', 'plan (v2).md', 'copy.md', 'a (1)b.md', 'Notes (brouillon).md', 'Copyright.md', ''])
     assert.equal(estCopieDeConflit(n), false, n)
+})
+
+test('un titre sans (id) remet la phase à vide : ses tâches ne gonflent pas la phase précédente', () => {
+  const md = ['## Cadrage (cadrage)', '- [ ] cadrage-1 | A', '## Notes', '- [ ] n-1 | Note', '- [x] n-2 | Autre', '## Maquettes (maquettes)', '- [x] maquettes-1 | M'].join('\n')
+  const r = parsePlan(md)
+  assert.deepEqual(r.map(x => x.phase), ['cadrage', '', '', 'maquettes'])
+  assert.equal(avancementPhase(r, 'cadrage').total, 1)
+  assert.equal(avancementPhase(r, '').total, 0)
+  assert.equal(portePossible(r, 'maquettes').ok, true)
+})
+
+test('tâches sans phase : relues avec phase vide, réécrites sous « Sans phase », aller-retour sans perte', () => {
+  const r = parsePlan('- [ ] a | Avant\n## Cadrage (cadrage)\n- [x] cadrage-1 | C\n## Backlog\n- [~] b | Idée | auteur: Lea')
+  assert.deepEqual(r.filter(x => x.phase === '').map(x => x.id), ['a', 'b'])
+  const md = serializePlan(r, projet.phases)
+  assert.match(md, /^## Sans phase$/m)
+  assert.deepEqual(parsePlan(md).sort((x, y) => x.id.localeCompare(y.id)), [...r].sort((x, y) => x.id.localeCompare(y.id)))
+})
+
+test('statut inconnu ou vide avec un id valide : lu « a faire » (rien n’est coché en silence), réécrit [ ]', () => {
+  const md = '## X (x)\n- [] x-1 | t\n- [?] x-2 | t\n- [X] x-3 | t\n- [ ] x-4 | t'
+  const r = parsePlan(md)
+  assert.deepEqual(r.map(x => x.statut), ['a faire', 'a faire', 'termine', 'a faire'])
+  assert.equal(portePossible(r, 'x').ok, false)
+  assert.deepEqual(portePossible(r, 'x').ouvertes.map(x => x.id), ['x-1', 'x-2', 'x-4'])
+  assert.match(serializePlan(r, [{ id: 'x', titre: 'X', taches: [] }]), /^- \[ \] x-1 \| t$/m)
+  assert.deepEqual(parsePlan('- [?] pas une tache'), [])
+})
+
+test('portePossible expose total : phase vide ou inconnue = ok avec total 0', () => {
+  assert.deepEqual(portePossible([], 'inconnue'), { ok: true, ouvertes: [], total: 0 })
+  assert.deepEqual(portePossible(parsePlan(genererPlan(projet)), 'vide'), { ok: true, ouvertes: [], total: 0 })
+  assert.equal(portePossible(parsePlan(genererPlan(projet)), 'cadrage').total, 2)
 })

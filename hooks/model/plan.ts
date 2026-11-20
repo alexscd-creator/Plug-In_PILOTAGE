@@ -30,13 +30,16 @@ const ligneTache = (t: Tache): string =>
   (t.auteur && texteNet(t.auteur) ? ` | auteur: ${texteNet(t.auteur)}` : '')
 
 const enteteRe = /^\s{0,3}##\s+(.*?)\(([^()]*)\)\s*$/
-const tacheRe = /^\s*[-*]\s+\[(.)\]\s+(.*)$/
+const titreSansIdRe = /^\s{0,3}##\s/
+const tacheRe = /^\s*[-*]\s+\[(.?)\]\s+(.*)$/
+/** Titre des tâches sans phase (titre `## ` sans `(id)`, ou tâche avant tout titre) : relues avec phase '' puis réécrites ici. */
+const SANS_PHASE = 'Sans phase'
 
 function ecrire(blocs: { id: string; titre: string; taches: Tache[] }[]): string {
   const sortie: string[] = []
   for (const b of blocs) {
     if (sortie.length) sortie.push('')
-    sortie.push(`## ${texteNet(b.titre)} (${idPhaseNet(b.id)})`, '')
+    sortie.push(b.id === '' ? `## ${SANS_PHASE}` : `## ${texteNet(b.titre)} (${idPhaseNet(b.id)})`, '')
     for (const t of b.taches) sortie.push(ligneTache(t))
     if (!b.taches.length) sortie.pop()
   }
@@ -51,7 +54,7 @@ export function genererPlan(p: Projet): string {
   })))
 }
 
-/** Relit le plan. Une ligne mal formée, une tâche avant tout titre de phase, sans id ou sans titre, ou un id déjà vu est ignorée. */
+/** Relit le plan. Ignorées : les lignes qui ne ressemblent pas à une tâche (sans id ni titre), les ids déjà vus. Marque de statut inconnue = `a faire`. */
 export function parsePlan(texte: string): Tache[] {
   const taches: Tache[] = []
   const vus = new Set<string>()
@@ -59,10 +62,11 @@ export function parsePlan(texte: string): Tache[] {
   for (const ligne of texte.split(/\r?\n/)) {
     const e = enteteRe.exec(ligne)
     if (e) { phase = e[2]!.trim(); continue }
+    if (titreSansIdRe.test(ligne)) { phase = ''; continue }
     const m = tacheRe.exec(ligne)
-    if (!m || phase === '') continue
-    const statut = STATUTS[m[1]!]
-    if (!statut) continue
+    if (!m) continue
+    // Marque inconnue ou vide : par prudence la tâche reste ouverte (rien n'est coché en silence).
+    const statut = STATUTS[m[1]!] ?? 'a faire'
     const [premier, titre, ...champs] = m[2]!.split('|').map(s => s.trim())
     if (!premier || !titre || /\s/.test(premier) || vus.has(premier)) continue
     const t: Tache = { id: premier, phase, titre, statut }
@@ -86,7 +90,8 @@ export function serializePlan(t: Tache[], phases: PhaseDef[]): string {
   const connues = new Set(phases.map(ph => ph.id))
   const reste: string[] = []
   for (const x of t) if (!connues.has(x.phase) && !reste.includes(x.phase)) reste.push(x.phase)
-  for (const id of reste) blocs.push({ id, titre: id, taches: t.filter(x => x.phase === id) })
+  for (const id of reste.filter(x => x !== '')) blocs.push({ id, titre: id, taches: t.filter(x => x.phase === id) })
+  if (t.some(x => x.phase === '')) blocs.push({ id: '', titre: SANS_PHASE, taches: t.filter(x => x.phase === '') })
   return ecrire(blocs)
 }
 
@@ -94,14 +99,15 @@ const ouverte = (t: Tache): boolean => t.statut === 'a faire' || t.statut === 'e
 
 /** `total` : toutes les tâches de la phase ; `faites` : les terminées ; `ouvertes` : `a faire` et `en cours` (reportées et abandonnées exclues). */
 export function avancementPhase(taches: Tache[], phase: string): { total: number; faites: number; ouvertes: Tache[] } {
-  const ici = taches.filter(t => t.phase === phase)
+  const ici = phase === '' ? [] : taches.filter(t => t.phase === phase)
   return { total: ici.length, faites: ici.filter(t => t.statut === 'termine').length, ouvertes: ici.filter(ouverte) }
 }
 
 /** La porte n'est possible que sans tâche ouverte : sinon on rend la liste de celles à terminer, reporter ou abandonner. */
-export function portePossible(taches: Tache[], phase: string): { ok: boolean; ouvertes: Tache[] } {
-  const { ouvertes } = avancementPhase(taches, phase)
-  return { ok: ouvertes.length === 0, ouvertes }
+/** `total` permet de distinguer une phase vide ou inconnue (`total === 0`, ok) d'une phase terminée. */
+export function portePossible(taches: Tache[], phase: string): { ok: boolean; ouvertes: Tache[]; total: number } {
+  const { ouvertes, total } = avancementPhase(taches, phase)
+  return { ok: ouvertes.length === 0, ouvertes, total }
 }
 
 /**
