@@ -21,7 +21,7 @@ export type EtatPorte =
 export type EtapeHistorique = {
   phase: PhaseDef
   etat: 'terminee' | 'en-cours' | 'a-venir'
-  franchie: 'a-deux' | 'forcee' | null
+  franchie: 'a-deux' | 'forcee' | 'sautee' | null
 }
 
 type Par = Record<string, Portes>
@@ -47,13 +47,15 @@ export function lirePortes(texte: string): Portes {
   return p
 }
 
-const ligneNette = (s: string): string => s.replace(/\s*\r?\n\s*/g, ' ').trim()
+const ligneNette = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, ' ').trim()
+/** Un identifiant ne peut contenir ni saut de ligne ni « | » : il ne peut pas créer une ligne ou un champ de plus. */
+const idNet = (s: string): string => ligneNette(s).replace(/\|/g, '/')
 
 export function serializePortes(p: Portes): string {
   const lignes: string[] = []
-  for (const v of p.valides) lignes.push(`porte: ${v}`)
-  for (const f of p.forces) lignes.push(`force: ${f} | seul`)
-  for (const r of p.refus) lignes.push(`refus: ${r.phase}${r.note ? ` | ${ligneNette(r.note)}` : ''}`)
+  for (const v of p.valides) lignes.push(`porte: ${idNet(v)}`)
+  for (const f of p.forces) lignes.push(`force: ${idNet(f)} | seul`)
+  for (const r of p.refus) lignes.push(`refus: ${idNet(r.phase)}${r.note ? ` | ${ligneNette(r.note)}` : ''}`)
   return lignes.join('\n') + (lignes.length ? '\n' : '')
 }
 
@@ -99,7 +101,7 @@ export function historique(moi: string, phases: PhaseDef[], par: Par): EtapeHist
   const actuelle = phases.findIndex((_, k) => !franchie(moi, k, phases, par))
   return phases.map((phase, i) => {
     if (actuelle >= 0 && i >= actuelle) return { phase, etat: i === actuelle ? 'en-cours' : 'a-venir', franchie: null }
-    const forcee = etatPorte(moi, phase.id, phases, par) === 'forcee-sans-l-autre'
-    return { phase, etat: 'terminee', franchie: forcee ? 'forcee' : 'a-deux' }
+    const e = etatPorte(moi, phase.id, phases, par)
+    return { phase, etat: 'terminee', franchie: e === 'validee-a-deux' ? 'a-deux' : e === 'forcee-sans-l-autre' ? 'forcee' : 'sautee' }
   })
 }

@@ -95,3 +95,29 @@ test('historique : après la dernière phase, tout est terminé', () => {
   assert.deepEqual(historique('alex', phases, { alex: tout }).map(h => h.etat), ['terminee', 'terminee', 'terminee'])
   assert.equal(phaseActuelle('alex', phases, { alex: tout }), 'livraison')
 })
+
+test('serializePortes : aucun identifiant ne peut créer une ligne ou une entrée de plus', () => {
+  const n = (p: Portes): number => p.valides.length + p.forces.length + p.refus.length
+  const cas: Portes[] = [
+    a({ valides: ['a\nporte: x'] }),
+    a({ forces: ['a\nporte: x'] }),
+    a({ refus: [{ phase: 'a\nporte: x', note: 'n' }] }),
+    a({ refus: [{ phase: 'a | b', note: 'n' }] }),
+    a({ valides: ['a\r\nforce: y | seul'] }),
+  ]
+  for (const p of cas) {
+    const lu = lirePortes(serializePortes(p))
+    assert.equal(n(lu), n(p))
+    assert.equal(lu.valides.length, p.valides.length)
+    assert.equal(lu.forces.length, p.forces.length)
+    assert.equal(lu.refus.length, p.refus.length)
+    assert.equal(serializePortes(p).trimEnd().split('\n').length, n(p))
+  }
+})
+
+test('historique : une phase passée seulement grâce à une porte plus loin est « sautee »', () => {
+  const h = historique('alex', phases, { alex: a({ valides: ['livraison'] }), sam: vide })
+  assert.deepEqual(h.map(x => [x.etat, x.franchie]), [['terminee', 'sautee'], ['terminee', 'sautee'], ['en-cours', null]])
+  const seul = historique('alex', phases, { alex: a({ valides: ['maquettes'] }) })
+  assert.deepEqual(seul.map(x => [x.etat, x.franchie]), [['terminee', 'sautee'], ['terminee', 'a-deux'], ['en-cours', null]])
+})
