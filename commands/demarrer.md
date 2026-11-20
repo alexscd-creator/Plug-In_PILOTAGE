@@ -24,14 +24,17 @@ Charger le skill `demarrage-guide` et le suivre, dans la conversation principale
 
 ## 3. Écrire, seulement après la confirmation explicite
 
-Aucune écriture avant le oui au récapitulatif. Le dossier du projet est le dossier courant. Créer :
+Les fichiers du projet ne s'écrivent **jamais à la main** : le script `ecrire-projet.mjs` les produit avec les vrais sérialiseurs du modèle (échappement, identifiants, noms de dossier sûrs). Ne pas écrire à la main `projet.json`, `plan.md` ni les fichiers d'agents.
 
-1. `.pilotage/projet.json` : JSON indenté de 2 espaces, clés dans cet ordre : `version` (1), `nom`, `but`, `fini`, `preset`, `equipe`, `poles` (`id`, `titre`), `phases` (`id`, `titre`, `taches`), `agents` (`id`, `titre`, `pole`, `skills`, `pourquoi`), `workflow` (`outils` : liste de `role`, `outil`). Terminer par un saut de ligne. C'est le format de `serializeProjet` (`hooks/model/projet.ts`).
-2. `.pilotage/plan.md` : format de `genererPlan` (`hooks/model/plan.ts`). Pour chaque phase, dans l'ordre : une ligne `## <titre de la phase> (<id de la phase>)`, une ligne vide, puis une ligne par tâche `- [ ] <id de la phase>-<n> | <titre de la tâche>` (n à partir de 1) ; une ligne vide entre deux phases ; un saut de ligne final.
-3. `.pilotage/equipe/<prenom>/portes.md` pour chaque membre : fichier vide. `<prenom>` = le prénom en minuscules, sans accent ni espace (« Léa » donne `lea`, « Jean-Luc » donne `jean-luc`).
-4. `.pilotage/agents/<id>.md` pour chaque agent : titre, rôle, pôle, pourquoi il est spécialisé, liste de ses skills (en précisant que certains peuvent ne pas être installés).
-5. `~/.claude/pilotage/config.json` contenant `{"prenom": "<prénom de l'utilisateur actuel>"}`, **seulement s'il n'existe pas** (ne jamais le modifier s'il existe).
-6. Si l'utilisateur l'a demandé à l'étape workflow : `~/.claude/pilotage/mon-workflow.json` (`{"outils": [{"role": "...", "outil": "..."}]}`), sans écraser un fichier existant sans son accord explicite.
+1. Écrire les réponses confirmées dans un fichier JSON temporaire (dossier du scratchpad de la session ou dossier temporaire du système, jamais dans le projet) : `{"nom", "but", "fini", "preset", "equipe": [...], "poles": [{"id","titre"}], "phases": [{"id","titre","taches":[...]}], "agents": [{"id","titre","pole","skills":[...],"pourquoi"}], "workflow": {"outils": [{"role","outil"}]}}`. Les identifiants de pôles, phases et agents : minuscules, chiffres et tirets seulement.
+2. Lancer : `node "${CLAUDE_PLUGIN_ROOT}/scripts/ecrire-projet.mjs" "<dossier courant>" "<reponses.json>"`. Code 0 : écrit. Code 1 : réponses invalides, les erreurs sont affichées, rien n'est écrit : corriger avec l'utilisateur et relancer. Code 3 : un projet existe déjà, s'arrêter.
+
+Le script crée `.pilotage/projet.json`, `.pilotage/plan.md`, `.pilotage/equipe/<prenom>/portes.md` (vide ; `<prenom>` = prénom en minuscules, sans accent, caractères spéciaux remplacés par des tirets) et `.pilotage/agents/<id>.md`. Il refuse d'écraser un projet existant.
+
+Puis, à la main, uniquement ces deux fichiers personnels :
+
+- `~/.claude/pilotage/config.json` contenant `{"prenom": "<prénom de l'utilisateur actuel>"}`, **seulement s'il n'existe pas** (ne jamais le modifier s'il existe). Le prénom doit être un nom simple (lettres, espaces, tirets), sans guillemet ni barre oblique ; sinon le redemander.
+- Si l'utilisateur l'a demandé à l'étape workflow : `~/.claude/pilotage/mon-workflow.json` (`{"outils": [{"role": "...", "outil": "..."}]}`), sans jamais écraser un fichier existant sans son accord explicite.
 
 Jamais de secret dans ces fichiers. Pas de git push, pas de publication externe.
 

@@ -63,6 +63,7 @@ export const REGLES_DEMARRER = [
   [/plan\.md/, 'plan.md'],
   [/confirm/i, 'la confirmation'],
   [/config\.json/, 'config.json'],
+  [/ecrire-projet/, 'ecrire-projet'],
 ]
 
 const agents = join(root, 'agents')

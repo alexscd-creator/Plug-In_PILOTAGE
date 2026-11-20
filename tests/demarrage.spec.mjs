@@ -69,3 +69,24 @@ test('serializeProjet est relu à l\'identique et le plan généré a une tâche
   assert.ok(r.ok)
   assert.match(genererPlan(projet), /- \[ \] dev-1 \| Coder/)
 })
+
+test('un dossier nommé projet.json : erreur française, code 1, pas de trace', () => {
+  const d = nouveau()
+  mkdirSync(join(d, '.pilotage', 'projet.json'), { recursive: true })
+  const r = check(d)
+  assert.equal(r.status, 1)
+  assert.doesNotMatch(r.stderr + r.stdout, /at Object|node:internal/)
+  assert.match(r.stdout, /illisible/)
+})
+
+test('projet.json vide : code 1', () => {
+  const d = nouveau()
+  marqueur(d, '')
+  assert.equal(check(d).status, 1)
+})
+
+test('sans argument : usage, code 64', () => {
+  const r = spawnSync('node', [script], { encoding: 'utf8' })
+  assert.equal(r.status, 64)
+  assert.match(r.stderr, /usage/)
+})

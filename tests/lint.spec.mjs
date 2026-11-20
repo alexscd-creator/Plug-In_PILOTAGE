@@ -21,7 +21,7 @@ const PHRASES_SKILL = [
   'Jamais de secret.', 'Rester dans la conversation principale, jamais dans un sous-agent.',
   'Enregistrer mon-workflow.json.', 'Ne jamais écraser un projet existant (écrasement interdit).',
 ]
-const PHRASES_COMMANDE = ['check-projet', 'projet.json', 'plan.md', 'confirmation', 'config.json']
+const PHRASES_COMMANDE = ['check-projet', 'projet.json', 'plan.md', 'confirmation', 'config.json', 'ecrire-projet']
 
 test('un plugin vide passe le lint', () => {
   assert.equal(lint(nouveau()).status, 0)
