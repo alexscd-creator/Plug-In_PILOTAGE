@@ -22,11 +22,19 @@ const adapter = ($: any): FsLike => ({
   list: async p => ((await $.fs.list(p)) as { name: string }[]).map(x => x.name),
 })
 
+/** Plus de projet valide ici : le plugin redevient inactif. */
+async function remettreAZero($: any): Promise<void> {
+  await update($, actif, () => false)
+  await update($, projetTrouve, () => '')
+  await update($, membre, () => '')
+}
+
 /** Cherche le projet du dossier et applique le résultat ; rend le texte de réponse (jamais ne lève). */
 async function activer($: any, dossier: string): Promise<{ ouvert: boolean; texte: string }> {
   try {
     const trouve = await trouverProjet(adapter($), dossier)
     if (!trouve) {
+      await remettreAZero($)
       await update($, erreursMarqueur, () => [])
       return {
         ouvert: false,
@@ -34,6 +42,7 @@ async function activer($: any, dossier: string): Promise<{ ouvert: boolean; text
       }
     }
     if ('erreurs' in trouve) {
+      await remettreAZero($)
       await update($, erreursMarqueur, () => trouve.erreurs)
       return {
         ouvert: false,

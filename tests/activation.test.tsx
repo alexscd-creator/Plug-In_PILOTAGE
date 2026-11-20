@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { HOME, PANE, disque } from './disque'
+import { HOME, PANE, disque, etatSimule } from './disque'
 
 const PROJET = JSON.stringify({
   version: 1, nom: 'Mon jeu', but: 'b', fini: 'f', preset: 'roblox', equipe: ['Léa'],
@@ -10,10 +10,13 @@ const PROJET = JSON.stringify({
 const FAITS = { model: 'm', promptModel: 'm', surfaces: ['terminal'], tools: [], outputStyle: null, traits: [] } as const
 
 /** Socle simulé : enregistrement de commande, cwd de la session, composition du prompt, ouverture de panneau. */
-function socle(on: Function, cwd: string): string[] {
-  on('command.register', () => ({ value: undefined }))
+function socle(on: Function, cwd: string | (() => string), commandeEnPanne = false): string[] {
+  on('command.register', () => {
+    if (commandeEnPanne) throw new Error('refusé')
+    return { value: undefined }
+  })
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
-  on('session.cwd', () => ({ value: cwd }))
+  on('session.cwd', () => ({ value: typeof cwd === 'string' ? cwd : cwd() }))
   on('prompt.compose', () => ({ sections: [] }))
   const ouverts: string[] = []
   on('ui.open', (_: unknown, e: { id: string }) => {
@@ -83,4 +86,88 @@ test('la config du membre est lue sans bloquer l\'ouverture', async ($, on) => {
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
   expect(ouverts).toEqual([PANE.requestId])
+})
+
+const CONFIG_LEA = `${HOME}/.claude/pilotage/config.json`
+const avecEtat = (on: Function, cwd: string | (() => string), enPanne = false) => ({
+  ouverts: socle(on, cwd, enPanne),
+  etat: etatSimule(on),
+})
+
+test('marqueur valide : actif, projetTrouve et membre (config) relus', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, [CONFIG_LEA]: '{"prenom":"lea"}' })
+  const { etat } = avecEtat(on, 'C:/Projet')
+  await demarrer($, 'C:/Projet')
+  expect(etat.actif).toBe(true)
+  expect(etat.projetTrouve).toBe('C:/Projet')
+  expect(etat.membre).toBe('Léa')
+  expect(etat.erreursMarqueur).toEqual([])
+})
+
+test('config absente ou corrompue : membre vide, projet tout de même ouvert', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET })
+  const a = avecEtat(on, 'C:/Projet')
+  await demarrer($, 'C:/Projet')
+  expect(a.etat.actif).toBe(true)
+  expect(a.etat.membre).toBe('')
+})
+
+test('config corrompue : membre vide', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, [CONFIG_LEA]: '{pas du json' })
+  const { etat } = avecEtat(on, 'C:/Projet')
+  await demarrer($, 'C:/Projet')
+  expect(etat.actif).toBe(true)
+  expect(etat.membre).toBe('')
+})
+
+test('marqueur invalide : actif faux, erreursMarqueur remplies', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': '{"version":2}' })
+  const { etat } = avecEtat(on, 'C:/Projet')
+  await demarrer($, 'C:/Projet')
+  expect(etat.actif).toBeFalsy()
+  expect((etat.erreursMarqueur as string[]).length).toBeGreaterThan(0)
+})
+
+test('le dossier change vers un dossier sans marqueur : /pilotage remet tout à zéro', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, [CONFIG_LEA]: '{"prenom":"Léa"}', 'C:/Autre/x.txt': 'a' })
+  let cwd = 'C:/Projet'
+  const { etat } = avecEtat(on, () => cwd)
+  await demarrer($, 'C:/Projet')
+  expect(etat.actif).toBe(true)
+  cwd = 'C:/Autre'
+  const r = await $.command.run({ command: 'pilotage' })
+  expect(r.text).toMatch(/Aucun projet/)
+  expect(etat.actif).toBe(false)
+  expect(etat.projetTrouve).toBe('')
+  expect(etat.membre).toBe('')
+})
+
+test('le dossier change vers un marqueur invalide : /pilotage remet tout à zéro', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, 'C:/Mauvais/.pilotage/projet.json': '{"version":2}' })
+  let cwd = 'C:/Projet'
+  const { etat } = avecEtat(on, () => cwd)
+  await demarrer($, 'C:/Projet')
+  cwd = 'C:/Mauvais'
+  const r = await $.command.run({ command: 'pilotage' })
+  expect(r.text).toMatch(/invalide/)
+  expect(etat.actif).toBe(false)
+  expect(etat.projetTrouve).toBe('')
+  expect(etat.membre).toBe('')
+  expect((etat.erreursMarqueur as string[]).length).toBeGreaterThan(0)
+})
+
+test('un disque qui échoue : la session démarre quand même, aucun panneau', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET }, true)
+  const { ouverts } = avecEtat(on, 'C:/Projet')
+  const r = await demarrer($, 'C:/Projet')
+  expect(r.cwd).toBe('C:/Projet')
+  expect(ouverts).toEqual([])
+})
+
+test('un hook qui lève : la session démarre quand même', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET })
+  const { ouverts } = avecEtat(on, 'C:/Projet', true)
+  const r = await demarrer($, 'C:/Projet')
+  expect(r.cwd).toBe('C:/Projet')
+  expect(ouverts).toEqual([])
 })
