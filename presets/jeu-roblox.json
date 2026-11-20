@@ -1,0 +1,41 @@
+{
+  "id": "jeu-roblox",
+  "titre": "Jeu Roblox",
+  "poles": [
+    { "id": "strategie", "titre": "Stratégie" },
+    { "id": "technique", "titre": "Technique" },
+    { "id": "creation", "titre": "Création" },
+    { "id": "qualite", "titre": "Qualité" },
+    { "id": "pilotage", "titre": "Pilotage" }
+  ],
+  "phases": [
+    { "id": "analyse", "titre": "Analyse", "taches": ["Étudier le marché Roblox et les jeux comparables", "Repérer ce qui ne marche pas chez les autres", "Noter les limites de la plateforme"] },
+    { "id": "idees", "titre": "Idées", "taches": ["Brainstorming et tri des idées", "Vérifier l'idée choisie contre la charte joueur", "Estimer la taille du jeu"] },
+    { "id": "gamedesign", "titre": "Game design", "taches": ["Écrire la boucle de jeu", "Définir règles et équilibrage", "Découper le jeu en chantiers"] },
+    { "id": "developpement", "titre": "Développement", "taches": ["Construire le monde et les décors", "Écrire les scripts de jeu", "Créer l'interface et les sons"] },
+    { "id": "test", "titre": "Test", "taches": ["Tester avec des joueurs", "Corriger les défauts bloquants", "Vérifier la sécurité client-serveur"] },
+    { "id": "sortie", "titre": "Sortie", "taches": ["Préparer la page du jeu", "Publier", "Suivre les premiers retours"] }
+  ],
+  "agents": [
+    { "id": "chef-de-chantier", "titre": "Chef de chantier", "pole": "pilotage", "skills": ["fiche-chantier", "passation"], "pourquoi": "Il coordonne sans produire : il lance et clôt les chantiers et convoque les bons domaines." },
+    { "id": "chercheur-analyste", "titre": "Chercheur-analyste", "pole": "strategie", "skills": ["sources-web", "limites-roblox"], "pourquoi": "Seul à chercher sur le web, il cite ses sources avec leur date ; les autres lui demandent de vérifier." },
+    { "id": "concepteur-de-jeu", "titre": "Concepteur de jeu", "pole": "strategie", "skills": ["brainstorming-studio"], "pourquoi": "Il porte la vision du jeu et conçoit sans construire, pour séparer l'idée de la réalisation." },
+    { "id": "developpeur", "titre": "Développeur", "pole": "technique", "skills": ["luau-et-architecture", "securite-client-serveur", "donnees-et-datastore"], "pourquoi": "Il écrit les scripts Luau et protège les données des joueurs ; un spécialiste évite les failles client-serveur." },
+    { "id": "graphisme-et-environnement", "titre": "Graphisme et environnement", "pole": "creation", "skills": ["materiaux-et-eclairage", "environnement-et-modeles"], "pourquoi": "Il garde une cohérence visuelle du monde, du sol au ciel." },
+    { "id": "personnages-et-animations", "titre": "Personnages et animations", "pole": "creation", "skills": ["avatars-et-animations"], "pourquoi": "Tout ce qui bouge demande des règles propres (avatars, animations) qu'un spécialiste connaît." },
+    { "id": "interface-et-son", "titre": "Interface et son", "pole": "creation", "skills": ["interface-et-lisibilite", "audio-et-ambiances"], "pourquoi": "Il s'occupe de ce que le joueur lit et entend, avec une lisibilité sur mobile comme sur ordinateur." },
+    { "id": "gardien", "titre": "Gardien", "pole": "qualite", "skills": ["charte-joueur"], "pourquoi": "Il contrôle sans participer à la conception : fun d'abord, jamais de pay to win, et portes de qualité entre phases." }
+  ],
+  "workflow": {
+    "outils": [
+      { "role": "Moteur du jeu", "outil": "Roblox Studio" },
+      { "role": "Assistant IA (vibe-coding)", "outil": "Claude" },
+      { "role": "Sauvegarde et partage du code", "outil": "GitHub" },
+      { "role": "Design (interface, maquettes)", "outil": "Figma" },
+      { "role": "Génération d'images", "outil": "Google Gemini" },
+      { "role": "Modélisation 3D", "outil": "Blender" },
+      { "role": "Génération 3D", "outil": "Mesh AI" },
+      { "role": "Partage hors code", "outil": "Fichiers .md partagés (Vault Drive ou Notion)" }
+    ]
+  }
+}

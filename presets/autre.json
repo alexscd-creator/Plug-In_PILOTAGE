@@ -1,0 +1,22 @@
+{
+  "id": "autre",
+  "titre": "Autre projet",
+  "poles": [
+    { "id": "strategie", "titre": "Stratégie" },
+    { "id": "realisation", "titre": "Réalisation" },
+    { "id": "qualite", "titre": "Qualité" }
+  ],
+  "phases": [
+    { "id": "cadrage", "titre": "Cadrage", "taches": ["Définir le but et ce que « fini » veut dire", "Lister les contraintes et les risques"] },
+    { "id": "realisation", "titre": "Réalisation", "taches": ["Découper le travail en chantiers", "Réaliser et relire chaque chantier"] },
+    { "id": "livraison", "titre": "Livraison", "taches": ["Vérifier que « fini » est atteint", "Livrer et faire le bilan"] }
+  ],
+  "agents": [],
+  "workflow": {
+    "outils": [
+      { "role": "Assistant IA (vibe-coding)", "outil": "Claude" },
+      { "role": "Sauvegarde et partage du code", "outil": "GitHub" },
+      { "role": "Partage hors code", "outil": "Fichiers .md partagés (Vault Drive ou Notion)" }
+    ]
+  }
+}
