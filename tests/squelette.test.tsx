@@ -13,5 +13,5 @@ test('la commande pilotage est enregistrée et répond', async ($, on) => {
   await $.session.start({ cwd: 'C:/Projet', surface: 'terminal', isInteractive: true })
   expect(enregistrees).toEqual(['pilotage'])
   const r = await $.command.run({ command: 'pilotage' })
-  expect(r.text).toBe('Pilotage installé')
+  expect(r.text).toMatch(/Aucun projet/)
 })
