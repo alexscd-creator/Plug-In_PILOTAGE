@@ -1,0 +1,12 @@
+{
+  "name": "pilotage-local",
+  "owner": { "name": "studio" },
+  "description": "Marketplace local de Pilotage.",
+  "plugins": [
+    {
+      "name": "pilotage",
+      "source": "./",
+      "description": "Outil générique de gestion de projet : chantiers, idées et suivi dans un panneau."
+    }
+  ]
+}

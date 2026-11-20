@@ -1,0 +1,10 @@
+{
+  "name": "pilotage",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/*.spec.*\"",
+    "test:ui": "claude plugin test .",
+    "lint": "node scripts/lint-plugin.mjs"
+  }
+}
