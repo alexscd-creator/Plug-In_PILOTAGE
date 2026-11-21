@@ -1,6 +1,6 @@
 ---
 name: passation
-description: Écrire la passation d'un chantier ou d'une session avant qu'elle se termine, de sorte que quelqu'un d'autre puisse reprendre le travail avec cette seule page.
+description: "Écrire la passation d'un chantier ou d'une session avant qu'elle se termine, de sorte que quelqu'un d'autre puisse reprendre le travail avec cette seule page."
 ---
 
 # Passation de contexte

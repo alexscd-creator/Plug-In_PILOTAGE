@@ -1,6 +1,6 @@
 ---
 name: materiaux-et-eclairage
-description: Matériaux et éclairage global de Roblox (propriétés, limites mobiles, réglages de Lighting), avec source et date. À charger avant de régler l'aspect d'un monde.
+description: "Matériaux et éclairage global de Roblox (propriétés, limites mobiles, réglages de Lighting), avec source et date. À charger avant de régler l'aspect d'un monde."
 ---
 
 # Materiaux et eclairage

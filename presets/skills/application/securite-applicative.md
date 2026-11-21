@@ -1,6 +1,6 @@
 ---
 name: securite-applicative
-description: Règles de sécurité d'une application : valider les entrées, protéger les données de l'utilisateur et les secrets, limiter les droits.
+description: "Règles de sécurité d'une application : valider les entrées, protéger les données de l'utilisateur et les secrets, limiter les droits."
 ---
 
 # Sécurité d'une application

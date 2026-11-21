@@ -1,6 +1,6 @@
 ---
 name: interface-et-lisibilite
-description: Interface de Roblox : redimensionnement et contraintes d'objets d'interface (UIScale, AutomaticSize, contraintes), avec source et date. À charger avant de créer ou d'adapter une interface.
+description: "Interface de Roblox : redimensionnement et contraintes d'objets d'interface (UIScale, AutomaticSize, contraintes), avec source et date. À charger avant de créer ou d'adapter une interface."
 ---
 
 # Interface et lisibilite

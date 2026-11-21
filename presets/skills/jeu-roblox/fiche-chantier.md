@@ -1,6 +1,6 @@
 ---
 name: fiche-chantier
-description: Découper un travail en chantier, tenir sa fiche à jour de façon honnête (tâches, statuts, estimation, avancement réel) et le clore proprement.
+description: "Découper un travail en chantier, tenir sa fiche à jour de façon honnête (tâches, statuts, estimation, avancement réel) et le clore proprement."
 ---
 
 # Fiche de chantier

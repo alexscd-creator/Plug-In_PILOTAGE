@@ -1,6 +1,6 @@
 ---
 name: charte-joueur
-description: Vérifier une idée, une mécanique ou un choix de monétisation contre la charte joueur du projet (fun d'abord, jamais de pay to win, aucune manipulation).
+description: "Vérifier une idée, une mécanique ou un choix de monétisation contre la charte joueur du projet (fun d'abord, jamais de pay to win, aucune manipulation)."
 ---
 
 # Vérifier un choix contre la charte joueur

@@ -1,6 +1,6 @@
 ---
 name: chef-de-chantier
-description: Prépare un chantier du projet : contrôle d'impact (pôles, agents et fichiers concernés, chevauchements avec les autres chantiers), découpage en tâches, proposition de fiche. Agent en lecture seule, à appeler avant de créer un chantier ou pour en reprendre un.
+description: "Prépare un chantier du projet : contrôle d'impact (pôles, agents et fichiers concernés, chevauchements avec les autres chantiers), découpage en tâches, proposition de fiche. Agent en lecture seule, à appeler avant de créer un chantier ou pour en reprendre un."
 tools: Read, Glob, Grep
 ---
 

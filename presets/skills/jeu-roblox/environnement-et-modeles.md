@@ -1,6 +1,6 @@
 ---
 name: environnement-et-modeles
-description: Terrain et streaming d'instances de Roblox (outils, limites, réglages), avec source et date. À charger avant de construire un grand décor.
+description: "Terrain et streaming d'instances de Roblox (outils, limites, réglages), avec source et date. À charger avant de construire un grand décor."
 ---
 
 # Environnement et modeles

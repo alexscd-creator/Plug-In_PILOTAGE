@@ -1,6 +1,6 @@
 ---
 name: workflow-projet
-description: Travailler avec les outils du workflow du projet (Figma, Google Gemini, Blender, Mesh AI, GitHub, fichiers .md partagés) : méthode et garde-fous, sans secret, sans publication, avec confirmation explicite avant toute action irréversible ou sortante. À charger quand l'utilisateur veut produire un design, une image, un modèle 3D, sauvegarder ou partager du code, ou partager un fichier avec l'équipe.
+description: "Travailler avec les outils du workflow du projet (Figma, Google Gemini, Blender, Mesh AI, GitHub, fichiers .md partagés) : méthode et garde-fous, sans secret, sans publication, avec confirmation explicite avant toute action irréversible ou sortante. À charger quand l'utilisateur veut produire un design, une image, un modèle 3D, sauvegarder ou partager du code, ou partager un fichier avec l'équipe."
 ---
 
 # Travailler avec le workflow du projet

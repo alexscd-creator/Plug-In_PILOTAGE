@@ -1,6 +1,6 @@
 ---
 name: limites-roblox
-description: Référence des limites, règles et contraintes techniques de la plateforme Roblox, avec la source et la date de chaque fait. À consulter avant de promettre qu'une idée est faisable.
+description: "Référence des limites, règles et contraintes techniques de la plateforme Roblox, avec la source et la date de chaque fait. À consulter avant de promettre qu'une idée est faisable."
 ---
 
 # Limites et règles de Roblox

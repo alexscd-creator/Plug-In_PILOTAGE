@@ -1,6 +1,6 @@
 ---
 name: accessibilite-ecrans
-description: Rendre une application utilisable par tous : contraste, zones tactiles, textes agrandis, lecteurs d'écran, avec les seuils WCAG 2.2 (source et date).
+description: "Rendre une application utilisable par tous : contraste, zones tactiles, textes agrandis, lecteurs d'écran, avec les seuils WCAG 2.2 (source et date)."
 ---
 
 # Accessibilité des écrans

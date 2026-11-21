@@ -1,6 +1,6 @@
 ---
 name: relecture-qualite
-description: Relire le travail d'un autre avec un regard indépendant : critères vérifiables, constats classés par gravité, verdict clair, sans corriger à sa place.
+description: "Relire le travail d'un autre avec un regard indépendant : critères vérifiables, constats classés par gravité, verdict clair, sans corriger à sa place."
 ---
 
 # Relecture qualité

@@ -1,6 +1,6 @@
 ---
 name: luau-et-architecture
-description: Architecture client-serveur d'un jeu Roblox et organisation des scripts en Luau, avec source et date. À charger avant d'écrire ou d'organiser du code.
+description: "Architecture client-serveur d'un jeu Roblox et organisation des scripts en Luau, avec source et date. À charger avant d'écrire ou d'organiser du code."
 ---
 
 # Luau et architecture

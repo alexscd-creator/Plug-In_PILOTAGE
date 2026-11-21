@@ -1,6 +1,6 @@
 ---
 name: securite-web
-description: Règles de sécurité d'un site web : ne jamais faire confiance aux données reçues, protéger les formulaires, les identifiants et les secrets.
+description: "Règles de sécurité d'un site web : ne jamais faire confiance aux données reçues, protéger les formulaires, les identifiants et les secrets."
 ---
 
 # Sécurité d'un site web

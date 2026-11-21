@@ -1,6 +1,6 @@
 ---
 name: lisibilite-et-coherence
-description: Concevoir des pages ou écrans lisibles et cohérents : hiérarchie, textes, états, cohérence entre les écrans et vérification sur petit et grand format.
+description: "Concevoir des pages ou écrans lisibles et cohérents : hiérarchie, textes, états, cohérence entre les écrans et vérification sur petit et grand format."
 ---
 
 # Lisibilité et cohérence

@@ -1,6 +1,6 @@
 ---
 name: tests-et-recette
-description: Tester un jeu Roblox comme un joueur (recette), noter les défauts de façon reproductible sans les corriger, et vérifier le jeu sur petit écran et avec de la latence.
+description: "Tester un jeu Roblox comme un joueur (recette), noter les défauts de façon reproductible sans les corriger, et vérifier le jeu sur petit écran et avec de la latence."
 ---
 
 # Tests et recette

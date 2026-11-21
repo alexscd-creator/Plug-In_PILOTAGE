@@ -1,6 +1,6 @@
 ---
 name: audio-et-ambiances
-description: Audio de Roblox : objets audio, assets permis, lecture et effets, avec source et date. À charger avant d'ajouter des sons ou de la musique.
+description: "Audio de Roblox : objets audio, assets permis, lecture et effets, avec source et date. À charger avant d'ajouter des sons ou de la musique."
 ---
 
 # Audio et ambiances

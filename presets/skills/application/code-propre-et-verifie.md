@@ -1,6 +1,6 @@
 ---
 name: code-propre-et-verifie
-description: Écrire du code en petits pas, le vérifier avant de le déclarer fini (tests, lecture du diff), et ne jamais y mettre de secret.
+description: "Écrire du code en petits pas, le vérifier avant de le déclarer fini (tests, lecture du diff), et ne jamais y mettre de secret."
 ---
 
 # Code propre et vérifié

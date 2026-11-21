@@ -1,6 +1,6 @@
 ---
 name: demarrage-guide
-description: Démarrage guidé d'un projet Pilotage : conversation en neuf étapes (type de projet, nom et objectif avec le vocabulaire du type, réglages propres au type, équipe, workflow, pôles, phases, agents et skills, récapitulatif) qui construit le projet avant d'écrire quoi que ce soit. À charger quand un membre veut démarrer un projet ou lance /pilotage:demarrer.
+description: "Démarrage guidé d'un projet Pilotage : conversation en neuf étapes (type de projet, nom et objectif avec le vocabulaire du type, réglages propres au type, équipe, workflow, pôles, phases, agents et skills, récapitulatif) qui construit le projet avant d'écrire quoi que ce soit. À charger quand un membre veut démarrer un projet ou lance /pilotage:demarrer."
 ---
 
 # Démarrage guidé

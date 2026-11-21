@@ -1,6 +1,6 @@
 ---
 name: accessibilite-web
-description: Rendre un site utilisable par tous : contraste, clavier, textes alternatifs, structure et zones cliquables, avec les seuils des règles WCAG 2.2 (source et date).
+description: "Rendre un site utilisable par tous : contraste, clavier, textes alternatifs, structure et zones cliquables, avec les seuils des règles WCAG 2.2 (source et date)."
 ---
 
 # Accessibilité web

@@ -1,6 +1,6 @@
 ---
 name: performance-web
-description: Garder un site rapide : mesurer d'abord, alléger les images et les scripts, éviter les blocages du chargement.
+description: "Garder un site rapide : mesurer d'abord, alléger les images et les scripts, éviter les blocages du chargement."
 ---
 
 # Performance web

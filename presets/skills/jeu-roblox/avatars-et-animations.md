@@ -1,6 +1,6 @@
 ---
 name: avatars-et-animations
-description: Personnages, avatars et animations de Roblox (lecture d'animations, remplacement des animations par défaut, types de personnages), avec source et date. À charger avant de créer un personnage ou une animation.
+description: "Personnages, avatars et animations de Roblox (lecture d'animations, remplacement des animations par défaut, types de personnages), avec source et date. À charger avant de créer un personnage ou une animation."
 ---
 
 # Avatars et animations

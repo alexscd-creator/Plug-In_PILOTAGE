@@ -1,6 +1,6 @@
 ---
 name: sources-web
-description: Comment chercher, choisir, dater et graduer des sources web fiables pour le projet, et comment rapporter ce qu'on n'a pas pu vérifier.
+description: "Comment chercher, choisir, dater et graduer des sources web fiables pour le projet, et comment rapporter ce qu'on n'a pas pu vérifier."
 ---
 
 # Sources web

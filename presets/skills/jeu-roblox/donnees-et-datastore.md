@@ -1,6 +1,6 @@
 ---
 name: donnees-et-datastore
-description: Bonnes pratiques officielles des DataStores de Roblox (sauvegarde, erreurs, structure des clés), avec source et date. À charger avant de toucher aux données des joueurs.
+description: "Bonnes pratiques officielles des DataStores de Roblox (sauvegarde, erreurs, structure des clés), avec source et date. À charger avant de toucher aux données des joueurs."
 ---
 
 # Donnees et datastore

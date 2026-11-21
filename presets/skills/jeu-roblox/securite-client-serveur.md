@@ -1,6 +1,6 @@
 ---
 name: securite-client-serveur
-description: Règles de sécurité client-serveur de Roblox (le client est contrôlé par le tricheur, le serveur est l'autorité), avec source et date. À charger avant d'écrire du code qui reçoit des données du client.
+description: "Règles de sécurité client-serveur de Roblox (le client est contrôlé par le tricheur, le serveur est l'autorité), avec source et date. À charger avant d'écrire du code qui reçoit des données du client."
 ---
 
 # Securite client serveur

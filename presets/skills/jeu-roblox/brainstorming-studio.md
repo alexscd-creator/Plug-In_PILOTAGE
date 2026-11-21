@@ -1,6 +1,6 @@
 ---
 name: brainstorming-studio
-description: Mener la phase d'idées d'un jeu Roblox : faire émerger des idées, les poser une par une, les trier (brute, retenue, écartée), estimer leur taille et les passer à la charte joueur.
+description: "Mener la phase d'idées d'un jeu Roblox : faire émerger des idées, les poser une par une, les trier (brute, retenue, écartée), estimer leur taille et les passer à la charte joueur."
 ---
 
 # Brainstorming d'un jeu
