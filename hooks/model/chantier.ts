@@ -7,9 +7,10 @@
 //   ## taches      - [ ] titre        (mêmes marques que le plan : [ ] [~] [x] [>] [-])
 //   ## agents      - <id> | <etat> | <quoi>
 //   ## fichiers    - chemin/relatif
-//   ## passation   texte libre, jusqu'à la fin du fichier (une ligne `## ...` ou `---` y est du texte, jamais une section)
+//   ## passation   (ou « ## passation finale » : tout titre dont le premier mot est passation) texte libre, jusqu'à la fin du fichier (une ligne `## ...` ou `---` y est du texte, jamais une section)
 // L'auteur n'est PAS dans le fichier : c'est le membre dont le dossier contient la fiche (on n'écrit que chez soi).
 // Le texte est une DONNÉE : tout ce qui est écrit est assaini (une ligne, sans `|`), tout ce qui est relu est validé.
+import { texteNet as ligneSure } from './plan.ts'
 import type { Statut } from './plan.ts'
 
 export type EtatChantier = 'en-travail' | 'attente' | 'arrete' | 'pret' | 'bloque' | 'termine'
@@ -31,7 +32,8 @@ export type Chantier = {
   archive: boolean
   auteur: string
 }
-export type ResultatChantier = { ok: true; chantier: Chantier } | { ok: false; erreurs: string[] }
+/** `avertissements` : anomalies sans gravité (chemins de fichier écartés) ; la fiche reste lue. */
+export type ResultatChantier = { ok: true; chantier: Chantier; avertissements: string[] } | { ok: false; erreurs: string[] }
 
 export const ETATS_CHANTIER: readonly EtatChantier[] = ['en-travail', 'attente', 'arrete', 'pret', 'bloque', 'termine']
 /** Au-delà, un chantier « en travail » ou « en attente » sans nouvelle est affiché `pret` (la session est sans doute finie). */
@@ -49,8 +51,7 @@ const tacheRe = /^\s*[-*]\s+\[(.?)\]\s+(.*)$/
 const puceRe = /^\s*[-*]\s+(.*)$/
 
 // Même approche que plan.ts : une seule ligne, « | » remplacé, pour ne créer ni ligne ni champ de plus.
-const texteNet = (s: unknown, max = MAX_TEXTE): string =>
-  String(s ?? '').replace(/\s*[\r\n]+\s*/g, ' ').replace(/\|/g, '/').trim().slice(0, max)
+const texteNet = (s: unknown, max = MAX_TEXTE): string => ligneSure(String(s ?? '')).slice(0, max).trim()
 /** Identifiant sûr : minuscules sans accent, a-z 0-9 et tirets, jamais plus de 60 caractères. */
 const idNet = (s: unknown): string =>
   String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, MAX_ID).replace(/-+$/, '')
@@ -113,11 +114,12 @@ export function parseChantier(texte: string, auteur: string): ResultatChantier {
     const agents: Chantier['agents'] = []
     const fichiers: string[] = []
     const passation: string[] = []
+    const avertissements: string[] = []
     let section = ''
     for (; i < lignes.length; i++) {
       const l = lignes[i]!
       if (section === 'passation') { passation.push(l); continue }
-      const s = /^\s{0,3}##\s+(\S+)\s*$/.exec(l)
+      const s = /^\s{0,3}##\s+(\S+)(\s.*)?$/.exec(l)
       if (s) { section = s[1]!.toLowerCase() === 'tâches' ? 'taches' : s[1]!.toLowerCase(); continue }
       if (section === 'taches') {
         const m = tacheRe.exec(l)
@@ -135,12 +137,13 @@ export function parseChantier(texte: string, auteur: string): ResultatChantier {
         const f = m ? m[1]!.trim() : ''
         if (!m || f === '') continue
         if (cheminSur(f)) fichiers.push(f)
-        else erreurs.push(`Le fichier « ${f.slice(0, 60)} » n’est pas un chemin relatif au projet (ni « .. », ni chemin absolu).`)
+        else avertissements.push(`Le fichier « ${f.slice(0, 60)} » n’est pas un chemin relatif au projet (ni « .. », ni chemin absolu) : il est écarté de la fiche.`)
       }
     }
     if (erreurs.length) return { ok: false, erreurs }
     return {
       ok: true,
+      avertissements,
       chantier: {
         id, titre, pole, phase, etat, session, agents, taches, fichiers, cree, maj, archive, auteur,
         passation: passation.join('\n').trim().slice(0, MAX_PASSATION).trim(),
@@ -207,4 +210,29 @@ export function etatAffiche(c: Chantier, maintenant: number): EtatChantier {
   const maj = Date.parse(c.maj)
   if (Number.isNaN(maj) || !Number.isFinite(maintenant)) return c.etat
   return maintenant - maj > DELAI_INACTIF_MS ? 'pret' : c.etat
+}
+
+/** Erreurs qui empêcheraient `parseChantier` de relire la fiche telle qu'elle serait écrite (vide = écriture possible). */
+export function validerChantier(c: Chantier): string[] {
+  const e: string[] = []
+  const id = String(c?.id ?? '')
+  if (!ID_RE.test(id) || id.length > MAX_ID) e.push(`L’identifiant (id) « ${id.slice(0, 40)} » est invalide : lettres minuscules, chiffres et tirets, ${MAX_ID} caractères au plus.`)
+  if (texteNet(c?.titre) === '') e.push('Le titre du chantier est vide.')
+  for (const k of ['cree', 'maj'] as const) {
+    const v = String(c?.[k] ?? '')
+    if (!dateStricte(v)) e.push(`La date « ${k} » est absente ou invalide (attendu : date ISO UTC existante, ex. 2026-11-21T10:00:00Z).`)
+  }
+  if (!estEtat(String(c?.etat))) e.push(`L’état « ${String(c?.etat).slice(0, 40)} » est inconnu (attendus : ${ETATS_CHANTIER.join(', ')}).`)
+  for (const a of c?.agents ?? []) {
+    if (!estEtat(String(a?.etat))) e.push(`L’état « ${String(a?.etat).slice(0, 40)} » de l’agent ${String(a?.id).slice(0, 40)} est inconnu.`)
+  }
+  if (String(c?.session ?? '').length > MAX_TEXTE) e.push(`Le nom de session (session) est trop long (${MAX_TEXTE} caractères au plus).`)
+  return e
+}
+
+/** Date ISO UTC réelle : `2026-02-31` (que `Date` reporterait au mois suivant) est refusée. */
+function dateStricte(v: string): boolean {
+  if (!dateValide(v)) return false
+  const [jour] = v.split('T')
+  return new Date(Date.parse(v)).toISOString().slice(0, 10) === jour
 }

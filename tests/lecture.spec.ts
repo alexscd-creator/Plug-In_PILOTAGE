@@ -177,3 +177,43 @@ test('lireChantiers : membre inconnu du projet = nom du dossier ; ne lève jamai
   assert.deepEqual(await lireChantiers(fsDe({}), 'C:/Projet', ['Léa']), [])
   assert.deepEqual(await lireChantiers(fsDe({}), '', ['Léa']), [])
 })
+
+test('chantiers : fiche trop volumineuse écartée, listée', async () => {
+  const gros = serializeChantier(chantier('gros')) + 'x'.repeat(262_145)
+  const r = await lireProjetComplet(fsDe(base({
+    [`${R}/equipe/lea/chantiers/gros.md`]: gros,
+    [`${R}/equipe/lea/chantiers/petit.md`]: serializeChantier(chantier('petit')),
+  })), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.chantiers.map(c => c.id), ['petit'])
+  assert.deepEqual(r.erreursChantiers, ['Fiche trop volumineuse (> 256 Ko) : gros.md'])
+})
+
+test('chantiers : au plus 100 archives lues par membre (les noms les plus grands), les autres comptées', async () => {
+  const fichiers: Record<string, string> = {}
+  for (let i = 0; i < 105; i++) {
+    const id = `a${String(i).padStart(3, '0')}`
+    fichiers[`${R}/equipe/lea/archive/${id}.md`] = serializeChantier(chantier(id))
+  }
+  fichiers[`${R}/equipe/lea/chantiers/actif.md`] = serializeChantier(chantier('actif'))
+  const r = await lireProjetComplet(fsDe(base(fichiers)), 'C:/Projet', 'Léa')
+  assert.equal(r.chantiers.filter(c => c.archive).length, 100)
+  assert.ok(r.chantiers.some(c => c.id === 'a104') && !r.chantiers.some(c => c.id === 'a004') && r.chantiers.some(c => c.id === 'a005'))
+  assert.ok(r.chantiers.some(c => c.id === 'actif'))
+  assert.deepEqual(r.erreursChantiers, ['5 fiches archivées plus anciennes non lues.'])
+})
+
+test('chantiers : les chantiers actifs sont tous lus, même au-delà de 100', async () => {
+  const fichiers: Record<string, string> = {}
+  for (let i = 0; i < 120; i++) fichiers[`${R}/equipe/lea/chantiers/c${i}.md`] = serializeChantier(chantier(`c${i}`))
+  const r = await lireProjetComplet(fsDe(base(fichiers)), 'C:/Projet', 'Léa')
+  assert.equal(r.chantiers.length, 120)
+  assert.deepEqual(r.erreursChantiers, [])
+})
+
+test('chantiers : avertissement de fiche gardée remonté dans erreursChantiers', async () => {
+  const t = serializeChantier(chantier('a', { fichiers: ['ok.md'] })).replace('- ok.md', '- ../mauvais.md')
+  const r = await lireProjetComplet(fsDe(base({ [`${R}/equipe/lea/chantiers/a.md`]: t })), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.chantiers.map(c => c.id), ['a'])
+  assert.equal(r.erreursChantiers.length, 1)
+  assert.ok(r.erreursChantiers[0]!.startsWith('(avertissement) ') && r.erreursChantiers[0]!.includes('mauvais.md'))
+})

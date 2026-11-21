@@ -18,7 +18,7 @@ const STATUTS: Record<string, Statut> = { ' ': 'a faire', '~': 'en cours', x: 't
 
 // Même approche que phases.ts : pas de saut de ligne, et « | » remplacé, pour ne créer ni ligne ni champ de plus.
 const ligneNette = (s: string): string => s.replace(/\s*[\r\n]+\s*/g, ' ').trim()
-const texteNet = (s: string): string => ligneNette(s).replace(/\|/g, '/')
+export const texteNet = (s: string): string => ligneNette(s).replace(/\|/g, '/')
 /** Identifiant de tâche : un seul mot (sans espace). */
 const idTacheNet = (s: string): string => texteNet(s).replace(/\s+/g, '-')
 /** Identifiant de phase dans un titre `## ... (<id>)` : sans parenthèse. */

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { etatAffiche, parseChantier, progressionChantier, serializeChantier } from '../hooks/model/chantier.ts'
+import { etatAffiche, parseChantier, progressionChantier, serializeChantier, validerChantier } from '../hooks/model/chantier.ts'
 import type { Chantier } from '../hooks/model/chantier.ts'
 
 const base: Chantier = {
@@ -102,9 +102,49 @@ test('fiche vide, texte non-texte, champs obligatoires, dates invalides', () => 
   assert.ok(erreurs(serializeChantier(base).replace('id: carte-du-lobby', `id: ${'a'.repeat(61)}`)).some(x => x.includes('id')))
 })
 
-test('fichier hors du projet dans une fiche écrite à la main : erreur', () => {
+test('fichier hors du projet dans une fiche écrite à la main : fiche gardée, chemin écarté, avertissement', () => {
   const t = serializeChantier(base).replace('- src/lobby.luau', '- ../hors.txt')
-  assert.ok(erreurs(t).some(x => x.includes('hors.txt')))
+  const r = parseChantier(t, 'Léa')
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.deepEqual(r.chantier.fichiers, ['docs/lobby.md'])
+  assert.equal(r.avertissements.length, 1)
+  assert.ok(r.avertissements[0]!.includes('hors.txt'))
+  assert.deepEqual(ok(serializeChantier(base)).fichiers, base.fichiers)
+  const propre = parseChantier(serializeChantier(base), 'Léa')
+  assert.ok(propre.ok && propre.avertissements.length === 0)
+})
+
+test('BOM en tête de fiche : lue', () => {
+  assert.equal(ok('﻿' + serializeChantier(base)).id, base.id)
+})
+
+test('toutes les tâches abandonnées : 0 %', () => {
+  const c = { ...base, taches: [{ titre: 'a', statut: 'abandonne' as const }, { titre: 'b', statut: 'abandonne' as const }] }
+  assert.deepEqual(progressionChantier(c), { total: 0, faites: 0, pourcent: 0 })
+})
+
+test('un titre « ## passation finale » ouvre la passation', () => {
+  const t = serializeChantier({ ...base, passation: '' }).replace('## passation', '## passation finale') + 'Le mot de la fin' + String.fromCharCode(10)
+  assert.equal(ok(t).passation, 'Le mot de la fin')
+})
+
+test('validerChantier : une fiche valide ne rend aucune erreur', () => {
+  assert.deepEqual(validerChantier(base), [])
+})
+
+test('validerChantier : id, titre, dates, états, session', () => {
+  const dit = (extra: Partial<Chantier>): string[] => validerChantier({ ...base, ...extra })
+  assert.ok(dit({ id: '' }).some(e => e.includes('id')))
+  assert.ok(dit({ id: 'Pas Bon' }).some(e => e.includes('id')))
+  assert.ok(dit({ id: 'a'.repeat(61) }).some(e => e.includes('id')))
+  assert.ok(dit({ titre: '  ' }).some(e => e.includes('titre')))
+  assert.ok(dit({ cree: 'hier' }).some(e => e.includes('cree')))
+  assert.ok(dit({ maj: '2026-02-31T10:00:00.000Z' }).some(e => e.includes('maj')))
+  assert.ok(dit({ etat: 'explose' as never }).some(e => e.includes('explose')))
+  assert.ok(dit({ agents: [{ id: 'dev', etat: 'zzz' as never, quoi: '' }] }).some(e => e.includes('zzz')))
+  assert.ok(dit({ session: 'x'.repeat(201) }).some(e => e.includes('session')))
+  assert.deepEqual(dit({ cree: '2026-02-28T10:00:00Z', maj: '2026-11-21T10:00:00.5Z' }), [])
 })
 
 test('deux membres avec le même id : les deux fiches restent distinctes', () => {

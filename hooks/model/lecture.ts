@@ -104,6 +104,9 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
  * `auteur` = le prénom de `equipe` qui correspond au dossier (sinon le nom du dossier). Copies de conflit ignorées ; les fiches
  * illisibles ou invalides sont écartées et listées dans `erreurs`. Deux membres peuvent avoir le même id : les deux sont gardées.
  */
+const MAX_ARCHIVES = 100
+const MAX_FICHE = 256 * 1024
+
 async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]): Promise<{ chantiers: Chantier[]; erreurs: string[] }> {
   const sortie: { chantiers: Chantier[]; erreurs: string[] } = { chantiers: [], erreurs: [] }
   try {
@@ -119,7 +122,15 @@ async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]
           if (parent?.includes(sous)) sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
           continue
         }
-        for (const nom of noms.filter(n => /\.md$/i.test(n) && !estCopieDeConflit(n)).sort()) {
+        let fiches = noms.filter(n => /\.md$/i.test(n) && !estCopieDeConflit(n)).sort()
+        // Les archives ne font que grandir : on ne lit que les MAX_ARCHIVES dernières par nom (ordre alphabétique décroissant,
+        // donc les identifiants ou horodatages les plus grands d'abord) ; les actifs sont toujours lus en entier.
+        if (sous === 'archive' && fiches.length > MAX_ARCHIVES) {
+          const ecartees = fiches.length - MAX_ARCHIVES
+          fiches = fiches.slice(ecartees)
+          sortie.erreurs.push(`${ecartees} fiches archivées plus anciennes non lues.`)
+        }
+        for (const nom of fiches) {
           const chemin = `.pilotage/equipe/${d}/${sous}/${nom}`
           let texte: string
           try {
@@ -128,8 +139,15 @@ async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]
             sortie.erreurs.push(`La fiche de chantier ${chemin} n’a pas pu être lue.`)
             continue
           }
+          if (texte.length > MAX_FICHE) {
+            sortie.erreurs.push(`Fiche trop volumineuse (> 256 Ko) : ${nom}`)
+            continue
+          }
           const f = parseChantier(texte, auteur)
-          if (f.ok) sortie.chantiers.push(sous === 'archive' ? { ...f.chantier, archive: true } : f.chantier)
+          if (f.ok) {
+            sortie.chantiers.push(sous === 'archive' ? { ...f.chantier, archive: true } : f.chantier)
+            for (const a of f.avertissements) sortie.erreurs.push(`(avertissement) ${chemin} : ${a}`)
+          }
           else sortie.erreurs.push(`La fiche de chantier ${chemin} est écartée : ${f.erreurs.join(' ')}`)
         }
       }
