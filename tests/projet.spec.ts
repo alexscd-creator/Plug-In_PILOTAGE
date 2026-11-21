@@ -171,3 +171,15 @@ test('toutes les erreurs de vocabulaire et de réglages sont listées ensemble, 
     assert.doesNotThrow(() => parseProjet(JSON.stringify({ ...valide(), vocabulaire: bad, reglagesDef: bad, reglages: bad })))
   }
 })
+
+test('agent : « outils » facultatif, lu tel quel, refusé s\'il n\'est pas une liste de textes, gardé à l\'écriture', () => {
+  const p = valide()
+  p.agents[0]!.outils = ['Read', 'Edit']
+  const r = parseProjet(serializeProjet(p))
+  assert.ok(r.ok)
+  if (r.ok) assert.deepEqual(r.projet.agents[0]!.outils, ['Read', 'Edit'])
+  const sans = parseProjet(serializeProjet(valide()))
+  assert.ok(sans.ok)
+  if (sans.ok) assert.equal('outils' in sans.projet.agents[0]!, false)
+  assert.equal(parseProjet(JSON.stringify({ ...valide(), agents: [{ ...valide().agents[0], outils: 'Read' }] })).ok, false)
+})

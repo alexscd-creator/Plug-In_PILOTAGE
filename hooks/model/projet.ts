@@ -5,7 +5,8 @@
 export const TEINTES_POLE = ['violet', 'bleu', 'sarcelle', 'vert', 'orange', 'rose'] as const
 export type Pole = { id: string; titre: string; couleur?: string }
 export type PhaseDef = { id: string; titre: string; taches: string[] }
-export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string }
+/** `outils` : outils que l'agent demande en plus de la lecture seule (le moteur n'en accorde jamais de Bash ni de publication, voir agents-registre.ts). */
+export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string; outils?: string[] }
 export type Workflow = { outils: { role: string; outil: string }[] }
 /** Libellés affichés dans l'interface : ils suivent le type de projet (« Nom du site », « Nom de l'application »...). */
 export type Vocabulaire = { type: string; nomDuProjet: string; leProjet: string; unProjet: string; objectif: string; fini: string }
@@ -215,9 +216,11 @@ export function parseProjet(texte: string): ResultatProjet {
     else if (!idsPoles.has(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle « ${o.pole} » n'existe pas.`)
     if (typeof o.pourquoi !== 'string') erreurs.push(`Agent ${i + 1} : « pourquoi » doit être un texte.`)
     const skills = listeTextes(o.skills, `Agent ${i + 1} : les skills`, erreurs)
+    const outils = o.outils === undefined ? [] : listeTextes(o.outils, `Agent ${i + 1} : les outils`, erreurs)
     return {
       id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '',
       pole: texteNonVide(o.pole) ? o.pole : '', skills, pourquoi: typeof o.pourquoi === 'string' ? o.pourquoi : '',
+      ...(outils.length > 0 ? { outils } : {}),
     }
   })
   doublons(agents.map(a => a.id).filter(Boolean), 'Agents', erreurs)
@@ -243,7 +246,7 @@ export function serializeProjet(p: Projet): string {
     version: p.version, nom: p.nom, but: p.but, fini: p.fini, preset: p.preset, equipe: p.equipe,
     poles: p.poles.map(x => ({ id: x.id, titre: x.titre, ...(x.couleur ? { couleur: x.couleur } : {}) })),
     phases: p.phases.map(x => ({ id: x.id, titre: x.titre, taches: x.taches })),
-    agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi })),
+    agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi, ...(x.outils?.length ? { outils: x.outils } : {}) })),
     workflow: { outils: p.workflow.outils.map(x => ({ role: x.role, outil: x.outil })) },
     vocabulaire: CLES_VOCABULAIRE.reduce((acc, k) => ({ ...acc, [k]: (p.vocabulaire ?? DEFAUT_VOCABULAIRE)[k] }), {} as Vocabulaire),
     reglagesDef: (p.reglagesDef ?? []).map(d => ({
