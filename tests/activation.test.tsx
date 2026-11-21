@@ -171,3 +171,28 @@ test('un hook qui lève : la session démarre quand même', async ($, on) => {
   expect(r.cwd).toBe('C:/Projet')
   expect(ouverts).toEqual([])
 })
+
+test('un échec après un changement de dossier remet tout à zéro (actif, projetTrouve, membre)', async ($, on) => {
+  disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, 'C:/Autre/.pilotage/projet.json': PROJET, [CONFIG_LEA]: '{"prenom":"Léa"}' })
+  let cwd = 'C:/Projet'
+  let panne = false
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  on('session.cwd', () => ({ value: cwd }))
+  on('prompt.compose', () => ({ sections: [] }))
+  on('ui.open', () => {
+    if (panne) throw new Error('disque en panne')
+    return { value: { isPlaced: true } }
+  })
+  const etat = etatSimule(on)
+  await demarrer($, 'C:/Projet')
+  expect(etat.actif).toBe(true)
+  expect(etat.membre).toBe('Léa')
+  cwd = 'C:/Autre'
+  panne = true
+  const r = await $.command.run({ command: 'pilotage' })
+  expect(r.text).toMatch(/pas pu/)
+  expect(etat.actif).toBe(false)
+  expect(etat.projetTrouve).toBe('')
+  expect(etat.membre).toBe('')
+})

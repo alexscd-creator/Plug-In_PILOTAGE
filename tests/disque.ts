@@ -41,8 +41,11 @@ export function disque(on: Function, fichiers: Record<string, string>, panne = f
 /** Un faux magasin d'état : rend les valeurs écrites par le plugin (clé -> valeur) pour les relire dans les tests. */
 export function etatSimule(on: Function): Record<string, unknown> {
   const S: Record<string, unknown> = {}
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: S[e.key], version: 1 } }))
-  on('state.set', (_: unknown, e: { key: string; value: { value: unknown } }) => {
+  // Le moteur range chaque valeur dans une enveloppe { shape, value } : il faut la rendre telle quelle, sinon une lecture la refuse.
+  const enveloppes: Record<string, { shape?: string; value: unknown }> = {}
+  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: enveloppes[e.key], version: 1 } }))
+  on('state.set', (_: unknown, e: { key: string; value: { shape?: string; value: unknown } }) => {
+    enveloppes[e.key] = e.value
     S[e.key] = e.value.value
     return { value: { isSet: true, version: 2 } }
   })

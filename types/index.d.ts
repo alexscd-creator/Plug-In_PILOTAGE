@@ -7,19 +7,21 @@ declare module 'claude-code' {
   interface PluginState {
     pilotage: {
       /** Vrai quand un projet valide est ouvert dans la session. */
-      actif: boolean
+      actif: Shaped<boolean>
       /** Dossier racine du projet trouvé ('' sans projet). */
-      projetTrouve: string
+      projetTrouve: Shaped<string>
       /** Membre courant d'après la config ('' si inconnu). */
-      membre: string
+      membre: Shaped<string>
       /** Erreurs du marqueur invalide, rappelées par /pilotage. */
-      erreursMarqueur: string[]
+      erreursMarqueur: Shaped<string[]>
       /** Page affichée dans le panneau. */
-      page: Page
+      page: Shaped<Page>
       /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
-      tick: number
+      tick: Shaped<number>
       /** Thème du panneau. */
-      theme: ChoixTheme
+      theme: Shaped<ChoixTheme>
+      /** Ce qui s'est passé quand un bouton a voulu envoyer une commande (vide : tout est parti). */
+      retourCommande: Shaped<string>
     }
   }
 }
