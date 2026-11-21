@@ -13,12 +13,23 @@ Le panneau s'ouvre tout seul dans un dossier qui porte un projet Pilotage, et ja
 
 ## Installation
 
+Depuis le dépôt GitHub (pour un associé) :
+
+```
+claude plugin marketplace add alexscd-creator/Plug-In_PILOTAGE
+claude plugin install pilotage@pilotage-local
+```
+
+Si le dépôt est privé, l'associé doit être invité sur GitHub et connecté à son compte sur son poste (Git Credential Manager ou `gh auth login`).
+
+Depuis un dossier local (cloné ou copié) :
+
 ```
 claude plugin marketplace add <chemin du dépôt>
 claude plugin install pilotage@pilotage-local
 ```
 
-Puis redémarrer Claude Desktop.
+Puis redémarrer Claude Desktop. Pour mettre à jour : `claude plugin marketplace update` puis `claude plugin update pilotage`.
 
 ## Première utilisation
 
