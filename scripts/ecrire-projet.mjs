@@ -103,7 +103,7 @@ function texteSkill(preset, sk) {
   }
   return `---
 name: ${sk}
-description: Skill du projet, à compléter.
+description: "Skill du projet, à compléter."
 ---
 
 # ${sk}

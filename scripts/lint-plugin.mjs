@@ -280,7 +280,32 @@ function verifierPresets() {
   }
 }
 
+// YAML : une valeur de premier niveau qui n'est pas entre guillemets (ni bloc | >, liste [, objet {) et qui contient « : » ne se lit pas :
+// le chargeur perd toutes les métadonnées du fichier (claude plugin validate : « YAML frontmatter failed to parse »).
+const COMMENCE_BIEN = /^["'|>[{]/
+export function clesYamlInvalides(texte) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(texte)
+  if (!m) return []
+  const cles = []
+  for (const ligne of m[1].split(/\r?\n/)) {
+    const k = /^([A-Za-z0-9_.-]+):[ \t]*(.*)$/.exec(ligne) // sans indentation : clé de premier niveau seulement
+    if (!k) continue
+    const valeur = k[2].trim()
+    if (valeur !== '' && !COMMENCE_BIEN.test(valeur) && valeur.includes(': ')) cles.push(k[1])
+  }
+  return cles
+}
+function verifierYaml() {
+  for (const d of ['skills', 'agents', 'commands', 'presets/skills']) {
+    for (const f of fichiersDe(join(root, ...d.split('/'))).filter(x => x.endsWith('.md'))) {
+      for (const cle of clesYamlInvalides(readFileSync(f, 'utf8')))
+        erreurs.push(`${relatif(f)} : frontmatter YAML invalide (valeur non entre guillemets contenant « : ») : clé « ${cle} », mettre la valeur entre guillemets doubles`)
+    }
+  }
+}
+
 verifierPresets()
+verifierYaml()
 verifierNeutralite()
 verifierFormes()
 

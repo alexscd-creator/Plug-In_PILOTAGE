@@ -419,3 +419,64 @@ test('presets : un nom de skill de preset qui sort du dossier ou n’est pas un 
   assert.equal(r.status, 1)
   assert.match(r.stderr, /nom de skill invalide/)
 })
+
+// ---- Frontmatter YAML : une valeur non entre guillemets qui contient « : » casse le chargement (Task 21) ----
+const YAML_INVALIDE = /frontmatter YAML invalide \(valeur non entre guillemets contenant « : »\)/
+
+test('frontmatter YAML : une description non quotée contenant « : » échoue, avec le fichier et la clé, pour skills, agents, commandes et skills de preset', () => {
+  const cas = [
+    ['skills/un/SKILL.md', '---\nname: un\ndescription: Faire ceci : puis cela\n---\ncorps'],
+    ['agents/ag.md', '---\nname: ag\ndescription: Voir : ceci\n---\ncorps'],
+    ['commands/co.md', '---\ndescription: Lancer : tout\nargument-hint: "<x>"\n---\ncorps'],
+    ['presets/skills/x/s1.md', '---\nname: s1\ndescription: Règle : toujours\n---\ncorps'],
+  ]
+  for (const [rel, texte] of cas) {
+    const d = nouveau()
+    ecrire(d, 'presets/x.json', preset())
+    if (rel !== 'presets/skills/x/s1.md') ecrire(d, 'presets/skills/x/s1.md', fm('s1', 'c'))
+    ecrire(d, rel, texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, rel)
+    assert.match(r.stderr, YAML_INVALIDE, rel)
+    assert.ok(r.stderr.includes(rel), `${rel} : ${r.stderr}`)
+    assert.match(r.stderr, /description/)
+  }
+})
+
+test('frontmatter YAML : une autre clé que description est aussi contrôlée (la clé est citée)', () => {
+  const d = nouveau()
+  ecrire(d, 'commands/co.md', '---\ndescription: ok\nargument-hint: <nom> : <suite>\n---\ncorps')
+  const r = lint(d)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, YAML_INVALIDE)
+  assert.match(r.stderr, /argument-hint/)
+})
+
+test('frontmatter YAML : valeurs entre guillemets, bloc, liste ou objet passent ; « : » sans espace passe ; ligne indentée ignorée', () => {
+  const d = nouveau()
+  const valeurs = [
+    'description: "Faire ceci : puis cela"',
+    "description: 'Faire ceci : puis cela'",
+    'description: |\n  Faire ceci : puis cela',
+    'description: >\n  Faire ceci : puis cela',
+    'description: [a: b, c]',
+    'description: {a: b}',
+    'description: http://exemple.fr/a:b',
+    'description: Sans deux-points',
+  ]
+  valeurs.forEach((v, i) => ecrire(d, `skills/s${i}/SKILL.md`, `---\nname: s${i}\n${v}\n---\ncorps`))
+  ecrire(d, 'agents/ag.md', '---\nname: ag\ndescription: "ok"\nmeta:\n  note: a : b\n---\ncorps')
+  const r = lint(d)
+  assert.equal(r.status, 0, r.stderr)
+})
+
+test('frontmatter YAML : un « : » dans le corps (hors frontmatter) passe ; plusieurs erreurs sont toutes citées', () => {
+  const d = nouveau()
+  ecrire(d, 'skills/un/SKILL.md', '---\nname: un\ndescription: "ok"\n---\nceci : cela\ndescription: a : b')
+  assert.equal(lint(d).status, 0)
+  ecrire(d, 'skills/deux/SKILL.md', '---\nname: deux\ndescription: a : b\n---\ncorps')
+  ecrire(d, 'skills/trois/SKILL.md', '---\nname: trois\ndescription: c : d\n---\ncorps')
+  const r = lint(d)
+  assert.equal(r.status, 1)
+  assert.ok(r.stderr.includes('skills/deux/SKILL.md') && r.stderr.includes('skills/trois/SKILL.md'))
+})

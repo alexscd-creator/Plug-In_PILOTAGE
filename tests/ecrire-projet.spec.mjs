@@ -211,6 +211,7 @@ test('skills : un skill cité sans fichier de preset reçoit un modèle minimal 
   const t = lire(d, '.pilotage/skills/a.md')
   assert.match(t, /^---\nname: a\ndescription: .+\n---\n/)
   assert.match(t, /À compléter/)
+  assert.match(t, /^description: "[^"]*"$/m) // valeur entre guillemets (YAML sûr)
   assert.doesNotMatch(t, /TODO|TBD|XXX|FIXME/)
   assert.ok(existsSync(join(d, '.pilotage/skills/b.md')))
 })
