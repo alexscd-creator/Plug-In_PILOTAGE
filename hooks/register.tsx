@@ -10,10 +10,12 @@ import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
+import { pageApercu } from './ui/apercu'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
 import type { NomIcone } from './ui/icones'
+import { pagePlan } from './ui/plan'
 import { jetons, modeDeTheme } from './ui/theme'
 import type { Mode } from './ui/theme'
 import { carteAVenir, carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
@@ -291,7 +293,14 @@ export const register: Register = on => {
         }),
         navigation(ctx, courante, aller),
         <Text key="titre-page" weight="bold" size="title" color={ctx.j.texte}>{titre}</Text>,
-        carteAVenir(ctx, titre),
+        ...(courante === 'apercu'
+          ? pageApercu(ctx, {
+              projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes,
+              iconeType: iconeType(lecture.projet.preset), ouvrirPlan: () => aller('plan'),
+            })
+          : courante === 'plan'
+            ? pagePlan(ctx, { projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, copier: copierLeChemin })
+            : [carteAVenir(ctx, titre)]),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

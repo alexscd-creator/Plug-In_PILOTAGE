@@ -21,19 +21,20 @@ test('projet ouvert : barre du haut, navigation dans l’ordre, page d’aperçu
     const onglets = (await ui.findAll({ type: 'Button' })).filter(b => PAGES.some(p => b.key === 'nav-' + p.page)).map(b => b.props.label)
     expect(onglets).toEqual(PAGES.map(p => p.titre))
     expect((await ui.find({ key: 'onglet-apercu' }))?.props.backgroundColor).toBeTruthy()
-    expect(await ui.find({ type: 'Text', text: 'À venir' })).toBeTruthy()
+    expect(await ui.find({ key: 'carte-projet' })).toBeTruthy()
     await ui.unmount()
   }
   expect(ecritures).toEqual([])
 })
 
-test('un onglet change de page ; chaque page encore vide montre « À venir »', async ($, on) => {
+test('un onglet change de page ; chaque page pas encore faite montre « À venir »', async ($, on) => {
   const { ecritures } = banc(on, fichiers())
   await demarrer($)
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   for (const p of PAGES.filter(x => x.page !== 'parametres')) {
     await ui.press({ key: `nav-${p.page}` })
-    expect(await ui.find({ type: 'Text', text: 'À venir' })).toBeTruthy()
+    const faite = p.page === 'apercu' || p.page === 'plan'
+    expect(!!(await ui.find({ type: 'Text', text: 'À venir' }))).toBe(!faite)
     expect((await ui.find({ key: `onglet-${p.page}` }))?.props.backgroundColor).toBeTruthy()
   }
   await ui.press({ key: 'nav-reglages' })
