@@ -1,4 +1,5 @@
 // Synthèses du panneau (vue d'ensemble, plan) : logique pure, sans fs ni process (les hooks tournent hors Node).
+import type { Chantier } from './chantier.ts'
 import { etatPorte, historique } from './phases.ts'
 import type { EtapeHistorique, Portes } from './phases.ts'
 import { portePossible } from './plan.ts'
@@ -32,8 +33,10 @@ export function resumerPhases(projet: Projet, _taches: Tache[], moi: string, por
 }
 
 /** Avancement des tâches rattachées à un pôle (champ `pole` du plan) et les agents de ce pôle. */
-export function avancementPole(projet: Projet, taches: Tache[], poleId: string): Avancement & { agents: AgentDef[] } {
-  return { ...avancementGlobal(taches.filter(t => t.pole === poleId)), agents: projet.agents.filter(a => a.pole === poleId) }
+export function avancementPole(projet: Projet, taches: Tache[], poleId: string, chantiers: Chantier[] = []): Avancement & { agents: AgentDef[] } {
+  // Les tâches d'un chantier (en cours ou archivé) comptent avec le pôle du chantier, selon les mêmes règles que celles du plan.
+  const duChantier = chantiers.filter(c => c.pole === poleId).flatMap(c => c.taches)
+  return { ...avancementGlobal([...taches.filter(t => t.pole === poleId), ...duChantier] as Tache[]), agents: projet.agents.filter(a => a.pole === poleId) }
 }
 
 /** Bandeau « porte verrouillée » : vrai tant que la phase compte des tâches à faire ou en cours. */

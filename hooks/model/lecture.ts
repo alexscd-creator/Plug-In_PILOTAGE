@@ -167,3 +167,32 @@ export async function lireChantiers(fs: FsLike, racine: string, equipe: string[]
     return []
   }
 }
+
+/**
+ * Liens session -> chantier : `.pilotage/equipe/<prénom>/sessions.json` = { "<id de session>": "<id du chantier>" }, tous
+ * membres confondus (le premier lien trouvé pour un id de session gagne). Fichier absent, illisible, trop gros ou mal
+ * formé : ignoré ; les valeurs qui ne sont pas du texte aussi. Lecture seule, ne lève jamais.
+ */
+export async function lireSessions(fs: FsLike, racine: string): Promise<Map<string, string>> {
+  const carte = new Map<string, string>()
+  try {
+    if (typeof racine !== 'string' || racine.trim() === '') return carte
+    const dossier = `${normaliser(racine)}/.pilotage/equipe`
+    const membres = await liste(fs, dossier)
+    if (membres === null) return carte
+    for (const d of membres.filter(n => !estCopieDeConflit(n)).sort()) {
+      try {
+        const texte = await fs.read(`${dossier}/${d}/sessions.json`)
+        if (texte.length > MAX_FICHE) continue
+        const v: unknown = JSON.parse(texte)
+        if (typeof v !== 'object' || v === null || Array.isArray(v)) continue
+        for (const [cle, val] of Object.entries(v)) if (typeof val === 'string' && !carte.has(cle)) carte.set(cle, val)
+      } catch {
+        // Pas de sessions.json chez ce membre, ou fichier mal formé : rien à lier.
+      }
+    }
+  } catch {
+    // Les chantiers restent lisibles sans les liens de session.
+  }
+  return carte
+}
