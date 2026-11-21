@@ -19,10 +19,11 @@ export const SURFACES = ['terminal', 'desktop'] as const
 export const sl = (p: string): string => p.replaceAll(String.fromCharCode(92), '/')
 
 /** Un faux disque : les fichiers sont des chemins, les dossiers se déduisent. */
-export function disque(on: Function, fichiers: Record<string, string>, panne = false) {
+export function disque(on: Function, fichiers: Record<string, string>, panne = false, lus?: string[]) {
   on('env.get', () => ({ value: HOME }))
   on('fs.read', (_: unknown, e: { path: string }) => {
     if (panne) throw new Error('disque en panne')
+    lus?.push(sl(e.path))
     return { value: fichiers[sl(e.path)] ?? '' }
   })
   on('fs.list', (_: unknown, e: { path: string }) => {

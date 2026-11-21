@@ -84,3 +84,14 @@ test('mise en page : mobile sous 600 px (75 colonnes), colonne centrée de 880 p
   assert.equal(largeurColonne(5, true), 20)
   assert.equal(largeurColonne(Number.NaN, false), 20)
 })
+
+test('thème de l’application : « light » et « dark » (et leurs variantes) se traduisent, le reste est inconnu', async () => {
+  const { modeDeTheme } = await import('../hooks/ui/theme.ts')
+  assert.equal(modeDeTheme('light'), 'clair')
+  assert.equal(modeDeTheme('light-daltonized'), 'clair')
+  assert.equal(modeDeTheme('dark'), 'sombre')
+  assert.equal(modeDeTheme('dark-ansi'), 'sombre')
+  assert.equal(modeDeTheme('auto'), null)
+  assert.equal(modeDeTheme(undefined), null)
+  assert.equal(modeDeTheme(42), null)
+})

@@ -5,13 +5,15 @@ import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
 import { lireProjetComplet } from './model/lecture.ts'
+import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
 import type { NomIcone } from './ui/icones'
-import { jetons } from './ui/theme'
+import { jetons, modeDeTheme } from './ui/theme'
+import type { Mode } from './ui/theme'
 import { carteAVenir, carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
 
 const PANE = 'pilotage'
@@ -41,18 +43,77 @@ const adapter = ($: any): FsLike => ({
 })
 
 /** Plus de projet valide ici : le plugin redevient inactif. */
-async function remettreAZero($: any): Promise<void> {
+async function remettreAZero($: any, auto?: Minuteur): Promise<void> {
+  if (auto) arreterAuto(auto)
   await update($, actif, () => false)
   await update($, projetTrouve, () => '')
   await update($, membre, () => '')
 }
 
+/** Délai du rafraîchissement automatique du panneau. */
+const PERIODE_AUTO_MS = 5000
+
+/** La minuterie de rafraîchissement : une seule par chargement (l'état vit dans `register`). */
+type Minuteur = { annuler: (() => void) | null }
+
+/** Lance le rafraîchissement automatique (un tick toutes les 5 s) s'il ne tourne pas déjà. Ne lève jamais. */
+function demarrerAuto($: any, auto: Minuteur): void {
+  if (auto.annuler) return
+  try {
+    const annuler = $.clock.every(PERIODE_AUTO_MS, () => {
+      update($, tick, n => n + 1).catch(() => undefined)
+    })
+    auto.annuler = typeof annuler === 'function' ? annuler : () => undefined
+  } catch {
+    // Sans horloge, le bouton Rafraîchir reste là.
+  }
+}
+
+function arreterAuto(auto: Minuteur): void {
+  try {
+    auto.annuler?.()
+  } catch {
+    // Rien de plus à faire.
+  }
+  auto.annuler = null
+}
+
+/** Dit en une ligne qu'une action du panneau n'a pas abouti. Ne lève jamais. */
+function signalerEchec($: any): void {
+  try {
+    $.ui.toast("L'action n'a pas pu être faite : réessayez, ou appuyez sur Rafraîchir.")
+  } catch {
+    // Un toast qui échoue ne casse rien.
+  }
+}
+
+/** Enveloppe un bouton : un échec (état, disque) est dit en une ligne et ne remonte jamais. */
+function sur<A extends unknown[]>($: any, f: (...a: A) => Promise<void>): (...a: A) => Promise<void> {
+  return async (...a) => {
+    try {
+      await f(...a)
+    } catch {
+      signalerEchec($)
+    }
+  }
+}
+
+/** Le thème de l'application d'après la ligne « theme » du menu de configuration ; sombre si rien ne se lit. */
+async function themeDeLApplication($: any): Promise<Mode> {
+  try {
+    const lignes: { key: string; value: unknown }[] = await $.config.list()
+    return modeDeTheme(lignes.find(l => l.key === 'theme')?.value) ?? 'sombre'
+  } catch {
+    return 'sombre'
+  }
+}
+
 /** Cherche le projet du dossier et applique le résultat ; rend le texte de réponse (jamais ne lève). */
-async function activer($: any, dossier: string): Promise<{ ouvert: boolean; texte: string }> {
+async function activer($: any, dossier: string, auto: Minuteur): Promise<{ ouvert: boolean; texte: string }> {
   try {
     const trouve = await trouverProjet(adapter($), dossier)
     if (!trouve) {
-      await remettreAZero($)
+      await remettreAZero($, auto)
       await update($, erreursMarqueur, () => [])
       return {
         ouvert: false,
@@ -60,7 +121,7 @@ async function activer($: any, dossier: string): Promise<{ ouvert: boolean; text
       }
     }
     if ('erreurs' in trouve) {
-      await remettreAZero($)
+      await remettreAZero($, auto)
       await update($, erreursMarqueur, () => trouve.erreurs)
       return {
         ouvert: false,
@@ -74,11 +135,12 @@ async function activer($: any, dossier: string): Promise<{ ouvert: boolean; text
     await update($, membre, () => membreCourant(trouve.projet, prenom) ?? '')
     await update($, actif, () => true)
     await $.ui.open({ id: PANE, title: 'Pilotage' })
+    demarrerAuto($, auto)
     return { ouvert: true, texte: `Projet « ${trouve.projet.nom} » ouvert.` }
   } catch {
     // Un échec en cours de route (disque, état) ne laisse jamais un projet à moitié ouvert.
     try {
-      await remettreAZero($)
+      await remettreAZero($, auto)
     } catch {
       // Rien de plus à faire.
     }
@@ -139,6 +201,11 @@ async function envoyer($: any, texte: string, surface?: string): Promise<void> {
 
 export const register: Register = on => {
   let dossierSession = ''
+  const auto: Minuteur = { annuler: null }
+  // Lecture du projet et thème de l'application : gardés tant que `tick` ne change pas (le disque et le menu de
+  // configuration ne sont pas relus à chaque dessin).
+  let cacheLecture: { cle: string; valeur: LectureProjet } | null = null
+  let cacheTheme: { tick: number; mode: Mode } | null = null
 
   on('session.start', async ($, e, next) => {
     try {
@@ -148,7 +215,7 @@ export const register: Register = on => {
       })
       dossierSession = e.cwd
       // Un dossier sans marqueur n'ouvre jamais rien ; un marqueur invalide non plus (les erreurs sont gardées).
-      await activer($, e.cwd)
+      await activer($, e.cwd, auto)
     } catch {
       // Un hook ne doit jamais empêcher la session de démarrer.
     }
@@ -158,7 +225,7 @@ export const register: Register = on => {
   on('command.run', { command: 'pilotage' }, async $ => {
     try {
       const dossier = (await $.session.cwd().catch(() => '')) || dossierSession
-      return { text: (await activer($, dossier)).texte }
+      return { text: (await activer($, dossier, auto)).texte }
     } catch {
       return { text: "Pilotage n'a pas pu lire le projet de ce dossier." }
     }
@@ -181,16 +248,23 @@ export const register: Register = on => {
     const ui = $.ui.resolve(e)
     let c: Ctx | null = null
     try {
-      const mode = (await read($, theme)) === 'clair' ? 'clair' : 'sombre'
+      const numero = await read($, tick) // abonne le dessin au bouton Rafraîchir et à la minuterie
+      const choix = await read($, theme)
+      let mode: Mode
+      if (choix === 'clair' || choix === 'sombre') mode = choix
+      else {
+        // « systeme » : le thème de l'application, lu dans le menu de configuration ; sombre si rien ne se lit.
+        if (cacheTheme?.tick !== numero) cacheTheme = { tick: numero, mode: await themeDeLApplication($) }
+        mode = cacheTheme.mode
+      }
       c = creerCtx(ui, jetons(mode), e.surface, e.props.bodyColumns)
       const ctx = c
-      await read($, tick) // abonne le dessin au bouton Rafraîchir
       const copierLeChemin = (texte: string, surface?: string) => copierChemin($, texte, surface)
-      const reessayer = async () => {
+      const reessayer = sur($, async () => {
         const dossier = (await $.session.cwd().catch(() => '')) || dossierSession
-        await activer($, dossier)
+        await activer($, dossier, auto)
         await update($, tick, n => n + 1)
-      }
+      })
       const erreurs = (liste: string[]) => cadre(ctx, ecranErreur(ctx, { erreurs: liste, reessayer, copier: copierLeChemin }))
       const vide = async () =>
         cadre(ctx, ecranVide(ctx, {
@@ -202,11 +276,15 @@ export const register: Register = on => {
         const invalides = await read($, erreursMarqueur)
         return invalides.length > 0 ? erreurs(invalides) : await vide()
       }
-      const lecture = await lireProjetComplet(adapter($), await read($, projetTrouve), await read($, membre))
+      const racine = await read($, projetTrouve)
+      const moi = await read($, membre)
+      const cle = `${numero}|${racine}|${moi}`
+      if (cacheLecture?.cle !== cle) cacheLecture = { cle, valeur: await lireProjetComplet(adapter($), racine, moi) }
+      const lecture = cacheLecture.valeur
       if (!lecture.projet) return lecture.erreurs.length > 0 ? erreurs(lecture.erreurs) : await vide()
 
       const courante = await read($, page)
-      const aller = async (p: Page): Promise<void> => { await update($, page, () => p) }
+      const aller = sur($, async (p: Page) => { await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
       return cadre(ctx, [
@@ -214,7 +292,7 @@ export const register: Register = on => {
           type: libelle(lecture.projet, 'type'),
           icone: iconeType(lecture.projet.preset),
           nom: lecture.projet.nom,
-          rafraichir: async () => { await update($, tick, n => n + 1) },
+          rafraichir: sur($, async () => { await update($, tick, n => n + 1) }),
           reglages: () => aller('parametres'),
         }),
         navigation(ctx, courante, aller),

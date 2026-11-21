@@ -30,7 +30,7 @@ const avecSvg = (c: Ctx) => (c.surface === 'terminal' ? undefined : (c.ui as { S
 export function iconeEl(c: Ctx, nom: NomIcone, taille = 16, couleur: string = c.j.accent) {
   const Svg = avecSvg(c)
   const { Text } = c.ui
-  if (Svg) return <Svg source={icone(nom, couleur, taille)} alt={nom} width={taille} height={taille} />
+  if (Svg) return <Svg source={icone(nom, couleur, taille)} alt="" width={taille} height={taille} />
   return <Text color={couleur}>{GLYPHES[nom]}</Text>
 }
 
@@ -39,7 +39,7 @@ export function bulle(c: Ctx, nom: NomIcone, taille = 40, teinte?: Teinte) {
   const Svg = avecSvg(c)
   const { Text } = c.ui
   const { fg, soft } = teinte ? c.j.poles[teinte] : { fg: c.j.accent, soft: c.j.accentSoft }
-  if (Svg) return <Svg source={iconeRonde(nom, soft, fg, taille)} alt={nom} width={taille} height={taille} />
+  if (Svg) return <Svg source={iconeRonde(nom, soft, fg, taille)} alt="" width={taille} height={taille} />
   return <Text color={fg}>{GLYPHES[nom]}</Text>
 }
 

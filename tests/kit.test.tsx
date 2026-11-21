@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { avatar, barreProgression, boutonCopier, cadre, carte, chipPole, creerCtx, pastille, titreSection } from '../hooks/ui/kit'
+import { avatar, barreProgression, boutonCopier, bulle, cadre, carte, chipPole, creerCtx, pastille, titreSection } from '../hooks/ui/kit'
 import type { Ctx } from '../hooks/ui/kit'
 import { GLYPHES } from '../hooks/ui/icones'
 import { barreHaut, navigation, PAGES } from '../hooks/ui/nav'
@@ -194,4 +194,13 @@ test('Barre du haut : « Pilotage · type », nom du projet, rafraîchir et para
     expect((await ui.find({ key: 'nav-reglages' }))?.props.label).toBe('Paramètres')
     await ui.unmount()
   }
+})
+
+test('icônes décoratives : alt vide (le libellé est écrit à côté), jamais le nom technique de l’icône', async ($, on) => {
+  const monter = banc(on)
+  const ui = await monter($, 'desktop', c => <c.ui.Box>{pastille(c, 'travail')}{bulle(c, 'dossier', 64)}</c.ui.Box>)
+  const svgs = await ui.findAll({ type: 'Svg' })
+  expect(svgs.length).toBe(2)
+  for (const s of svgs) expect(s.props.alt).toBe('')
+  await ui.unmount()
 })

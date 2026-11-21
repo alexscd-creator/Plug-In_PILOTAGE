@@ -66,3 +66,108 @@ test('colonne centrée sur le panneau, plus étroite sur mobile', async ($, on) 
   expect((await mobile.find({ key: 'cadre-colonne' }))?.props.width).toBe(44)
   await mobile.unmount()
 })
+
+/** Panneau vide (sans projet) avec le thème de l'atome (`choix`) et la ligne `theme` du menu de configuration. */
+async function fondDuPanneau($: any, on: Function, choix: string | undefined, config: 'panne' | 'absente' | unknown) {
+  banc(on, {})
+  on('config.list', () => {
+    if (config === 'panne') throw new Error('menu indisponible')
+    return { value: config === 'absente' ? [{ key: 'verbose', value: true }] : [{ key: 'theme', value: config }] }
+  })
+  on('state.get', (_: unknown, e: { key: string }) => ({
+    value: e.key === 'theme' && choix ? { value: { shape: 'theme-1', value: choix }, version: 1 } : { value: undefined, version: 0 },
+  }))
+  on('state.set', () => ({ value: { isSet: true, version: 2 } }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const fond = (await ui.find({ key: 'cadre' }))?.props.backgroundColor
+  await ui.unmount()
+  return fond
+}
+
+test('thème « sombre » ou « clair » : forcé, quoi que dise l’application', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'sombre', 'light')).toBe('#0d0e12')
+})
+test('thème « clair » forcé', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'clair', 'dark')).toBe('#f6f7fa')
+})
+test('thème « systeme » : suit le thème clair de l’application', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'systeme', 'light')).toBe('#f6f7fa')
+})
+test('thème « systeme » par défaut (rien d’écrit) : suit le thème sombre de l’application', async ($, on) => {
+  expect(await fondDuPanneau($, on, undefined, 'dark')).toBe('#0d0e12')
+})
+test('thème « systeme » : menu illisible, ligne absente ou « auto » → sombre, sans lever', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'systeme', 'panne')).toBe('#0d0e12')
+})
+test('thème « systeme » : ligne absente → sombre', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'systeme', 'absente')).toBe('#0d0e12')
+})
+test('thème « systeme » : valeur « auto » → sombre', async ($, on) => {
+  expect(await fondDuPanneau($, on, 'systeme', 'auto')).toBe('#0d0e12')
+})
+
+test('les fichiers ne sont relus qu’au rafraîchissement : redessiner ou changer de page ne touche pas le disque', async ($, on) => {
+  const { lus } = banc(on, fichiers())
+  await demarrer($)
+  const plan = () => lus.filter(p => p.endsWith('/plan.md')).length
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(plan()).toBe(1)
+  await ui.redraw()
+  await ui.press({ key: 'nav-plan' })
+  await ui.press({ key: 'nav-agents' })
+  expect(plan()).toBe(1)
+  await ui.press({ key: 'nav-rafraichir' })
+  expect(plan()).toBe(2)
+  await ui.unmount()
+})
+
+test('rafraîchissement automatique toutes les 5 secondes tant qu’un projet est ouvert', async ($, on) => {
+  const f: Record<string, string> = fichiers()
+  banc(on, f)
+  const periodes: number[] = []
+  const portes: (() => void)[] = []
+  on('clock.every', (_: unknown, e: { ms: number }) => {
+    periodes.push(e.ms)
+    return new Promise(r => { portes.push(() => r({ value: undefined })) })
+  })
+  await demarrer($)
+  expect(periodes).toEqual([5000])
+  await demarrer($)
+  expect(periodes).toEqual([5000])
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'Mon projet' })).toBeTruthy()
+  Object.assign(f, fichiers('Nom changé'))
+  portes[0]!()
+  expect(await ui.find({ type: 'Text', text: 'Nom changé' })).toBeTruthy()
+  await ui.unmount()
+})
+
+test('pas de minuterie sans projet', async ($, on) => {
+  banc(on, {})
+  const periodes: number[] = []
+  on('clock.every', (_: unknown, e: { ms: number }) => { periodes.push(e.ms); return new Promise(() => undefined) })
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(periodes).toEqual([])
+  await ui.unmount()
+})
+
+test('un état qui refuse l’écriture : les boutons ne lèvent pas et le disent', async ($, on) => {
+  banc(on, fichiers())
+  const toasts: string[] = []
+  on('ui.toast', (_: unknown, e: { text: string }) => { toasts.push(e.text); return { value: undefined } })
+  const ouvert = { actif: true, projetTrouve: 'C:/Projet', membre: 'Léa' } as Record<string, unknown>
+  const formes: Record<string, string> = { actif: 'actif-1', projetTrouve: 'projet-1', membre: 'membre-1' }
+  on('state.get', (_: unknown, e: { key: string }) => ({
+    value: e.key in ouvert ? { value: { shape: formes[e.key], value: ouvert[e.key] }, version: 1 } : { value: undefined, version: 0 },
+  }))
+  on('state.set', () => ({ value: { isSet: false, version: 9 } }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'navigation' })).toBeTruthy()
+  for (const key of ['nav-plan', 'nav-rafraichir', 'nav-reglages']) {
+    await ui.press({ key })
+  }
+  expect(toasts.length).toBe(3)
+  expect(toasts[0]).toMatch(/pas pu/)
+  await ui.unmount()
+})

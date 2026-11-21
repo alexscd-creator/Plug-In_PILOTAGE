@@ -126,3 +126,11 @@ export function largeurColonne(colonnes: number, mobile: boolean): number {
   const libre = colonnes - 2 * (mobile ? GOUTTIERE_MOBILE : GOUTTIERE_BUREAU)
   return Math.max(MIN_COLONNE, Math.min(MAX_COLONNE, Math.floor(libre)))
 }
+
+/** Mode d'après la valeur de la ligne « theme » du menu de configuration (« light », « dark-daltonized »...) ; null si inconnue. */
+export function modeDeTheme(valeur: unknown): Mode | null {
+  if (typeof valeur !== 'string') return null
+  if (valeur.startsWith('light')) return 'clair'
+  if (valeur.startsWith('dark')) return 'sombre'
+  return null
+}

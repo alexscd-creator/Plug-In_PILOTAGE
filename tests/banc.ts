@@ -12,7 +12,8 @@ export const CONFIG_LEA = `${HOME}/.claude/pilotage/config.json`
 
 /** Socle simulé : commande, cwd, prompt, ouverture de panneau, disque, états et écritures comptées. */
 export function banc(on: Function, fichiers: Record<string, string>, cwd = 'C:/Projet') {
-  disque(on, fichiers)
+  const lus: string[] = []
+  disque(on, fichiers, false, lus)
   const ecritures: string[] = []
   on('fs.write', (_: unknown, e: { path: string }) => { ecritures.push(e.path); return { value: undefined } })
   on('command.register', () => ({ value: undefined }))
@@ -21,6 +22,6 @@ export function banc(on: Function, fichiers: Record<string, string>, cwd = 'C:/P
   on('prompt.compose', () => ({ sections: [] }))
   const ouverts: string[] = []
   on('ui.open', (_: unknown, e: { id: string }) => { ouverts.push(e.id); return { value: { isPlaced: true } } })
-  return { ouverts, ecritures }
+  return { ouverts, ecritures, lus }
 }
 export const demarrer = ($: any, cwd = 'C:/Projet') => $.session.start({ cwd, surface: 'terminal', isInteractive: true })

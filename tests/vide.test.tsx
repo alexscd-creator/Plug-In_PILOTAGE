@@ -93,13 +93,13 @@ test('projet invalide : copier le chemin le copie et le dit ; liste longue racco
   banc(on, { 'C:/Projet/.pilotage/projet.json': beaucoup })
   const copies: string[] = []
   const toasts: string[] = []
-  on('ui.copy', (_: unknown, e: { text: string }) => { copies.push(e.text); return { value: { isCopied: true } } })
+  on('ui.copy', (_: unknown, e: { text: string; surface?: string }) => { copies.push(e.text + '@' + e.surface); return { value: { isCopied: true } } })
   on('ui.toast', (_: unknown, e: { text: string }) => { toasts.push(e.text); return { value: undefined } })
   await demarrer($)
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /et \d+ autre/ })).toBeTruthy()
   await ui.press({ key: 'copier-projet' })
-  expect(copies).toEqual(['.pilotage/projet.json'])
+  expect(copies).toEqual(['.pilotage/projet.json@desktop'])
   expect(toasts.at(-1)).toMatch(/Copié/)
   await ui.unmount()
 })
