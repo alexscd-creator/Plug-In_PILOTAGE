@@ -23,10 +23,13 @@ function socle(on: Function, fichiers: Record<string, string>) {
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: 'C:/Projet' }))
   on('prompt.compose', () => ({ sections: MOTEUR }))
+  on('prompt.submit', (_: unknown, e: { text: string; context?: string[] }) => ({ text: e.text, context: e.context ?? [] }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   return lus
 }
 const composer = ($: any) => $.prompt.compose(FAITS)
+/** Un message de l'utilisateur : rend les blocs de contexte que le plugin y a attachés. */
+const envoyer = async ($: any, text = 'bonjour'): Promise<string[]> => [...((await $.prompt.submit({ text, wait: false, origin: { kind: 'user' } })).context ?? [])]
 const consigne = async ($: any): Promise<string> => (await composer($)).sections.find((s: { id: string }) => s.id === ID)?.text ?? ''
 
 test('projet actif : le moteur garde ses sections, la section « Projet Pilotage » est ajoutée en dernier (scope session)', async ($, on) => {
@@ -39,13 +42,13 @@ test('projet actif : le moteur garde ses sections, la section « Projet Pilotage
   const t = r.sections[1].text as string
   expect(t).toContain('# Projet Pilotage')
   expect(t).toContain('Projet : Boutique test')
-  expect(t).toContain('Phase actuelle de Léa : Conception — 2 tâches ouvertes')
+  expect(t).not.toContain('Phase actuelle')
   expect(t).toContain('pilotage:a1 : Alpha (pôle Technique) — conseil en lecture seule')
   expect(t).toContain('classe-le avec `pilotage-note.mjs`')
   expect(t.length).toBeLessThanOrEqual(6000)
 })
 
-test('le workflow et les chantiers en cours du projet sont dans la consigne ; les archivés non', async ($, on) => {
+test('le workflow est dans la consigne ; les chantiers en cours partent avec le message (pas dans la consigne) ; les archivés nulle part', async ($, on) => {
   const projet = { ...PROJET_PAGES, workflow: { outils: [{ role: 'design', outil: 'Figma' }, { role: 'code', outil: 'GitHub' }] } }
   socle(on, {
     ...dossierPages(projet),
@@ -56,8 +59,10 @@ test('le workflow et les chantiers en cours du projet sont dans la consigne ; le
   const t = await consigne($)
   expect(t).toContain('- design : Figma')
   expect(t).toContain('jamais de push sans confirmation')
-  expect(t).toContain('menu : Refonte du menu (en-travail) — Léa')
-  expect(t).not.toContain('Chantier fini')
+  expect(t).not.toContain('Refonte du menu')
+  const etat = await envoyer($)
+  expect(etat.join('\n')).toContain('menu : Refonte du menu (en-travail) — Léa')
+  expect(etat.join('\n')).not.toContain('Chantier fini')
 })
 
 test('sans projet : les sections du moteur sont rendues telles quelles', async ($, on) => {
@@ -115,4 +120,44 @@ test('sans identifiant de session : pas de ligne d’identifiant (repli par le n
   const t = await consigne($)
   expect(t).toContain('# Projet Pilotage')
   expect(t).not.toContain('Identifiant de cette session')
+})
+
+test('cache du prompt : la section ne change pas quand l’état d’un chantier change (même 30 s plus tard) ; le nouvel état part avec le message suivant', async ($, on) => {
+  const fichiers: Record<string, string> = {
+    ...dossierPages(),
+    'C:/Projet/.pilotage/equipe/lea/chantiers/menu.md': serializeChantier(chantier('menu', { titre: 'Refonte du menu', etat: 'en-travail' })),
+  }
+  socle(on, fichiers)
+  let t = 1_000_000
+  on('clock.now', () => ({ value: t }))
+  await demarrer($)
+  const avant = await consigne($)
+  const premier = (await envoyer($)).join('\n')
+  expect(premier).toContain('menu : Refonte du menu (en-travail)')
+  expect(await envoyer($)).toEqual([]) // rien de neuf : rien n'est rattaché
+  fichiers['C:/Projet/.pilotage/equipe/lea/chantiers/menu.md'] = serializeChantier(chantier('menu', { titre: 'Refonte du menu', etat: 'bloque' }))
+  t += 30_000
+  expect(await consigne($)).toBe(avant)
+  expect((await envoyer($)).join('\n')).toContain('menu : Refonte du menu (bloque)')
+})
+
+test('état rattaché au message : jamais sans projet, et un disque en panne laisse passer le message tel quel', async ($, on) => {
+  const fichiers = dossierPages()
+  let panne = false
+  const disquePanne = new Proxy(fichiers, {
+    get: (c, k) => { if (panne) throw new Error('disque en panne'); return c[k as string] },
+    ownKeys: c => { if (panne) throw new Error('disque en panne'); return Reflect.ownKeys(c) },
+  })
+  socle(on, disquePanne)
+  await demarrer($)
+  panne = true
+  const r = await $.prompt.submit({ text: 'salut', wait: false, origin: { kind: 'user' } })
+  expect(r.text).toBe('salut')
+  expect(r.context ?? []).toEqual([])
+})
+
+test('sans projet : aucun état rattaché au message', async ($, on) => {
+  socle(on, { 'C:/Projet/x.txt': 'a' })
+  await demarrer($)
+  expect(await envoyer($)).toEqual([])
 })

@@ -8,7 +8,7 @@ import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppe
 import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
-import { construireConsigne, entreeDepuisLecture } from './model/consigne.ts'
+import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
@@ -44,6 +44,8 @@ const PANE = 'pilotage'
 const COMMANDE_PANNEAU = 'projet'
 /** Durée pendant laquelle la consigne du modèle n'est pas relue sur le disque. */
 const DUREE_CONSIGNE_MS = 20_000
+/** L'état du projet est rattaché à un message quand il a changé, et au plus tard après ce délai (rappel). */
+const RAPPEL_ETAT_MS = 30 * 60_000
 
 // Vrai quand un projet valide est ouvert dans cette session : rien ne s'injecte tant qu'il est faux.
 const actif = atom({ plugin: 'pilotage', key: 'actif' } as const, false, { shape: 'actif-1' })
@@ -595,8 +597,10 @@ export const register: Register = on => {
     }
   })
 
-  // La section « Projet Pilotage » (projet, phase, chantiers, agents, workflow, règles, capture des idées), seulement quand un projet est
-  // ouvert. Gardée 20 s par projet et membre (une panne passagère n'est pas gardée) ; au moindre échec, le résultat du moteur est rendu tel quel.
+  // La section « Projet Pilotage » (projet, membre, agents, workflow, règles, capture des idées, identifiant de session), seulement quand
+  // un projet est ouvert. Elle est STABLE : rien de ce qui change en cours de travail (phase, tâches, états des chantiers) n'y entre, car
+  // elle est dans le prompt système, avant toute la conversation, et un changement y ferait repayer tout le cache du prompt. Relue au
+  // plus toutes les 20 s par projet et membre (une panne passagère n'est pas gardée) ; au moindre échec, le résultat du moteur est rendu tel quel.
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
     try {
@@ -604,7 +608,7 @@ export const register: Register = on => {
       const racine = await read($, projetTrouve)
       const moi = await read($, membre)
       const cle = `${racine}|${moi}`
-      const maintenant = Date.now()
+      const maintenant = await horloge($)
       if (racine === '') return r
       if (cacheConsigne?.cle !== cle || maintenant - cacheConsigne.a > DUREE_CONSIGNE_MS) {
         if (idSessionLu === null) idSessionLu = String((await $.session.id().catch(() => '')) ?? '')
@@ -617,6 +621,35 @@ export const register: Register = on => {
     } catch {
       return r
     }
+  })
+
+  // L'état volatil (phase, tâches ouvertes, chantiers en cours et leur état) part avec le message de l'utilisateur, en contexte du
+  // message (jamais dans le prompt système) : seulement quand il a changé depuis le dernier envoyé, ou au plus tard toutes les 30 min.
+  // `prompt.attachment` ne sert pas ici : il ne fait que réécrire les messages que le moteur injecte, il n'en ajoute pas.
+  // Ne bloque ni ne retarde jamais un message : au moindre échec, il part tel quel.
+  let dernierEtat: { cle: string; a: number; texte: string } | null = null
+  on('prompt.submit', async ($, e, next) => {
+    let texte = ''
+    try {
+      if (!e.isMeta && (await read($, actif))) {
+        const racine = await read($, projetTrouve)
+        const moi = await read($, membre)
+        const maintenant = await horloge($)
+        if (racine !== '') {
+          const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($))
+          const etat = entree ? construireEtat(entree) : ''
+          const cle = `${racine}|${moi}`
+          const neuf = dernierEtat?.cle !== cle || dernierEtat.texte !== etat || maintenant - dernierEtat.a > RAPPEL_ETAT_MS
+          if (etat !== '' && neuf) {
+            texte = etat
+            dernierEtat = { cle, a: maintenant, texte: etat }
+          }
+        }
+      }
+    } catch {
+      texte = ''
+    }
+    return next(texte === '' ? e : { ...e, context: [...(e.context ?? []), texte] })
   })
 
   // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /projet le relance.

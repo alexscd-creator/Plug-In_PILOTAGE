@@ -109,6 +109,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 - `$.prompt.submit` refuse un texte qui commence par « / » (dit par un agent, jamais essayé).
 - `$.session.cwd()` rempli au démarrage (vérifié une fois en vrai par le spike du 2026-11-20) et activation automatique par dossier ; si le dossier est vide, le repli `/projet <chemin>` reste à prévoir.
 - `$.session.id()` donne bien l'identifiant utilisé par le bandeau (lien session, chantier via `sessions.json`).
+- Le bloc « État du projet Pilotage » rattaché au message de l'utilisateur (contexte de `prompt.submit`) est bien lu par le modèle, et la section stable du prompt système garde le cache : à vérifier sur les chiffres de lecture du cache après une heure de travail avec des agents.
 - `$.config.list` : la ligne du thème de l'application, suivie par le thème « système ».
 - `$.clock.every` : le redessin périodique réel (toutes les 5 s) ; le test simulé ne le prouve pas ; le bouton ↻ reste en secours.
 - `$.ui.ask` enchaîné depuis un `onPress` ou une commande.
@@ -156,7 +157,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 - « Aller à la session » copie seulement le nom (aucune API pour reprendre une session).
 - Le bandeau ne s'appuie que sur `sessions.json` ; en cas de conflit de lien, le premier membre par ordre alphabétique gagne.
 - Un chantier « reporté » compte dans le total (100 % impossible) : choix de produit.
-- `viderAgents` peut être écrasé par une écriture tardive ; le changement de projet peut attendre 2 s si l'état est gelé ; la consigne peut avoir jusqu'à 20 s de retard.
+- `viderAgents` peut être écrasé par une écriture tardive ; le changement de projet peut attendre 2 s si l'état est gelé ; la section stable de la consigne peut avoir jusqu'à 20 s de retard (l'état des chantiers, lui, part avec chaque message où il a changé).
 - `portes.md` à fins de ligne mixtes est normalisé en CRLF ; pas de verrou sur `plan.md` (une personne à la fois).
 
 **Paramètres et projet**
