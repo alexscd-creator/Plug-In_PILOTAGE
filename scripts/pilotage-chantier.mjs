@@ -60,17 +60,20 @@ const sain = s => ligne(s).replace(/\|/g, '/')
 
 function lireJson() {
   let brut = jsonArg
+  let depuisFichier = false
   if (!/^\s*[[{"]/.test(brut)) {
     try {
       if (statSync(resolve(brut)).size > MAX_JSON) echec(`Le fichier JSON dépasse ${MAX_JSON / 1024} Ko.`)
       brut = readFileSync(resolve(brut), 'utf8')
+      depuisFichier = true
     } catch {
       echec('Les données ne sont ni du JSON ni un fichier JSON lisible.')
     }
   }
   if (brut.length > MAX_JSON) echec(`Les données dépassent ${MAX_JSON / 1024} Ko.`)
   let v
-  try { v = JSON.parse(brut) } catch (e) { echec(`Les données ne sont pas du JSON valide (${e instanceof Error ? e.message : 'erreur inconnue'}).`) }
+  // Le message d'erreur de JSON.parse cite le début du texte : jamais repris (le fichier peut contenir autre chose que du JSON).
+  try { v = JSON.parse(brut) } catch { echec(depuisFichier ? "Le fichier d'entrée n'est pas un JSON valide." : 'Les données ne sont pas du JSON valide.') }
   if (!estObjet(v)) echec('Les données doivent être un objet JSON.')
   return v
 }

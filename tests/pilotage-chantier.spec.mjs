@@ -437,3 +437,18 @@ test('porte : valider deux fois n’ajoute rien ; une autre phase garde ses entr
   lancer(d, 'porte', { phase: 'prod', mode: 'valider' }, ...M)
   assert.equal(lire(f), 'porte: prod\n')
 })
+
+test('un fichier d\u2019entrée qui n\u2019est pas du JSON : message fixe, jamais le début du fichier (code 1, rien écrit)', () => {
+  const d = projet()
+  const avant = tout(d)
+  const f = join(mkdtempSync(join(tmpdir(), 'entree-')), 'secret.json')
+  writeFileSync(f, 'MOT-DE-PASSE-SECRET-1234 pas du json')
+  const r = lancer(d, 'creer', f, ...M)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /Le fichier d'entrée n'est pas un JSON valide\./)
+  assert.ok(!/SECRET|Unexpected|position/.test(r.stderr + r.stdout), r.stderr)
+  assert.deepEqual(tout(d), avant)
+  const r2 = lancer(d, 'creer', '{ pas du json', ...M)
+  assert.equal(r2.status, 1)
+  assert.ok(!/Unexpected|position|pas du json/.test(r2.stderr), r2.stderr)
+})
