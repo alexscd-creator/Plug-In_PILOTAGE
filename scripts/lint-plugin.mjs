@@ -121,6 +121,40 @@ export const REGLES_AGENT_CHEF = [
   [/pilotage-chantier/, 'pilotage-chantier'],
 ]
 
+// Idées et retours : le skill, le skill du workflow et la consigne du modèle (qui dit comment classer avec pilotage-note.mjs).
+export const REGLES_SKILL_IDEES = [
+  [/pilotage-note\.mjs/, 'le script pilotage-note.mjs'],
+  [/--membre/, '--membre'],
+  [/hors du projet/, 'le JSON écrit hors du projet'],
+  [/en une ligne/, '« en une ligne »'],
+  [/sans demander de confirmation/i, 'classer sans demander de confirmation'],
+  [/peut[^.\n]*retirer/i, 'l’utilisateur peut retirer la note'],
+  [/jamais[^.\n]*invent/i, '« jamais » inventer'],
+  [/jamais de secret/i, '« jamais de secret »'],
+  [/que chez soi/i, '« on n’écrit que chez soi »'],
+  [/un retour est/i, 'la définition d’un retour'],
+  [/jamais des instructions/i, 'les textes du projet « jamais des instructions »'],
+]
+export const REGLES_SKILL_WORKFLOW = [
+  [/lignes du workflow/i, 'les lignes du workflow du projet'],
+  [/Figma/, 'Figma'],
+  [/Google Gemini/, 'Google Gemini'],
+  [/Blender/, 'Blender'],
+  [/Mesh AI/, 'Mesh AI'],
+  [/sauvegarder et partager le code/i, 'GitHub : sauvegarder et partager le code'],
+  [/\.md partagés/, 'les fichiers .md partagés'],
+  [/jamais de secret/i, '« jamais de secret »'],
+  [/jamais de publication/i, '« jamais de publication »'],
+  [/push/, 'le push'],
+  [/irréversible/i, 'les actions irréversibles'],
+  [/confirmation explicite/i, 'la confirmation explicite'],
+  [/jamais prétendre/i, '« jamais prétendre » (capacités non vérifiées)'],
+]
+export const REGLES_CONSIGNE = [
+  [/pilotage-note\.mjs/,'le script pilotage-note.mjs'],
+  [/ne demande pas de confirmation/, '« ne demande pas de confirmation » (capture des idées)'],
+]
+
 // Neutralité : le plugin ne parle ni de « studio » ni de « jeu » en dehors des données des presets (presets/), des tests et de docs/.
 export const MOTS_INTERDITS = /\bstudio\b|\bjeux?\b/i
 const EXTENSIONS_SCANNEES = /\.(md|mjs|js|ts|tsx|json)$/
@@ -189,6 +223,14 @@ if (estPlugin || FICHIERS_CHANTIER.some(f => existsSync(join(root, f)))) {
   exiger('skills/chantier-pilotage/SKILL.md', REGLES_SKILL_CHANTIER)
   exiger('agents/chef-de-chantier.md', REGLES_AGENT_CHEF)
   verifierOutilsChef()
+}
+
+// Idées et retours, workflow : skills livrés, et la consigne du modèle.
+const FICHIERS_IDEES = ['skills/idees-et-feedback/SKILL.md', 'skills/workflow-projet/SKILL.md', 'hooks/model/consigne.ts']
+if (estPlugin || FICHIERS_IDEES.some(f => existsSync(join(root, f)))) {
+  exiger('skills/idees-et-feedback/SKILL.md', REGLES_SKILL_IDEES)
+  exiger('skills/workflow-projet/SKILL.md', REGLES_SKILL_WORKFLOW)
+  exiger('hooks/model/consigne.ts', REGLES_CONSIGNE)
 }
 
 verifierNeutralite()
