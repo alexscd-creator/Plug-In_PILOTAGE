@@ -30,7 +30,7 @@
     { "id": "personnages-et-animations", "titre": "Personnages et animations", "pole": "graphisme", "skills": ["avatars-et-animations"], "pourquoi": "Tout ce qui bouge demande des règles propres (avatars, animations) qu'un spécialiste connaît." },
     { "id": "interface-et-son", "titre": "Interface et son", "pole": "graphisme", "skills": ["interface-et-lisibilite", "audio-et-ambiances"], "pourquoi": "Il s'occupe de ce que le joueur lit et entend, avec une lisibilité sur mobile comme sur ordinateur." },
     { "id": "gardien", "titre": "Gardien", "pole": "qualite", "skills": ["charte-joueur"], "pourquoi": "Il contrôle sans participer à la conception : fun d'abord, jamais de pay to win, et portes de qualité entre phases." },
-    { "id": "testeur", "titre": "Testeur", "pole": "qualite", "skills": [], "pourquoi": "Il joue le jeu comme un joueur et note les défauts sans les corriger, pour que le regard reste indépendant de celui qui a construit." }
+    { "id": "testeur", "titre": "Testeur", "pole": "qualite", "skills": ["tests-et-recette"], "pourquoi": "Il joue le jeu comme un joueur et note les défauts sans les corriger, pour que le regard reste indépendant de celui qui a construit." }
   ],
   "workflow": {
     "outils": [

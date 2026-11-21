@@ -366,3 +366,56 @@ test('le vrai plugin passe le lint', () => {
   const r = spawnSync('node', [script], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
 })
+
+// ---- Skills livrés avec les presets (Task 20) ----
+const preset = (agents = [{ id: 'a', skills: ['s1'] }]) => JSON.stringify({ id: 'x', agents })
+
+test('presets : un skill cité par un agent sans fichier presets/skills/<preset>/<skill>.md échoue', () => {
+  const d = nouveau()
+  ecrire(d, 'presets/x.json', preset())
+  const r = lint(d)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /presets\/skills\/x\/s1\.md : fichier manquant/)
+  ecrire(d, 'presets/skills/x/s1.md', fm('s1', 'corps'))
+  assert.equal(lint(d).status, 0)
+})
+
+test('presets : un agent de preset sans aucun skill échoue', () => {
+  const d = nouveau()
+  ecrire(d, 'presets/x.json', preset([{ id: 'a', skills: [] }]))
+  const r = lint(d)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /presets\/x\.json : l'agent « a » n'a aucun skill/)
+})
+
+test('presets : un fichier de skill de preset sans frontmatter, au name différent ou sans description échoue', () => {
+  const cas = [
+    ['rien', /frontmatter manquant/],
+    ['---\nname: autre\ndescription: d\n---\ncorps', /devrait être « s1 »/],
+    ['---\nname: s1\n---\ncorps', /description manquante/],
+  ]
+  for (const [texte, motif] of cas) {
+    const d = nouveau()
+    ecrire(d, 'presets/x.json', preset())
+    ecrire(d, 'presets/skills/x/s1.md', texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, texte)
+    assert.match(r.stderr, motif)
+    assert.match(r.stderr, /presets\/skills\/x\/s1\.md/)
+  }
+})
+
+test('presets : les données des presets peuvent parler de studio et de jeu (neutralité hors presets seulement)', () => {
+  const d = nouveau()
+  ecrire(d, 'presets/x.json', preset())
+  ecrire(d, 'presets/skills/x/s1.md', fm('s1', 'Le studio fait un jeu.'))
+  assert.equal(lint(d).status, 0)
+})
+
+test('presets : un nom de skill de preset qui sort du dossier ou n’est pas un identifiant échoue', () => {
+  const d = nouveau()
+  ecrire(d, 'presets/x.json', preset([{ id: 'a', skills: ['../s1'] }]))
+  const r = lint(d)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /nom de skill invalide/)
+})

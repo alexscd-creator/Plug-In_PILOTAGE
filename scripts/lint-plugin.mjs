@@ -256,6 +256,31 @@ if (estPlugin || FICHIERS_IDEES.some(f => existsSync(join(root, f)))) {
   exiger('hooks/model/consigne.ts', REGLES_CONSIGNE)
 }
 
+// Presets : chaque agent d'un preset a au moins un skill, et chaque skill cité a son fichier presets/skills/<preset>/<skill>.md
+// (frontmatter name = nom du fichier, description). Les données des presets ne sont pas soumises à la neutralité du vocabulaire.
+const ID_SKILL = /^[a-z0-9-]+$/
+function verifierPresets() {
+  const dossier = join(root, 'presets')
+  if (!existsSync(dossier)) return
+  for (const nom of readdirSync(dossier).filter(f => f.endsWith('.json')).sort()) {
+    const rel = `presets/${nom}`
+    let preset
+    try { preset = JSON.parse(readFileSync(join(dossier, nom), 'utf8')) } catch { erreurs.push(`${rel} : JSON illisible`); continue }
+    const id = typeof preset?.id === 'string' ? preset.id : basename(nom, '.json')
+    for (const a of Array.isArray(preset?.agents) ? preset.agents : []) {
+      const skills = Array.isArray(a?.skills) ? a.skills : []
+      if (skills.length === 0) erreurs.push(`${rel} : l'agent « ${a?.id} » n'a aucun skill`)
+      for (const sk of skills) {
+        if (typeof sk !== 'string' || !ID_SKILL.test(sk) || sk.length > 60) { erreurs.push(`${rel} : nom de skill invalide « ${String(sk).slice(0, 30)} » (agent « ${a?.id} »)`); continue }
+        const fichier = join(dossier, 'skills', id, `${sk}.md`)
+        if (!existsSync(fichier)) erreurs.push(`presets/skills/${id}/${sk}.md : fichier manquant (skill de l'agent « ${a?.id} »)`)
+        else verifier(fichier, sk)
+      }
+    }
+  }
+}
+
+verifierPresets()
 verifierNeutralite()
 verifierFormes()
 
