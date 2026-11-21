@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { agentDeSousType, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE, nombreAppels } from '../hooks/model/agents-live.ts'
+import { agentDeSousType, appelEnFond, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE, nombreAppels } from '../hooks/model/agents-live.ts'
 import type { Live } from '../hooks/model/agents-live.ts'
 import type { Chantier } from '../hooks/model/chantier.ts'
 
@@ -177,4 +177,34 @@ test('fusionnerEtats : agent d’une fiche absent du projet ignoré, entrées in
   const e = fusionnerEtats(AGENTS, LIVE_VIDE, [sansDate], NaN)[0]!
   assert.equal(e.etat, 'en-travail')
   assert.equal(e.depuis, null)
+})
+
+test('agentDeSousType : avec le nom du plugin, seul son propre préfixe (ou aucun) est accepté', () => {
+  assert.equal(agentDeSousType('pilotage:a1', AGENTS, 'pilotage'), 'a1')
+  assert.equal(agentDeSousType('a1', AGENTS, 'pilotage'), 'a1')
+  assert.equal(agentDeSousType('autre-plugin:a1', AGENTS, 'pilotage'), null)
+  assert.equal(agentDeSousType('x:pilotage:a1', AGENTS, 'pilotage'), null)
+  assert.equal(agentDeSousType('autre-plugin:a1', AGENTS, ''), 'a1', 'nom inconnu : tout préfixe est retiré, seuls les agents du projet comptent')
+  assert.equal(agentDeSousType('autre-plugin:a1', AGENTS, undefined), 'a1')
+  assert.equal(agentDeSousType('pilotage:inconnu', AGENTS, 'pilotage'), null)
+})
+
+test('cleDAppel : l’identifiant de l’appel, vide si absent ou illisible (alors aucun suivi)', () => {
+  assert.equal(cleDAppel({ tool_use_id: 'toolu_1' }), 'toolu_1')
+  for (const e of [undefined, null, 'x', 42, {}, { tool_use_id: '' }, { tool_use_id: 7 }, { tool_use_id: null }]) assert.equal(cleDAppel(e), '')
+})
+
+test('classerResultat : erreur si refus ou isError ; tout le reste (rien, texte, objet vide) = ok, sans lever', () => {
+  assert.equal(classerResultat({ result: 'x' }), 'ok')
+  assert.equal(classerResultat({ deny: 'non' }), 'erreur')
+  assert.equal(classerResultat({ result: 'x', isError: true }), 'erreur')
+  for (const r of [undefined, null, 'texte', 3, {}, []]) assert.equal(classerResultat(r), 'ok')
+  const piege = { get deny(): string { throw new Error('piège') } }
+  assert.equal(classerResultat(piege), 'ok')
+})
+
+test('appelEnFond : run_in_background ou isolation distante', () => {
+  assert.equal(appelEnFond({ run_in_background: true }), true)
+  assert.equal(appelEnFond({ isolation: 'remote' }), true)
+  for (const e of [undefined, null, {}, { run_in_background: false }, { run_in_background: 'true' }, { isolation: 'worktree' }, 'x']) assert.equal(appelEnFond(e), false)
 })

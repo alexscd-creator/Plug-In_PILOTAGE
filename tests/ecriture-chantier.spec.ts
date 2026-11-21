@@ -151,6 +151,40 @@ test('majFiche : échec d’écriture de la copie .bak = fiche intacte ; échec 
   assert.equal(d2.fichiers[`${D}/chantiers/lobby.md`], avant, 'la fiche d’origine reste, la copie .bak aussi')
 })
 
+test('majFiche : une modification faite entre la lecture et l’écriture (autre session) est gardée, la mise à jour est refaite dessus', async () => {
+  const d = disque(base())
+  const originale = d.fichiers[`${D}/chantiers/lobby.md`]!
+  const concurrente = serializeChantier(fiche({ taches: [{ titre: 'Poser les murs', statut: 'termine' }, { titre: 'Ajoutée ailleurs', statut: 'a faire' }] }))
+  const ecrire = d.fs.write
+  let fait = false
+  d.fs.write = async (p, t) => {
+    await ecrire(p, t)
+    if (p.endsWith('.bak') && !fait) { fait = true; d.fichiers[`${D}/chantiers/lobby.md`] = concurrente }
+  }
+  const r = await majFiche(d.fs, cible(), travail, AGENTS, MAINT)
+  assert.deepEqual(r, { ok: true })
+  const f = parseChantier(d.fichiers[`${D}/chantiers/lobby.md`]!, 'Léa')
+  assert.ok(f.ok)
+  if (!f.ok) return
+  assert.deepEqual(f.chantier.taches.map(t => [t.titre, t.statut]), [['Poser les murs', 'termine'], ['Ajoutée ailleurs', 'a faire']], 'le changement concurrent est conservé')
+  assert.ok(f.chantier.agents.some(a => a.id === 'a1' && a.etat === 'en-travail'), 'notre mise à jour est appliquée')
+  assert.equal(d.fichiers[`${D}/chantiers/lobby.md.bak`], concurrente, 'le .bak garde ce qui était sur le disque juste avant notre écriture')
+  assert.notEqual(d.fichiers[`${D}/chantiers/lobby.md.bak`], originale)
+})
+
+test('majFiche : si la fiche change encore pendant la reprise, on abandonne sans écrire la fiche (l’état est indicatif)', async () => {
+  const d = disque(base())
+  let n = 0
+  const lire = d.fs.read
+  d.fs.read = async p => {
+    if (p.endsWith('lobby.md') && n++ >= 1) d.fichiers[p] = serializeChantier(fiche({ titre: `Changé ${n}` }))
+    return lire(p)
+  }
+  const r = await majFiche(d.fs, cible(), travail, AGENTS, MAINT)
+  assert.equal(r.ok, false)
+  assert.ok(!d.ecrits.includes(`${D}/chantiers/lobby.md`), 'la fiche n’est jamais écrasée')
+})
+
 test('majFiche : entrées absurdes sans levée', async () => {
   const d = disque(base())
   for (const args of [[undefined, undefined, undefined, undefined], [null, null, null, null], [{}, {}, {}, 3]] as const) {

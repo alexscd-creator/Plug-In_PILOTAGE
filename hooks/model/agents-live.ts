@@ -26,12 +26,50 @@ const liste = (l: Live | undefined): Live => (l && Array.isArray(l.appels) && Ar
 
 /**
  * Identifiant d'agent du projet d'après le `subagent_type` de l'outil Agent : le préfixe de plugin (`plugin:agent`) est retiré.
+ * `plugin` = nom de ce plugin quand on le connaît : seul son propre préfixe est alors accepté (l'agent d'un autre plugin qui
+ * porterait le même identifiant n'est pas celui du projet) ; sinon tout préfixe est retiré, et seuls les agents DÉFINIS dans le projet comptent.
  * Null si ce n'est pas un agent du projet (agent intégré, autre plugin, valeur illisible).
  */
-export function agentDeSousType(sousType: unknown, agentsProjet: { id: string }[]): string | null {
+export function agentDeSousType(sousType: unknown, agentsProjet: { id: string }[], plugin?: string): string | null {
   if (typeof sousType !== 'string' || !Array.isArray(agentsProjet)) return null
-  const id = sousType.slice(sousType.lastIndexOf(':') + 1).trim()
+  const i = sousType.lastIndexOf(':')
+  const prefixe = i < 0 ? '' : sousType.slice(0, i)
+  if (typeof plugin === 'string' && plugin !== '' && prefixe !== '' && prefixe !== plugin) return null
+  const id = sousType.slice(i + 1).trim()
   return idSur(id) && agentsProjet.some(a => a?.id === id) ? id : null
+}
+
+/** Identifiant de l'appel d'outil ; vide s'il manque ou est illisible (un appel sans identifiant n'est jamais suivi). Ne lève jamais. */
+export function cleDAppel(e: unknown): string {
+  try {
+    const cle = (e as { tool_use_id?: unknown } | null | undefined)?.tool_use_id
+    return typeof cle === 'string' ? cle : ''
+  } catch {
+    return ''
+  }
+}
+
+/** Issue d'un appel d'après ce que `next` a rendu : refus ou erreur = `erreur`, tout le reste (même rien) = `ok`. Ne lève jamais. */
+export function classerResultat(r: unknown): 'ok' | 'erreur' {
+  try {
+    const x = r as { deny?: unknown; isError?: unknown } | null | undefined
+    return x?.deny !== undefined || x?.isError === true ? 'erreur' : 'ok'
+  } catch {
+    return 'ok'
+  }
+}
+
+/**
+ * Appel qui rend la main alors que l'agent continue (`run_in_background`, isolation distante) : son retour ne dit rien de sa fin,
+ * on n'écrit donc jamais « prêt » à ce moment-là. Ne lève jamais.
+ */
+export function appelEnFond(e: unknown): boolean {
+  try {
+    const x = e as { run_in_background?: unknown; isolation?: unknown } | null | undefined
+    return x?.run_in_background === true || x?.isolation === 'remote'
+  } catch {
+    return false
+  }
 }
 
 /** Nombre d'appels en cours d'un agent. */

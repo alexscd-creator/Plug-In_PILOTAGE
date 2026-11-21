@@ -50,31 +50,45 @@ export async function majFiche(fs: FsEcriture, cible: Cible, maj: MajFiche, agen
     const dossier = [...dossiers].sort().find(d => nomSur(d) && !estCopieDeConflit(d) && memeMembre(cible.membre, d))
     if (dossier === undefined) return refus('Le dossier du membre est introuvable : on n’écrit que chez soi, rien n’est écrit.')
     const chemin = `${equipe}/${dossier}/chantiers/${cible.chantier}.md`
-    const avant = await fs.read(chemin)
+    // Fiche relue puis réécrite : la mise à jour se calcule sur un texte donné (`appliquer`), refaite une fois si la fiche
+    // a changé entre-temps (autre session), abandonnée si elle bouge encore (l'état est indicatif, on ne se bat pas).
+    const appliquer = (texte: string): { sortie: string } | Resultat => {
+      const lue = parseChantier(texte, cible.membre)
+      if (!lue.ok) return refus(`La fiche n’a pas pu être relue : ${lue.erreurs[0] ?? 'illisible'} Rien n’est écrit.`)
+      const c: Chantier = lue.chantier
+      if (c.archive) return refus('Le chantier est archivé : il ne se modifie plus.')
+      if (c.id !== cible.chantier) return refus('L’identifiant de la fiche ne correspond pas : rien n’est écrit.')
+      if (c.etat === 'termine') return refus('Le chantier est terminé : il ne se modifie plus.')
 
-    const lue = parseChantier(avant, cible.membre)
-    if (!lue.ok) return refus(`La fiche n’a pas pu être relue : ${lue.erreurs[0] ?? 'illisible'} Rien n’est écrit.`)
-    const c: Chantier = lue.chantier
-    if (c.archive) return refus('Le chantier est archivé : il ne se modifie plus.')
-    if (c.id !== cible.chantier) return refus('L’identifiant de la fiche ne correspond pas : rien n’est écrit.')
-    if (c.etat === 'termine') return refus('Le chantier est terminé : il ne se modifie plus.')
-
-    if (maj.chantierEtat !== undefined) c.etat = maj.chantierEtat
-    for (const a of maj.agents) {
-      const actuel = c.agents.find(x => x.id === a.id)
-      if (actuel) Object.assign(actuel, { etat: a.etat, quoi: a.quoi })
-      else if (c.agents.length >= MAX_AGENTS) return refus(`${MAX_AGENTS} agents au plus par chantier : rien n’est écrit.`)
-      else c.agents.push({ id: a.id, etat: a.etat, quoi: a.quoi })
+      if (maj.chantierEtat !== undefined) c.etat = maj.chantierEtat
+      for (const a of maj.agents) {
+        const actuel = c.agents.find(x => x.id === a.id)
+        if (actuel) Object.assign(actuel, { etat: a.etat, quoi: a.quoi })
+        else if (c.agents.length >= MAX_AGENTS) return refus(`${MAX_AGENTS} agents au plus par chantier : rien n’est écrit.`)
+        else c.agents.push({ id: a.id, etat: a.etat, quoi: a.quoi })
+      }
+      c.maj = maintenantIso
+      const invalides = validerChantier(c)
+      if (invalides.length > 0) return refus(`La fiche mise à jour serait invalide : ${invalides[0]} Rien n’est écrit.`)
+      const sortie = serializeChantier(c)
+      const relue = parseChantier(sortie, cible.membre)
+      if (!relue.ok) return refus(`La fiche mise à jour ne se relirait pas : ${relue.erreurs[0] ?? 'illisible'} Rien n’est écrit.`)
+      return { sortie }
     }
-    c.maj = maintenantIso
-    const invalides = validerChantier(c)
-    if (invalides.length > 0) return refus(`La fiche mise à jour serait invalide : ${invalides[0]} Rien n’est écrit.`)
-    const sortie = serializeChantier(c)
-    const relue = parseChantier(sortie, cible.membre)
-    if (!relue.ok) return refus(`La fiche mise à jour ne se relirait pas : ${relue.erreurs[0] ?? 'illisible'} Rien n’est écrit.`)
 
-    await fs.write(`${chemin}.bak`, avant)
-    await fs.write(chemin, sortie)
+    let base = await fs.read(chemin)
+    let r = appliquer(base)
+    if (!('sortie' in r)) return r
+    await fs.write(`${chemin}.bak`, base) // la copie d'abord : si elle échoue, la fiche n'est pas touchée
+    const frais = await fs.read(chemin) // relue juste avant d'écrire : une autre session a-t-elle écrit entre-temps ?
+    if (frais !== base) {
+      base = frais
+      r = appliquer(base)
+      if (!('sortie' in r)) return r
+      await fs.write(`${chemin}.bak`, base) // le .bak garde toujours ce qui était sur le disque juste avant notre écriture
+      if ((await fs.read(chemin)) !== base) return refus('La fiche a encore changé pendant la mise à jour : abandon, l’état n’est qu’indicatif.')
+    }
+    await fs.write(chemin, r.sortie)
     return { ok: true }
   } catch (e) {
     return refus(`L’écriture de la fiche a échoué (${premiereLigne(e)}).`)

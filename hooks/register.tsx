@@ -4,7 +4,7 @@ import type { Register } from 'claude-code'
 import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
-import { agentDeSousType, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
+import { agentDeSousType, appelEnFond, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
@@ -86,6 +86,7 @@ async function viderAgents($: any): Promise<void> {
     // Rien de plus à faire.
   }
   try {
+    verrouLive = Promise.resolve() // une étape figée n'occupe plus la file du nouveau projet
     await majLive($, () => LIVE_VIDE)
   } catch {
     // L'état refuse : les suivis restent, ils finiront avec leurs appels.
@@ -233,9 +234,37 @@ const ecrivain = creerEcrivain({ delai: 2000 })
 purgerEcritures = () => ecrivain.oublier()
 
 // Les écritures de l'atome `agentsLive` se font une par une (lecture puis écriture) : deux appels simultanés ne s'écrasent pas.
+// Chaque étape a 2 s au plus : une étape qui ne répond jamais est abandonnée et la file continue. Il y a UNE file par instance du
+// module (donc par session : le moteur charge le module une fois par session) ; elle est repartie de zéro à chaque `viderAgents`.
+const DELAI_ETAPE_MS = 2000
 let verrouLive: Promise<unknown> = Promise.resolve()
-function enFile<T>(f: () => Promise<T>): Promise<T> {
-  const p = verrouLive.then(f, f)
+function enFile<T>(f: () => Promise<T>, minuteur: (ms: number, fn: () => void) => { cancel: () => void }): Promise<T> {
+  const etape = (): Promise<T> =>
+    new Promise<T>((ok, ko) => {
+      let fini = false
+      let t: { cancel: () => void } | null = null
+      const terminer = (suite: () => void): void => {
+        if (fini) return
+        fini = true
+        try {
+          t?.cancel()
+        } catch {
+          // Minuteur déjà parti.
+        }
+        suite()
+      }
+      try {
+        t = minuteur(DELAI_ETAPE_MS, () => terminer(() => ko(new Error('délai dépassé'))))
+      } catch {
+        t = null // sans minuteur, pas de délai : l'étape va jusqu'au bout
+      }
+      try {
+        f().then(v => terminer(() => ok(v)), e => terminer(() => ko(e)))
+      } catch (e) {
+        terminer(() => ko(e))
+      }
+    })
+  const p = verrouLive.then(etape, etape)
   verrouLive = p.then(() => undefined, () => undefined)
   return p
 }
@@ -245,7 +274,7 @@ function majLive($: any, f: (l: Live) => Live): Promise<{ avant: Live; apres: Li
     const avant = await read($, agentsLive)
     await update($, agentsLive, f)
     return { avant, apres: await read($, agentsLive) }
-  })
+  }, (ms, fn) => $.clock.after(ms, fn))
 }
 
 const horloge = async ($: any): Promise<number> => {
@@ -313,15 +342,34 @@ function ecrire($: any, ctx: ContexteAgents, cible: Cible | null, maj: MajFiche)
   }
 }
 
+/** Nom de ce plugin (préfixe de ses agents : `plugin:agent`) ; vide s'il ne se lit pas. */
+function nomDuPlugin($: any): string {
+  try {
+    return String($.plugin.name ?? '')
+  } catch {
+    return ''
+  }
+}
+
 type Suivi = { ctx: ContexteAgents; agent: string; cible: Cible | null }
-/** Début d'un appel d'agent du projet : atome, puis « en travail » dans la fiche. Null si l'appel n'est pas à suivre. */
-async function suivreDebut($: any, e: { subagent_type?: unknown; description?: unknown }, cle: string): Promise<Suivi | null> {
+/**
+ * Début d'un appel d'agent du projet : atome, puis « en travail » dans la fiche. Null si l'appel n'est pas à suivre (pas
+ * d'identifiant d'appel, pas de sous-type, agent hors projet) ou s'il rend la main alors que l'agent continue (`fond` : la fiche
+ * dit « en travail » et vieillit toute seule en « prêt à reprendre » ; l'atome ne garde rien de faux).
+ */
+async function suivreDebut($: any, e: { subagent_type?: unknown; description?: unknown }, cle: string, fond: boolean): Promise<Suivi | null> {
+  if (cle === '') return null
   const ctx = await contexteAgents($)
   if (!ctx) return null
-  const agent = agentDeSousType(e.subagent_type, ctx.agents.map(id => ({ id })))
+  const agent = agentDeSousType(e?.subagent_type, ctx.agents.map(id => ({ id })), nomDuPlugin($))
   if (!agent) return null
+  const quoi = String(e?.description ?? '')
+  if (fond) {
+    const cibleFond = await cibleDe($, ctx)
+    ecrire($, ctx, cibleFond, { chantierEtat: 'en-travail', agents: [{ id: agent, etat: 'en-travail', quoi }] })
+    return null
+  }
   const maintenant = await horloge($)
-  const quoi = String(e.description ?? '')
   const { apres } = await majLive($, l => debutAppel(l, cle, agent, quoi, maintenant))
   const cible = await cibleDe($, ctx)
   const enAttente = apres.attentes.length > 0
@@ -342,6 +390,7 @@ async function suivreFin($: any, s: Suivi, cle: string, issue: 'ok' | 'erreur'):
 type SuiviQuestion = { ctx: ContexteAgents; cible: Cible | null }
 /** Une question est posée à la personne : le chantier est « en attente » jusqu'à la réponse. */
 async function questionDebut($: any, cle: string): Promise<SuiviQuestion | null> {
+  if (cle === '') return null // sans identifiant d'appel on ne pourrait jamais clore l'attente : aucun signe inventé
   const ctx = await contexteAgents($)
   if (!ctx) return null
   await majLive($, l => debutAttente(l, cle))
@@ -410,23 +459,30 @@ export const register: Register = on => {
   })
 
   // Un appel de l'outil Agent dure tant que l'agent travaille : début = « en travail », fin = « prêt » (ok) ou « bloqué » (erreur).
-  // Ces hooks passent TOUJOURS par next et ne lèvent jamais : un suivi ou une écriture qui échoue n'arrête pas l'appel de l'outil.
+  // RÈGLE ABSOLUE : le suivi ne casse, ne retarde et ne modifie jamais un appel d'outil. Il se lance sans être attendu (début) ou
+  // après le retour (fin, `void`), ne lève jamais, et le résultat de `next` est rendu tel quel. Seule une levée de `next` lui-même
+  // (l'erreur du moteur) traverse le hook.
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
-    const cle = String(e.tool_use_id ?? '')
-    let suivi: Suivi | null = null
+    let cle = ''
+    let debut: Promise<Suivi | null> = Promise.resolve(null)
     try {
-      suivi = await suivreDebut($, e, cle)
+      cle = cleDAppel(e)
+      if (cle !== '') debut = suivreDebut($, e, cle, appelEnFond(e)).catch(() => null)
     } catch {
-      suivi = null
+      debut = Promise.resolve(null)
     }
-    let issue: 'ok' | 'erreur' = 'erreur'
+    let issue: 'ok' | 'erreur' = 'erreur' // une levée de `next` (jamais de retour) compte comme une erreur
     try {
       const r = await next(e)
-      issue = r.deny === undefined && r.isError !== true ? 'ok' : 'erreur'
+      try {
+        issue = classerResultat(r)
+      } catch {
+        issue = 'ok'
+      }
       return r
     } finally {
       try {
-        if (suivi) await suivreFin($, suivi, cle, issue)
+        void debut.then(suivi => (suivi ? suivreFin($, suivi, cle, issue) : undefined)).catch(() => undefined)
       } catch {
         // Le suivi ne casse jamais l'outil.
       }
@@ -435,18 +491,19 @@ export const register: Register = on => {
 
   // La session attend une réponse de la personne tant que l'appel de l'outil de question dure : seul signe fiable du moteur.
   on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
-    const cle = String(e.tool_use_id ?? '')
-    let suivi: SuiviQuestion | null = null
+    let cle = ''
+    let debut: Promise<SuiviQuestion | null> = Promise.resolve(null)
     try {
-      suivi = await questionDebut($, cle)
+      cle = cleDAppel(e)
+      if (cle !== '') debut = questionDebut($, cle).catch(() => null)
     } catch {
-      suivi = null
+      debut = Promise.resolve(null)
     }
     try {
       return await next(e)
     } finally {
       try {
-        if (suivi) await questionFin($, suivi, cle)
+        void debut.then(suivi => (suivi ? questionFin($, suivi, cle) : undefined)).catch(() => undefined)
       } catch {
         // Le suivi ne casse jamais l'outil.
       }
