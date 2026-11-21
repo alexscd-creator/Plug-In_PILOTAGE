@@ -1,13 +1,11 @@
-// Pages pas encore remplies (Agents, Idées, Paramètres) : une carte honnête (titre, « Bientôt », ce que la
-// page montrera). Pour Agents, la liste des agents du projet en lecture seule : aucun état en direct n'existe encore.
+// Pages pas encore remplies (Idées, Paramètres) : une carte honnête (titre, « Bientôt », ce que la page montrera).
+// La page Agents a son écran complet (agents.tsx).
 import type { Page } from '../../types'
-import type { AgentDef, Projet } from '../model/projet.ts'
-import { avatar, boutonCopier, carte, chipPole, titreSection } from './kit'
+import type { Projet } from '../model/projet.ts'
+import { carte, titreSection } from './kit'
 import type { Ctx } from './kit'
-import { couleurPole } from './theme'
 
 const PAGES_AVENIR: Partial<Record<Page, { titre: string; phrase: string }>> = {
-  agents: { titre: 'Agents', phrase: 'Les agents du projet, leurs skills et leur état en direct.' },
   idees: { titre: 'Idées', phrase: 'Les idées et retours classés automatiquement.' },
   parametres: { titre: 'Paramètres', phrase: 'Thème, workflow, agents, pôles et réglages du type de projet.' },
 }
@@ -28,36 +26,6 @@ function carteBientot(c: Ctx, page: Page) {
   ], { cle: `carte-avenir-${page}` })
 }
 
-function carteAgent(c: Ctx, d: DonneesAvenir, a: AgentDef) {
-  const { Box, Text } = c.ui
-  const i = d.projet.poles.findIndex(p => p.id === a.pole)
-  const pole = i < 0 ? null : d.projet.poles[i]!
-  const teinte = couleurPole(pole?.couleur, Math.max(i, 0))
-  return carte(c, [
-    <Box key="entete" flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
-      {avatar(c, a.titre, teinte)}
-      <Text weight="semibold" color={c.j.texte}>{a.titre}</Text>
-      {pole ? chipPole(c, pole.titre, teinte) : null}
-    </Box>,
-    a.pourquoi ? <Text key="pourquoi" color={c.j.texteSec}>{`Pourquoi spécialisé : ${a.pourquoi}`}</Text> : null,
-    a.skills.length > 0 ? (
-      <Box key="skills" flexDirection="row" flexWrap="wrap" gap="sm">
-        {a.skills.map((s, k) => (
-          <Box key={`skill-${a.id}-${k}`} flexDirection="row" alignItems="center" gap="xs" paddingX="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.releve}>
-            <Text size="caption" mono color={c.j.texteSec}>{s}</Text>
-            {boutonCopier(c, `skill-${a.id}-${k}`, s, d.copier, 'Copier le nom du skill')}
-          </Box>
-        ))}
-      </Box>
-    ) : null,
-  ], { cle: `agent-${a.id}` })
-}
-
-export function pageAvenir(c: Ctx, page: Page, d: DonneesAvenir) {
-  const { Text } = c.ui
-  if (!PAGES_AVENIR[page]) return []
-  const carteTete = carteBientot(c, page)
-  if (page !== 'agents') return [carteTete]
-  if (d.projet.agents.length === 0) return [carteTete, <Text key="aucun-agent" color={c.j.texteDim}>Aucun agent défini pour ce projet.</Text>]
-  return [carteTete, ...d.projet.agents.map(a => carteAgent(c, d, a))]
+export function pageAvenir(c: Ctx, page: Page, _d: DonneesAvenir) {
+  return PAGES_AVENIR[page] ? [carteBientot(c, page)] : []
 }

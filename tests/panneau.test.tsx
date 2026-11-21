@@ -33,7 +33,7 @@ test('un onglet change de page ; chaque page pas encore faite montre « Bientôt
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   for (const p of PAGES.filter(x => x.page !== 'parametres')) {
     await ui.press({ key: `nav-${p.page}` })
-    const faite = p.page === 'apercu' || p.page === 'plan' || p.page === 'phases' || p.page === 'chantiers'
+    const faite = p.page === 'apercu' || p.page === 'plan' || p.page === 'phases' || p.page === 'chantiers' || p.page === 'agents'
     expect(!!(await ui.find({ type: 'Text', text: 'Bientôt' }))).toBe(!faite)
     expect((await ui.find({ key: `onglet-${p.page}` }))?.props.backgroundColor).toBeTruthy()
   }

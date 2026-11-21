@@ -30,6 +30,10 @@ declare module 'claude-code' {
       phaseOuverte: Shaped<string>
       /** Chantier dont le détail est ouvert dans la page Chantiers ('' : aucun). */
       chantierOuvert: Shaped<string>
+      /** Pôle filtré dans la page Agents ('' : tous). */
+      filtrePole: Shaped<string>
+      /** Agent dont le détail est ouvert dans la page Agents ('' : la grille). */
+      agentOuvert: Shaped<string>
       /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
       tick: Shaped<number>
       /** Thème du panneau. */

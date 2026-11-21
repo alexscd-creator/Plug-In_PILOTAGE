@@ -66,6 +66,9 @@ export function promptAgent(projet: Projet, agent: AgentDef, contenuFiche: strin
   return lignes.join('\n')
 }
 
+/** Vrai quand l'agent reste en lecture seule par défaut (il ne liste aucun outil permis). */
+export const enLectureSeule = (agent: AgentDef): boolean => (Array.isArray(agent.outils) ? agent.outils : []).every(o => !OUTILS_PERMIS.includes(o))
+
 /** Spec pour `$.agent.register` ; null si l'identifiant n'est pas valide. */
 export function specAgent(projet: Projet, agent: AgentDef, contenuFiche: string | null | undefined): SpecAgent | null {
   if (!idValide(agent?.id)) return null

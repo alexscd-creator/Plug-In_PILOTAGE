@@ -4,8 +4,9 @@ import type { Register } from 'claude-code'
 import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
-import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
+import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
+import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
@@ -18,6 +19,7 @@ import { libelle } from './model/presets.ts'
 import { memeMembre, parseProjet } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
+import { pageAgents } from './ui/agents'
 import { pageAvenir } from './ui/avenir'
 import { bandeauChantier } from './ui/bandeau'
 import { pageChantiers } from './ui/chantiers'
@@ -49,6 +51,10 @@ const page = atom({ plugin: 'pilotage', key: 'page' } as const, 'apercu' as Page
 const phaseOuverte = atom({ plugin: 'pilotage', key: 'phaseOuverte' } as const, '', { shape: 'phase-ouverte-1' })
 // Chantier dont le détail est ouvert dans la page Chantiers ('' : aucun).
 const chantierOuvert = atom({ plugin: 'pilotage', key: 'chantierOuvert' } as const, '', { shape: 'chantier-ouvert-1' })
+// Pôle filtré dans la page Agents ('' : tous les pôles).
+const filtrePole = atom({ plugin: 'pilotage', key: 'filtrePole' } as const, '', { shape: 'filtre-pole-1' })
+// Agent dont le détail est ouvert dans la page Agents ('' : la grille).
+const agentOuvert = atom({ plugin: 'pilotage', key: 'agentOuvert' } as const, '', { shape: 'agent-ouvert-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
 // Thème du panneau : le mod ne peut pas lire le mode de l'application, « systeme » prend donc le sombre.
@@ -86,10 +92,37 @@ async function viderAgents($: any): Promise<void> {
     // Rien de plus à faire.
   }
   try {
+    registre.oublier() // un autre projet (ou plus de projet) : ses agents ne sont plus enregistrés ici
     verrouLive = Promise.resolve() // une étape figée n'occupe plus la file du nouveau projet
     await majLive($, () => LIVE_VIDE)
   } catch {
     // L'état refuse : les suivis restent, ils finiront avec leurs appels.
+  }
+}
+
+// Agents du projet déjà enregistrés auprès du moteur (un appel de `$.agent.register` par agent nouveau ou changé).
+const registre = creerRegistre()
+let syncEnCours = false
+
+/**
+ * Enregistre les agents du projet ouvert (nom = id) pour que la conversation principale puisse les convoquer ; un agent dont le
+ * contenu a changé (fiche, rôle, skills...) est remplacé. Rien sans projet actif. Ne lève jamais.
+ */
+async function synchroniserAgents($: any): Promise<void> {
+  if (syncEnCours) return
+  syncEnCours = true
+  try {
+    if (!(await read($, actif))) return
+    const racine = await read($, projetTrouve)
+    if (racine === '') return
+    const r = parseProjet(String((await $.fs.read(`${racine}/.pilotage/projet.json`)) ?? ''))
+    if (!r.ok) return
+    const fiches = await lireFiches(adapter($), racine, r.projet)
+    await registre.synchroniser(spec => $.agent.register(spec), specsProjet(r.projet, fiches))
+  } catch {
+    // Un enregistrement qui échoue ne casse jamais la session.
+  } finally {
+    syncEnCours = false
   }
 }
 
@@ -99,6 +132,7 @@ const PERIODE_AUTO_MS = 5000
 /** Lance le rafraîchissement automatique (un tick toutes les 5 s) s'il ne tourne pas déjà. Ne lève jamais. */
 function demarrerAuto($: any, auto: Minuterie): void {
   auto.demarrer({ every: (ms, fn) => $.clock.every(ms, fn) }, () => {
+    synchroniserAgents($).catch(() => undefined)
     update($, tick, n => n + 1).catch(() => undefined)
   })
 }
@@ -164,6 +198,7 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
     await update($, actif, () => true)
     await $.ui.open({ id: PANE, title: 'Pilotage' })
     demarrerAuto($, auto)
+    await synchroniserAgents($)
     return { ouvert: true, texte: `Projet « ${trouve.projet.nom} » ouvert.` }
   } catch {
     // Un échec en cours de route (disque, état) ne laisse jamais un projet à moitié ouvert.
@@ -173,6 +208,16 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
       // Rien de plus à faire.
     }
     return { ouvert: false, texte: "Pilotage n'a pas pu lire le projet de ce dossier." }
+  }
+}
+
+/** Ce que lit la page Agents : appels en cours, pôle filtré, agent ouvert, et les états fusionnés avec les fiches de chantier. */
+async function lireDonneesAgents($: any, lecture: LectureProjet, maintenant: number) {
+  const live = await read($, agentsLive)
+  return {
+    live, filtre: await read($, filtrePole), ouvert: await read($, agentOuvert),
+    etats: fusionnerEtats(lecture.projet?.agents ?? [], live, lecture.chantiers, maintenant),
+    fichesAgents: lecture.fichesAgents, fichesSkills: lecture.fichesSkills,
   }
 }
 
@@ -587,6 +632,7 @@ export const register: Register = on => {
       const courante = await read($, page)
       const ouverte = await read($, phaseOuverte)
       const detailOuvert = await read($, chantierOuvert)
+      const donneesAgents = courante === 'agents' ? await lireDonneesAgents($, lecture, maintenant) : null
       const aller = sur($, async (p: Page) => { await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
@@ -620,8 +666,14 @@ export const register: Register = on => {
                     copier: copierLeChemin, ouvert: detailOuvert,
                     basculer: sur($, async (cle: string) => { await update($, chantierOuvert, () => cle) }),
                   })
-                // Les autres pages (Agents, Idées, Paramètres) sont des cartes « Bientôt ».
-                : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
+                : courante === 'agents' && donneesAgents
+                  ? pageAgents(ctx, {
+                      ...donneesAgents, projet: lecture.projet, maintenant, copier: copierLeChemin,
+                      filtrer: sur($, async (id: string) => { await update($, filtrePole, () => id) }),
+                      ouvrir: sur($, async (id: string) => { await update($, agentOuvert, () => id) }),
+                    })
+                  // Les autres pages (Idées, Paramètres) sont des cartes « Bientôt ».
+                  : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.
