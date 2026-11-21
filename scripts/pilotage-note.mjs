@@ -69,7 +69,7 @@ function chargerProjet(dossier) {
   const f = join(dossier, '.pilotage', 'projet.json')
   if (!existsSync(f)) echec(`Aucun projet Pilotage dans « ${dossier} » (.pilotage/projet.json absent) : rien n'est écrit.`, 5)
   let r
-  try { r = parseProjet(readFileSync(f, 'utf8')) } catch (e) { echec(`Le fichier projet est illisible (${e instanceof Error ? e.message : 'erreur inconnue'}).`) }
+  try { r = parseProjet(readFileSync(f, 'utf8')) } catch { echec('Le fichier projet est illisible.') }
   if (!r.ok) echec(r.erreurs)
   return r.projet
 }

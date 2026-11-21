@@ -29,7 +29,7 @@ if (existsSync(join(pilotage, 'projet.json'))) echec(`Un projet existe déjà ($
 
 let reponses
 try { reponses = JSON.parse(readFileSync(resolve(reponsesArg), 'utf8')) } catch (e) {
-  echec(`Les réponses sont illisibles ou ne sont pas du JSON (${e instanceof Error ? e.message : 'erreur inconnue'}).`)
+  echec('Les réponses sont illisibles ou ne sont pas du JSON.') // jamais le message de JSON.parse : il cite le début du fichier
 }
 if (typeof reponses !== 'object' || reponses === null || Array.isArray(reponses)) echec('Les réponses doivent être un objet JSON.')
 

@@ -38,6 +38,11 @@ export const DEFAUT_VOCABULAIRE: Vocabulaire = {
 const CLES_VOCABULAIRE = ['type', 'nomDuProjet', 'leProjet', 'unProjet', 'objectif', 'fini'] as const
 const GENRES = ['texte', 'choix', 'oui-non'] as const
 const ID_REGLAGE = /^[a-z0-9-]+$/
+/** Pôles, phases et agents : mêmes identifiants que les réglages (ils deviennent des noms de fichier et des repères du plan). */
+const MAX_ID = 60
+const erreursId = (quoi: string, id: string): string[] =>
+  id.length > MAX_ID ? [`${quoi} : l'identifiant « ${id.slice(0, 30)}... » dépasse ${MAX_ID} caractères.`]
+    : !ID_REGLAGE.test(id) ? [`${quoi} : l'identifiant « ${id.slice(0, 30)} » doit s'écrire en minuscules, chiffres et tirets seulement.`] : []
 const MAX_ID_REGLAGE = 60
 const MAX_VALEUR = 500
 const MAX_TITRE = 200
@@ -181,8 +186,9 @@ export function parseProjet(texte: string): ResultatProjet {
   let brut: unknown
   try {
     brut = JSON.parse(texte)
-  } catch (e) {
-    return { ok: false, erreurs: [`Le fichier projet n'est pas du JSON valide (${e instanceof Error ? e.message : 'erreur inconnue'}).`] }
+  } catch {
+    // Jamais le message de JSON.parse : il cite le début du texte, qui peut être autre chose qu'un fichier de projet.
+    return { ok: false, erreurs: ["Le fichier projet n'est pas du JSON valide."] }
   }
   if (!estObjet(brut)) return { ok: false, erreurs: ['Le fichier projet doit contenir un objet JSON.'] }
 
@@ -205,6 +211,7 @@ export function parseProjet(texte: string): ResultatProjet {
 
   const poles: Pole[] = listeObjets(brut.poles, 'Les pôles', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Pôle ${i + 1} : l'identifiant est manquant.`)
+    else erreurs.push(...erreursId(`Pôle ${i + 1}`, o.id))
     if (!texteNonVide(o.titre)) erreurs.push(`Pôle ${i + 1} : le titre est manquant.`)
     else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Pôle ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
     let couleur: string | undefined
@@ -226,6 +233,7 @@ export function parseProjet(texte: string): ResultatProjet {
 
   const phases: PhaseDef[] = listeObjets(brut.phases, 'Les phases', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Phase ${i + 1} : l'identifiant est manquant.`)
+    else erreurs.push(...erreursId(`Phase ${i + 1}`, o.id))
     if (!texteNonVide(o.titre)) erreurs.push(`Phase ${i + 1} : le titre est manquant.`)
     else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Phase ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
     const taches = listeTextes(o.taches, `Phase ${i + 1} : les tâches`, erreurs)
@@ -236,6 +244,7 @@ export function parseProjet(texte: string): ResultatProjet {
   const idsPoles = new Set(poles.map(p => p.id))
   const agents: AgentDef[] = listeObjets(brut.agents, 'Les agents', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Agent ${i + 1} : l'identifiant est manquant.`)
+    else erreurs.push(...erreursId(`Agent ${i + 1}`, o.id))
     if (!texteNonVide(o.titre)) erreurs.push(`Agent ${i + 1} : le titre est manquant.`)
     else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Agent ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
     if (!texteNonVide(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle est manquant.`)

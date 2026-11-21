@@ -309,11 +309,11 @@ test('enregistrement : sans projet, aucun appel', async ($, on) => {
   expect(appels).toEqual([])
 })
 
-test('enregistrement : identifiant invalide écarté', async ($, on) => {
+test('enregistrement : un identifiant d’agent invalide rend le fichier de projet invalide (parseProjet) : aucun agent enregistré', async ($, on) => {
   banc(on, fichiers({ ...PROJET, agents: [...SIX.slice(0, 2), { id: 'Bad Id', titre: 'X', pole: 'code', skills: [], pourquoi: '' }] }))
   const appels = moteur(on)
   await demarrer($)
-  expect(appels.map(a => a.name)).toEqual(['a-travail', 'a-attente'])
+  expect(appels.map(a => a.name)).toEqual([])
 })
 
 test('enregistrement : au tick, seul l’agent dont la fiche a changé est remplacé', async ($, on) => {

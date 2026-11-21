@@ -11,7 +11,7 @@ const projet: Projet = {
   poles: [{ id: 'code', titre: 'Code', couleur: 'bleu' }], phases: [{ id: 'p1', titre: 'Idées', taches: ['a'] }],
   agents: [
     { id: 'dev', titre: 'Développeur', pole: 'code', skills: ['luau', 'secu', 'Mauvais Nom'], pourquoi: 'x' },
-    { id: 'Bad_Id', titre: 'Mauvais', pole: 'code', skills: ['luau'], pourquoi: '' },
+    { id: 'autre', titre: 'Autre', pole: 'code', skills: ['luau'], pourquoi: '' },
   ],
   workflow: { outils: [] }, vocabulaire: { ...DEFAUT_VOCABULAIRE }, reglagesDef: [], reglages: {},
 }
@@ -39,20 +39,23 @@ const base = (extra: Record<string, string> = {}) => ({ [`${R}/projet.json`]: JS
 
 test('fiches : seuls les fichiers présents sont vrais, un agent ou skill sans fiche est faux', async () => {
   const r = await lireProjetComplet(fsDe(base({ [`${R}/agents/dev.md`]: '# dev', [`${R}/skills/luau.md`]: '# luau' })), 'C:/Projet', 'Léa')
-  assert.deepEqual(r.fichesAgents, { dev: true, Bad_Id: false })
+  assert.deepEqual(r.fichesAgents, { dev: true, autre: false })
   assert.deepEqual(r.fichesSkills, { luau: true, secu: false, 'Mauvais Nom': false })
 })
 
 test('fiches : aucun dossier agents ni skills, tout est faux sans erreur', async () => {
   const r = await lireProjetComplet(fsDe(base()), 'C:/Projet', 'Léa')
-  assert.deepEqual(r.fichesAgents, { dev: false, Bad_Id: false })
+  assert.deepEqual(r.fichesAgents, { dev: false, autre: false })
   assert.deepEqual(r.fichesSkills, { luau: false, secu: false, 'Mauvais Nom': false })
   assert.deepEqual(r.erreurs, [])
 })
 
-test('fiches : identifiant invalide jamais vrai même si un fichier du même nom existe', async () => {
-  const r = await lireProjetComplet(fsDe(base({ [`${R}/agents/Bad_Id.md`]: 'x', [`${R}/skills/Mauvais Nom.md`]: 'x' })), 'C:/Projet', 'Léa')
-  assert.equal(r.fichesAgents['Bad_Id'], false)
+test('fiches : un identifiant d’agent invalide est refusé dès parseProjet ; un skill au nom invalide n’est jamais vrai, même si le fichier existe', async () => {
+  const invalide = { ...projet, agents: [...projet.agents, { id: 'Bad_Id', titre: 'Mauvais', pole: 'code', skills: [], pourquoi: '' }] }
+  const refus = await lireProjetComplet(fsDe({ [`${R}/projet.json`]: JSON.stringify(invalide) }), 'C:/Projet', 'Léa')
+  assert.equal(refus.projet, null)
+  assert.match(refus.erreurs.join(' '), /Agent 3 : l'identifiant « Bad_Id »/)
+  const r = await lireProjetComplet(fsDe(base({ [`${R}/skills/Mauvais Nom.md`]: 'x' })), 'C:/Projet', 'Léa')
   assert.equal(r.fichesSkills['Mauvais Nom'], false)
 })
 

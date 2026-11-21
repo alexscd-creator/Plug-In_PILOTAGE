@@ -84,7 +84,7 @@ function chargerProjet(dossier) {
   const f = join(dossier, '.pilotage', 'projet.json')
   if (!existsSync(f)) echec(`Aucun projet Pilotage dans « ${dossier} » (.pilotage/projet.json absent) : rien n'est écrit.`, 5)
   let r
-  try { r = parseProjet(readFileSync(f, 'utf8')) } catch (e) { echec(`Le fichier projet est illisible (${e instanceof Error ? e.message : 'erreur inconnue'}).`) }
+  try { r = parseProjet(readFileSync(f, 'utf8')) } catch { echec('Le fichier projet est illisible.') }
   if (!r.ok) echec(r.erreurs)
   return r.projet
 }
@@ -133,7 +133,7 @@ function ficheExistante(racine, id, prenom) {
     echec(existsSync(join(racine, 'archive', `${id}.md`)) ? `Le chantier « ${id} » est archivé : il ne se modifie plus.` : `Le chantier « ${id} » est introuvable chez ${prenom} (on n'écrit que chez soi).`)
   }
   let r
-  try { r = parseChantier(readFileSync(f, 'utf8'), prenom) } catch (e) { echec(`La fiche « ${id} » est illisible (${e instanceof Error ? e.message : 'erreur inconnue'}).`) }
+  try { r = parseChantier(readFileSync(f, 'utf8'), prenom) } catch { echec(`La fiche « ${id} » est illisible.`) }
   if (!r.ok) echec([`La fiche « ${id} » est invalide, rien n'est modifié :`, ...r.erreurs])
   return { f, c: r.chantier, avertissements: r.avertissements }
 }

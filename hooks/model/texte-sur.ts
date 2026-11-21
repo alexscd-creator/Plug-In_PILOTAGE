@@ -12,7 +12,7 @@ const ANGLES = new RegExp('[<>\uFF1C\uFF1E\u2039\u203A`]', 'g')
 export const retirerInvisibles = (s: string): string => String(s ?? '').replace(INVISIBLES, '')
 
 /** Les `max` premiers points de code, une demi-paire isolée devenant U+FFFD. Parcours linéaire : un texte de 1 Mo ne coûte que `max` tours. */
-function tronquer(s: string, max: number): string {
+export function tronquer(s: string, max: number): string {
   let sortie = ''
   let n = 0
   for (let i = 0; i < s.length && n < max; i++, n++) {

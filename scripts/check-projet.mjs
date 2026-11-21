@@ -25,8 +25,8 @@ for (;;) {
     let r
     try {
       r = parseProjet(readFileSync(marqueur, 'utf8'))
-    } catch (e) {
-      console.log(`Le fichier projet est illisible (${e instanceof Error ? e.message : 'erreur inconnue'}).`)
+    } catch {
+      console.log('Le fichier projet est illisible.') // jamais le message d'erreur : il pourrait citer le fichier
       process.exit(1)
     }
     if (r.ok) {
