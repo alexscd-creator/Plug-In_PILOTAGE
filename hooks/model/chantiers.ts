@@ -2,6 +2,7 @@
 // session -> chantier, textes courts. Pas de fs ni de process (les hooks tournent hors Node).
 import { etatAffiche } from './chantier.ts'
 import type { Chantier, EtatChantier } from './chantier.ts'
+import type { LienSession } from './lecture.ts'
 import type { Projet } from './projet.ts'
 
 /** État de pastille du panneau (voir ui/theme.ts) pour chaque état de fiche. */
@@ -26,13 +27,18 @@ export function grouperChantiers(chantiers: Chantier[]): { enCours: Chantier[]; 
   return { enCours: liste.filter(c => !c.archive).sort(tri), archives: liste.filter(c => c.archive).sort(tri) }
 }
 
-/** Chantier en cours lié à la session par `sessions.json` (`carte`: id de session -> id de chantier). Null sinon. */
-export function chantierDeSession(chantiers: Chantier[], carte: Map<string, string>, sessionId: string): Chantier | null {
+/**
+ * Chantier en cours lié à la session par `sessions.json` (`carte`: id de session -> chantier et propriétaire du lien).
+ * Le chantier est celui du propriétaire ; l'id seul ne sert que si UN SEUL chantier porte cet id. Null sinon (archivé compris).
+ */
+export function chantierDeSession(chantiers: Chantier[], carte: Map<string, LienSession>, sessionId: string): Chantier | null {
   try {
     if (typeof sessionId !== 'string' || sessionId === '' || !(carte instanceof Map)) return null
-    const id = carte.get(sessionId)
-    if (id === undefined) return null
-    return (Array.isArray(chantiers) ? chantiers : []).find(c => !c.archive && c.id === id) ?? null
+    const lien = carte.get(sessionId)
+    if (lien === undefined) return null
+    const memeId = (Array.isArray(chantiers) ? chantiers : []).filter(c => c.id === lien.chantier)
+    const trouve = memeId.find(c => c.auteur === lien.auteur) ?? (memeId.length === 1 ? memeId[0]! : null)
+    return trouve && !trouve.archive ? trouve : null
   } catch {
     return null
   }
@@ -45,14 +51,27 @@ export function etatAgentAffiche(c: Chantier, etat: EtatChantier, maintenant: nu
 }
 
 const AVERTISSEMENT = '(avertissement) '
-/** Sépare les lignes de lecture : les erreurs, et les avertissements (sans leur préfixe). */
-export function separerAvis(lignes: string[]): { erreurs: string[]; avertissements: string[] } {
-  const sortie = { erreurs: [] as string[], avertissements: [] as string[] }
+const INFO = '(info) '
+/** Sépare les lignes de lecture : erreurs (fiche ou dossier illisible), avertissements (fiche gardée, chemin écarté) et infos (archives omises), sans préfixe. */
+export function separerAvis(lignes: string[]): { erreurs: string[]; avertissements: string[]; infos: string[] } {
+  const sortie = { erreurs: [] as string[], avertissements: [] as string[], infos: [] as string[] }
   for (const l of Array.isArray(lignes) ? lignes : []) {
     if (l.startsWith(AVERTISSEMENT)) sortie.avertissements.push(l.slice(AVERTISSEMENT.length))
+    else if (l.startsWith(INFO)) sortie.infos.push(l.slice(INFO.length))
     else sortie.erreurs.push(l)
   }
   return sortie
+}
+
+/** Une phrase pour les erreurs de lecture : les fiches (écartées ou trop grosses) et les dossiers de chantiers n'ont pas la même formule. */
+export function resumeErreurs(erreurs: string[]): string {
+  const liste = Array.isArray(erreurs) ? erreurs : []
+  const fiches = liste.filter(e => e.startsWith('La fiche de chantier') || e.startsWith('Fiche trop volumineuse')).length
+  const dossiers = liste.length - fiches
+  const phrases: string[] = []
+  if (fiches > 0) phrases.push(`${fiches} ${fiches > 1 ? 'fiches de chantier n’ont pas pu être lues' : 'fiche de chantier n’a pas pu être lue'}`)
+  if (dossiers > 0) phrases.push('Un dossier de chantiers n’a pas pu être lu.')
+  return phrases.join('. ')
 }
 
 const MAX_RESUME = 280

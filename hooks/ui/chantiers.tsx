@@ -2,7 +2,7 @@
 // illisibles ou à avertissement. LIT seulement : les fiches se créent avec /chantier, jamais d'ici.
 import { progressionChantier } from '../model/chantier.ts'
 import type { Chantier } from '../model/chantier.ts'
-import { grouperChantiers, nomAgent, resumePassation, separerAvis } from '../model/chantiers.ts'
+import { grouperChantiers, nomAgent, resumeErreurs, resumePassation, separerAvis } from '../model/chantiers.ts'
 import { pluriel } from './apercu'
 import { banniere, bulle, carte, iconeEl, titreSection } from './kit'
 import type { Ctx } from './kit'
@@ -22,17 +22,18 @@ export function carteVide(c: Ctx) {
   ], { cle: 'carte-chantiers-vide', centre: true })
 }
 
-/** Fiches illisibles (erreur) et chemins écartés (avertissement) : deux cartes, qui ne cachent jamais les chantiers lus. */
+/** Fiches illisibles (erreur), chemins écartés (avertissement), archives omises (info, une simple ligne) : jamais de quoi cacher les chantiers lus. */
 function cartesLecture(c: Ctx, lignes: string[]) {
-  const { Box } = c.ui
-  const { erreurs, avertissements } = separerAvis(lignes)
+  const { Box, Text } = c.ui
+  const { erreurs, avertissements, infos } = separerAvis(lignes)
   return [
     erreurs.length > 0
-      ? <Box key="chantiers-lecture-erreurs">{banniere(c, 'erreur', pluriel(erreurs.length, 'fiche de chantier n’a pas pu être lue', 'fiches de chantier n’ont pas pu être lues'), erreurs.join(String.fromCharCode(10)))}</Box>
+      ? <Box key="chantiers-lecture-erreurs">{banniere(c, 'erreur', resumeErreurs(erreurs), erreurs.join(String.fromCharCode(10)))}</Box>
       : null,
     avertissements.length > 0
       ? <Box key="chantiers-lecture-avertissements">{banniere(c, 'avertissement', 'À vérifier dans les fiches', avertissements.join(String.fromCharCode(10)))}</Box>
       : null,
+    infos.length > 0 ? <Box key="chantiers-lecture-infos"><Text size="caption" color={c.j.texteDim}>{infos.join(' ')}</Text></Box> : null,
   ]
 }
 
@@ -82,7 +83,7 @@ export function pageChantiers(c: Ctx, d: DonneesChantiers) {
   const lecture = cartesLecture(c, d.erreursChantiers)
   const clesEnCours = cles(enCours), clesArchives = cles(archives)
   return [
-    <Text key="intro" color={c.j.texteSec}>Un chantier = une fiche + une sous-session. Les chantiers en cours se mettent à jour en direct ; les archivés gardent leur trace.</Text>,
+    <Text key="intro" color={c.j.texteSec}>Un chantier = une fiche + une sous-session. Mis à jour toutes les 5 secondes à partir des fiches de chantier. Les archivés gardent leur trace.</Text>,
     ...lecture,
     ...(enCours.length === 0 && archives.length === 0 && d.erreursChantiers.length === 0 ? [carteVide(c)] : []),
     enCours.length > 0 ? (

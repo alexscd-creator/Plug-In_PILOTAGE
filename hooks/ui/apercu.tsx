@@ -1,6 +1,6 @@
 // Page « Vue d'ensemble » (maquette §6, écran 01) : carte projet, pôles, plan, chantiers en cours. LIT seulement.
 import type { Chantier } from '../model/chantier.ts'
-import { grouperChantiers, separerAvis } from '../model/chantiers.ts'
+import { grouperChantiers, resumeErreurs, separerAvis } from '../model/chantiers.ts'
 import type { Portes } from '../model/phases.ts'
 import type { Tache } from '../model/plan.ts'
 import { avancementGlobal, avancementPole, resumerPhases } from '../model/synthese.ts'
@@ -68,7 +68,7 @@ function cartePole(c: Ctx, d: DonneesApercu, i: number) {
   const pole = d.projet.poles[i]!
   const teinte = couleurPole(pole.couleur, i)
   const a = avancementPole(d.projet, d.taches, pole.id, d.chantiers)
-  const resume = a.total === 0 ? 'Aucune tâche rattachée' : `${pluriel(a.faites, 'tâche terminée', 'tâches terminées')} sur ${a.total}`
+  const resume = a.total === 0 ? 'Aucune tâche rattachée' : `${pluriel(a.faites, 'tâche terminée', 'tâches terminées')} sur ${a.total}${a.dansChantiers > 0 ? ` (dont ${a.dansChantiers} dans des chantiers)` : ''}`
   return carte(c, [
     <Box key="entete" flexDirection="row" alignItems="center" gap="md">
       {bulle(c, 'cible', 40, teinte)}
@@ -138,14 +138,16 @@ function sectionChantiers(c: Ctx, d: DonneesApercu) {
   const { enCours } = grouperChantiers(d.chantiers)
   const ligne = { projet: d.projet, maintenant: d.maintenant, copier: d.copier }
   const nb = cles(enCours)
-  const illisibles = separerAvis(d.erreursChantiers).erreurs.length
+  // Seules les vraies erreurs comptent : un avertissement ou une info (archives omises) ne cache rien.
+  const erreurs = separerAvis(d.erreursChantiers).erreurs
+  const illisibles = erreurs.length
   return (
     <Box key="chantiers" flexDirection="column" gap="lg">
-      {titreSection(c, 'Chantiers en cours', enCours.length > 0 ? 'État en direct de chaque sous-session. Rafraîchi automatiquement.' : undefined)}
+      {titreSection(c, 'Chantiers en cours', enCours.length > 0 ? 'Mis à jour toutes les 5 secondes à partir des fiches de chantier.' : undefined)}
       {enCours.map((ch, i) => ligneChantier(c, ligne, ch, nb[i]!))}
       {enCours.length === 0 && d.chantiers.length === 0 && illisibles === 0 ? carteVide(c) : null}
       {enCours.length === 0 && d.chantiers.length > 0 ? <Text color={c.j.texteDim}>Aucun chantier en cours : tous sont archivés.</Text> : null}
-      {illisibles > 0 ? <Text color={c.j.texteDim}>{`${pluriel(illisibles, 'fiche de chantier n’a pas pu être lue', 'fiches de chantier n’ont pas pu être lues')} : voir la page Chantiers.`}</Text> : null}
+      {illisibles > 0 ? <Text color={c.j.texteDim}>{`${resumeErreurs(erreurs)} : voir la page Chantiers.`}</Text> : null}
       <Text size="caption" color={c.j.texteDim}>Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.</Text>
     </Box>
   )

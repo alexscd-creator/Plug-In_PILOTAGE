@@ -199,7 +199,17 @@ test('chantiers : au plus 100 archives lues par membre (les noms les plus grands
   assert.equal(r.chantiers.filter(c => c.archive).length, 100)
   assert.ok(r.chantiers.some(c => c.id === 'a104') && !r.chantiers.some(c => c.id === 'a004') && r.chantiers.some(c => c.id === 'a005'))
   assert.ok(r.chantiers.some(c => c.id === 'actif'))
-  assert.deepEqual(r.erreursChantiers, ['5 fiches archivées plus anciennes non lues.'])
+  assert.deepEqual(r.erreursChantiers, ['(info) 5 fiches archivées plus anciennes ne sont pas affichées.'])
+})
+
+test('chantiers : exactement 100 archives, aucune ligne d’information ; 101, une seule archive omise au singulier', async () => {
+  const f = (n: number) => {
+    const fichiers: Record<string, string> = {}
+    for (let i = 0; i < n; i++) fichiers[`${R}/equipe/lea/archive/b${String(i).padStart(3, '0')}.md`] = serializeChantier(chantier(`b${String(i).padStart(3, '0')}`))
+    return fichiers
+  }
+  assert.deepEqual((await lireProjetComplet(fsDe(base(f(100))), 'C:/Projet', 'Léa')).erreursChantiers, [])
+  assert.deepEqual((await lireProjetComplet(fsDe(base(f(101))), 'C:/Projet', 'Léa')).erreursChantiers, ['(info) 1 fiche archivée plus ancienne n’est pas affichée.'])
 })
 
 test('chantiers : les chantiers actifs sont tous lus, même au-delà de 100', async () => {

@@ -128,7 +128,7 @@ async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]
         if (sous === 'archive' && fiches.length > MAX_ARCHIVES) {
           const ecartees = fiches.length - MAX_ARCHIVES
           fiches = fiches.slice(ecartees)
-          sortie.erreurs.push(`${ecartees} fiches archivées plus anciennes non lues.`)
+          sortie.erreurs.push(`(info) ${ecartees > 1 ? `${ecartees} fiches archivées plus anciennes ne sont pas affichées` : '1 fiche archivée plus ancienne n’est pas affichée'}.`)
         }
         for (const nom of fiches) {
           const chemin = `.pilotage/equipe/${d}/${sous}/${nom}`
@@ -168,13 +168,16 @@ export async function lireChantiers(fs: FsLike, racine: string, equipe: string[]
   }
 }
 
+/** Lien d'une session vers un chantier, avec le membre dont le `sessions.json` le porte (le nom du projet, sinon le nom du dossier). */
+export type LienSession = { chantier: string; auteur: string }
+
 /**
  * Liens session -> chantier : `.pilotage/equipe/<prénom>/sessions.json` = { "<id de session>": "<id du chantier>" }, tous
- * membres confondus (le premier lien trouvé pour un id de session gagne). Fichier absent, illisible, trop gros ou mal
+ * membres confondus (en cas de conflit sur un id de session, le premier dossier par ordre alphabétique gagne). Fichier absent, illisible, trop gros ou mal
  * formé : ignoré ; les valeurs qui ne sont pas du texte aussi. Lecture seule, ne lève jamais.
  */
-export async function lireSessions(fs: FsLike, racine: string): Promise<Map<string, string>> {
-  const carte = new Map<string, string>()
+export async function lireSessions(fs: FsLike, racine: string, equipe: string[] = []): Promise<Map<string, LienSession>> {
+  const carte = new Map<string, LienSession>()
   try {
     if (typeof racine !== 'string' || racine.trim() === '') return carte
     const dossier = `${normaliser(racine)}/.pilotage/equipe`
@@ -182,11 +185,12 @@ export async function lireSessions(fs: FsLike, racine: string): Promise<Map<stri
     if (membres === null) return carte
     for (const d of membres.filter(n => !estCopieDeConflit(n)).sort()) {
       try {
+        const auteur = equipe.find(m => memeMembre(m, d)) ?? d
         const texte = await fs.read(`${dossier}/${d}/sessions.json`)
         if (texte.length > MAX_FICHE) continue
         const v: unknown = JSON.parse(texte)
         if (typeof v !== 'object' || v === null || Array.isArray(v)) continue
-        for (const [cle, val] of Object.entries(v)) if (typeof val === 'string' && !carte.has(cle)) carte.set(cle, val)
+        for (const [cle, val] of Object.entries(v)) if (typeof val === 'string' && !carte.has(cle)) carte.set(cle, { chantier: val, auteur })
       } catch {
         // Pas de sessions.json chez ce membre, ou fichier mal formé : rien à lier.
       }

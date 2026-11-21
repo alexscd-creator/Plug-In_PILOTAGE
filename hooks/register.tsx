@@ -6,6 +6,7 @@ import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activati
 import type { FsLike } from './model/activation.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { lireProjetComplet, lireSessions } from './model/lecture.ts'
+import type { LienSession } from './model/lecture.ts'
 import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
@@ -199,7 +200,7 @@ export const register: Register = on => {
   const auto = creerMinuterie(PERIODE_AUTO_MS)
   // Lecture du projet et thème de l'application : gardés tant que `tick` ne change pas (le disque et le menu de
   // configuration ne sont pas relus à chaque dessin).
-  let cacheLecture: { cle: string; valeur: LectureProjet; sessions: Map<string, string> } | null = null
+  let cacheLecture: { cle: string; valeur: LectureProjet; sessions: Map<string, LienSession> } | null = null
   let cacheTheme: { tick: number; mode: Mode } | null = null
 
   on('session.start', async ($, e, next) => {
@@ -284,7 +285,10 @@ export const register: Register = on => {
       const racine = await read($, projetTrouve)
       const moi = await read($, membre)
       const cle = `${numero}|${racine}|${moi}`
-      if (cacheLecture?.cle !== cle) cacheLecture = { cle, valeur: await lireProjetComplet(adapter($), racine, moi), sessions: await lireSessions(adapter($), racine) }
+      if (cacheLecture?.cle !== cle) {
+        const valeur = await lireProjetComplet(adapter($), racine, moi)
+        cacheLecture = { cle, valeur, sessions: await lireSessions(adapter($), racine, valeur.projet?.equipe ?? []) }
+      }
       const lecture = cacheLecture.valeur
       const maintenant = Date.now()
       // La session courante est-elle celle d'un chantier en cours ? (jamais d'erreur : sans id, pas de bandeau)

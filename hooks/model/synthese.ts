@@ -9,6 +9,9 @@ import type { AgentDef, PhaseDef, Projet } from './projet.ts'
 
 export type Avancement = { total: number; faites: number; pourcent: number }
 
+/** Titre comparé sans casse, sans accent ni espace en trop (pour reconnaître la même tâche au plan et dans un chantier). */
+const cleTitre = (t: string): string => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
 /**
  * Avancement d'un ensemble de tâches. `faites` = les terminées. `total` = toutes les tâches SAUF les abandonnées
  * (une tâche abandonnée ne reste pas à faire) ; les reportées comptent dans `total` mais pas dans `faites`.
@@ -33,10 +36,17 @@ export function resumerPhases(projet: Projet, _taches: Tache[], moi: string, por
 }
 
 /** Avancement des tâches rattachées à un pôle (champ `pole` du plan) et les agents de ce pôle. */
-export function avancementPole(projet: Projet, taches: Tache[], poleId: string, chantiers: Chantier[] = []): Avancement & { agents: AgentDef[] } {
-  // Les tâches d'un chantier (en cours ou archivé) comptent avec le pôle du chantier, selon les mêmes règles que celles du plan.
-  const duChantier = chantiers.filter(c => c.pole === poleId).flatMap(c => c.taches)
-  return { ...avancementGlobal([...taches.filter(t => t.pole === poleId), ...duChantier] as Tache[]), agents: projet.agents.filter(a => a.pole === poleId) }
+export function avancementPole(projet: Projet, taches: Tache[], poleId: string, chantiers: Chantier[] = []): Avancement & { agents: AgentDef[]; dansChantiers: number } {
+  const duPlan = taches.filter(t => t.pole === poleId)
+  // Une tâche de chantier dont le titre (casse, accents et espaces ignorés) est celui d'une tâche du plan du même pôle est la
+  // même tâche : elle n'est comptée qu'une fois (celle du plan). Les autres tâches de chantiers comptent avec le pôle du chantier.
+  const vues = new Set(duPlan.map(t => cleTitre(t.titre)))
+  const duChantier = chantiers.filter(c => c.pole === poleId).flatMap(c => c.taches).filter(t => !vues.has(cleTitre(t.titre)))
+  return {
+    ...avancementGlobal([...duPlan, ...duChantier] as Tache[]),
+    agents: projet.agents.filter(a => a.pole === poleId),
+    dansChantiers: duChantier.filter(t => t.statut !== 'abandonne').length,
+  }
 }
 
 /** Bandeau « porte verrouillée » : vrai tant que la phase compte des tâches à faire ou en cours. */

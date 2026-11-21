@@ -63,6 +63,8 @@ test('trois chantiers : états avec libellé et icône, règle des 15 minutes, t
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
     expect(await texte(ui, 'En cours · 3')).toBeTruthy()
+    expect(await texte(ui, /Mis à jour toutes les 5 secondes à partir des fiches de chantier\./)).toBeTruthy()
+    expect(await texte(ui, /en direct/)).toBeFalsy()
     expect(await texte(ui, /^Archivés · /)).toBeFalsy()
     const frais = await dans(ui, 'chantier-frais'), vieux = await dans(ui, 'chantier-vieux'), bloque = await dans(ui, 'chantier-bloque')
     expect(frais).toContain('En travail')
@@ -205,6 +207,8 @@ test('Vue d’ensemble : les vrais chantiers en cours (mêmes lignes), les archi
   for (const surface of TOUTES) {
     const ui = await monter($, surface, 'apercu')
     expect(await texte(ui, 'Chantiers en cours')).toBeTruthy()
+    expect(await texte(ui, 'Mis à jour toutes les 5 secondes à partir des fiches de chantier.')).toBeTruthy()
+    expect(await texte(ui, /Rafraîchi automatiquement|en direct/)).toBeFalsy()
     expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeFalsy()
     expect(await dans(ui, 'chantier-a')).toContain('Un en cours')
     expect(await dans(ui, 'chantier-b')).toContain('Prêt à reprendre')
@@ -240,7 +244,8 @@ test('pôle : les tâches des chantiers comptent avec leur pôle, détail du pro
   await demarrer($)
   const ui = await monter($, 'desktop', 'apercu')
   // Pôle « art » : 1 tâche terminée sur 1 dans le plan + 1 sur 2 du chantier = 2 sur 3.
-  expect(await dans(ui, 'pole-art')).toContain('2 tâches terminées sur 3')
+  expect(await dans(ui, 'pole-art')).toContain('2 tâches terminées sur 3 (dont 2 dans des chantiers)')
+  expect(await dans(ui, 'pole-code')).not.toContain('dans des chantiers')
   expect(await dans(ui, 'pole-code')).toContain('1 tâche terminée sur 2')
   expect(await texte(ui, /1 chantier en cours/)).toBeTruthy()
   await ui.unmount()
@@ -280,4 +285,59 @@ test('disque en panne ou fiches absentes : le panneau reste affiché', async ($,
   expect(await ui.find({ key: 'bandeau-chantier' })).toBeFalsy()
   expect(await texte(ui, /Aucun chantier pour l’instant/)).toBeTruthy()
   await ui.unmount()
+})
+
+test('pôle qui n’a que des tâches de chantier, et tâche du chantier déjà au plan non comptée deux fois', async ($, on) => {
+  const projet = { ...PROJET_PAGES, poles: [...PROJET_PAGES.poles, { id: 'qa', titre: 'Qualité' }] }
+  const c = fiche('a', { pole: 'qa', taches: [{ titre: 'Tester', statut: 'termine' }, { titre: 'Relire', statut: 'a faire' }] })
+  const doublon = fiche('b', { pole: 'art', taches: [{ titre: 'maquette', statut: 'termine' }, { titre: 'Nouvelle', statut: 'a faire' }] })
+  banc(on, { ...dossier([c, doublon]), 'C:/Projet/.pilotage/projet.json': JSON.stringify(projet) })
+  await demarrer($)
+  const ui = await monter($, 'desktop', 'apercu')
+  expect(await dans(ui, 'pole-qa')).toContain('1 tâche terminée sur 2 (dont 2 dans des chantiers)')
+  // « maquette » est déjà au plan (pôle art) : seule « Nouvelle » s'ajoute : 1 sur 1 du plan + 0 sur 1 = 1 sur 2.
+  expect(await dans(ui, 'pole-art')).toContain('1 tâche terminée sur 2 (dont 1 dans des chantiers)')
+  await ui.unmount()
+})
+
+test('plus de 100 archives : une ligne neutre, jamais la bannière rouge ; 100 exactement : rien', async ($, on) => {
+  const archives = (n: number) => Array.from({ length: n }, (_, i) => fiche(`b${String(i).padStart(3, '0')}`, { etat: 'termine' }))
+  banc(on, dossier([], archives(101)))
+  await demarrer($)
+  for (const surface of TOUTES) {
+    const ui = await monter($, surface)
+    expect(await dans(ui, 'chantiers-lecture-infos')).toContain('1 fiche archivée plus ancienne n’est pas affichée.')
+    expect(await ui.find({ key: 'chantiers-lecture-erreurs' })).toBeFalsy()
+    expect(await texte(ui, /pas pu être lue/)).toBeFalsy()
+    expect(await texte(ui, 'Archivés · 100')).toBeTruthy()
+    await ui.unmount()
+    const accueil = await monter($, surface, 'apercu')
+    expect(await texte(accueil, /pas pu être lue/)).toBeFalsy()
+    await accueil.unmount()
+  }
+})
+
+test('100 archives exactement : aucune ligne d’information', async ($, on) => {
+  banc(on, dossier([], Array.from({ length: 100 }, (_, i) => fiche(`b${String(i).padStart(3, '0')}`, { etat: 'termine' }))))
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await ui.find({ key: 'chantiers-lecture-infos' })).toBeFalsy()
+  await ui.unmount()
+})
+
+test('bandeau : deux membres avec le même id de chantier, celui du propriétaire du lien de session', async ($, on) => {
+  const sam = serializeChantier(fiche('carte', { titre: 'Carte de Sam' }))
+  banc(on, dossier([fiche('carte', { titre: 'Carte de Léa' })], [], undefined, {
+    'C:/Projet/.pilotage/equipe/sam/chantiers/carte.md': sam,
+    'C:/Projet/.pilotage/equipe/sam/sessions.json': JSON.stringify({ s1: 'carte' }),
+  }))
+  on('session.id', () => ({ value: 's1' }))
+  await demarrer($)
+  for (const surface of TOUTES) {
+    const ui = await monter($, surface, 'apercu')
+    const b = await dans(ui, 'bandeau-chantier')
+    expect(b).toContain('Carte de Sam')
+    expect(b).not.toContain('Carte de Léa')
+    await ui.unmount()
+  }
 })
