@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -23,6 +23,60 @@ const PHRASES_SKILL = [
   'Le vocabulaire suit le type de projet.', 'Les réglages propres au type.',
 ]
 const PHRASES_COMMANDE = ['check-projet', 'projet.json', 'plan.md', 'confirmation', 'config.json', 'ecrire-projet']
+
+const PHRASES_CHANTIER = [
+  'Demander la confirmation avant de créer le chantier.',
+  'La sous-session n’est jamais lancée automatiquement.',
+  'Appeler mcp__ccd_session__start_session seul dans son message.',
+  'Passer initiation: "offer" et un title.',
+  'Rappeler l’outil avec le proposal_id reçu, context: "fresh", use_worktree: false.',
+  'Écrire la fiche avec scripts/pilotage-chantier.mjs.',
+  'Ne jamais écrire une fiche à la main.',
+  'Déléguer le contrôle d’impact à l’agent chef-de-chantier.',
+  'Charger le skill chantier-pilotage.',
+  'La sous-session commence par /pilotage:chantier ouvrir <id>.',
+  'Actions du script : lier-session et archiver.',
+  'Écrire la passation avant d’archiver, avec --force-report seulement après accord.',
+  'Si l’outil est absent, dire d’ouvrir une nouvelle session.',
+]
+const PHRASES_PHASE = [
+  'Une porte se valide seulement si portePossible est ok.',
+  'Demander la confirmation avant forcer ou repondre, puis passer --confirme.',
+  'Ne jamais forcer en silence.',
+  'Écrire avec scripts/pilotage-chantier.mjs, action porte.',
+  'Ne jamais écrire les portes à la main.',
+  'L’utilisateur choisit : terminer, reporter ou abandonner chaque tâche ouverte.',
+]
+const PHRASES_SKILL_CHANTIER = [
+  'Demander la confirmation avant d’écrire.',
+  'Ne jamais écrire une fiche à la main : utiliser scripts/pilotage-chantier.mjs.',
+  'Le contrôle d’impact liste les pôles et les agents concernés.',
+  'On n’écrit que chez soi : le dossier equipe/<prénom>/.',
+  'Rester dans la conversation principale.',
+  'Écrire la passation avant l’archivage.',
+  'Le plan se modifie une personne à la fois.',
+]
+const PHRASES_AGENT_CHEF = [
+  'Agent en lecture seule.',
+  'Il fait le contrôle d’impact.',
+  'Il demande la confirmation de l’utilisateur.',
+  'Les scripts sont lancés par la conversation principale, jamais par lui.',
+  'Les fiches s’écrivent avec pilotage-chantier.',
+]
+const agentChef = (tools = 'Read, Glob, Grep', corps = PHRASES_AGENT_CHEF.join('\n')) =>
+  `---
+name: chef-de-chantier
+description: test
+tools: ${tools}
+---
+${corps}
+`
+function chantierComplet(d) {
+  ecrire(d, 'commands/chantier.md', fm('chantier', PHRASES_CHANTIER.join('\n')))
+  ecrire(d, 'commands/phase.md', fm('phase', PHRASES_PHASE.join('\n')))
+  ecrire(d, 'skills/chantier-pilotage/SKILL.md', fm('chantier-pilotage', PHRASES_SKILL_CHANTIER.join('\n')))
+  ecrire(d, 'agents/chef-de-chantier.md', agentChef())
+}
 
 test('un plugin vide passe le lint', () => {
   assert.equal(lint(nouveau()).status, 0)
@@ -126,9 +180,10 @@ test('neutralité : « votre projet » passe, et un mot qui contient « jeu » o
 test('neutralité : un manifeste dont l’auteur est « studio » échoue, « Pilotage » passe', () => {
   for (const [rel, cle] of [['.claude-plugin/plugin.json', 'author'], ['.claude-plugin/marketplace.json', 'owner']]) {
     const d = nouveau()
-    // la présence de plugin.json exige le démarrage guidé complet
+    // la présence de plugin.json exige le démarrage guidé et les chantiers complets
     ecrire(d, 'skills/demarrage-guide/SKILL.md', fm('demarrage-guide', PHRASES_SKILL.join('\n')))
     ecrire(d, 'commands/demarrer.md', fm('demarrer', PHRASES_COMMANDE.join('\n')))
+    chantierComplet(d)
     ecrire(d, rel, JSON.stringify({ name: 'x', [cle]: { name: 'studio' } }, null, 2))
     const r = lint(d)
     assert.equal(r.status, 1, rel)
@@ -154,6 +209,58 @@ test('neutralité : les presets, les tests et la documentation ne sont pas scann
   ecrire(d, 'tests/x.spec.mjs', '// un jeu de test, un studio')
   ecrire(d, 'docs/maquette.md', 'le studio, le jeu')
   assert.equal(lint(d).status, 0)
+})
+
+test('chantier : le jeu complet de fichiers passe ; sans un fichier, le lint échoue', () => {
+  const d = nouveau()
+  chantierComplet(d)
+  assert.equal(lint(d).status, 0, lint(d).stderr)
+  for (const rel of ['commands/chantier.md', 'commands/phase.md', 'skills/chantier-pilotage/SKILL.md', 'agents/chef-de-chantier.md']) {
+    const e = nouveau(); chantierComplet(e)
+    rmSync(join(e, ...rel.split('/')))
+    const r = lint(e)
+    assert.equal(r.status, 1, rel)
+    assert.match(r.stderr, /fichier manquant/)
+  }
+})
+
+test('chantier : une phrase obligatoire en moins échoue, pour la commande, /phase, le skill et l’agent', () => {
+  const cas = [
+    ['commands/chantier.md', 'chantier', PHRASES_CHANTIER], ['commands/phase.md', 'phase', PHRASES_PHASE],
+    ['skills/chantier-pilotage/SKILL.md', 'chantier-pilotage', PHRASES_SKILL_CHANTIER],
+  ]
+  for (const [rel, nom, phrases] of cas) {
+    for (const [i, p] of phrases.entries()) {
+      const d = nouveau(); chantierComplet(d)
+      ecrire(d, rel, fm(nom, phrases.filter((_, k) => k !== i).join('\n')))
+      const r = lint(d)
+      assert.equal(r.status, 1, rel + ' sans : ' + p)
+      assert.ok(r.stderr.includes(rel), r.stderr)
+    }
+  }
+  for (const [i, p] of PHRASES_AGENT_CHEF.entries()) {
+    const d = nouveau(); chantierComplet(d)
+    ecrire(d, 'agents/chef-de-chantier.md', agentChef('Read, Glob, Grep', PHRASES_AGENT_CHEF.filter((_, k) => k !== i).join('\n')))
+    assert.equal(lint(d).status, 1, 'agent sans : ' + p)
+  }
+})
+
+test('chantier : l’agent chef-de-chantier ne doit avoir que des outils de lecture', () => {
+  for (const tools of ['Read, Glob, Grep, Write', 'Edit', 'Bash', 'Read, PowerShell', 'Read, mcp__ccd_session__start_session']) {
+    const d = nouveau(); chantierComplet(d)
+    ecrire(d, 'agents/chef-de-chantier.md', agentChef(tools))
+    const r = lint(d)
+    assert.equal(r.status, 1, tools)
+    assert.match(r.stderr, /lecture/)
+  }
+  const d = nouveau(); chantierComplet(d)
+  ecrire(d, 'agents/chef-de-chantier.md', `---
+name: chef-de-chantier
+description: test
+---
+${PHRASES_AGENT_CHEF.join('\n')}
+`)
+  assert.equal(lint(d).status, 1)
 })
 
 test('le vrai plugin passe le lint', () => {

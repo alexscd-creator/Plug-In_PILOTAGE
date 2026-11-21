@@ -70,6 +70,57 @@ export const REGLES_DEMARRER = [
   [/ecrire-projet/, 'ecrire-projet'],
 ]
 
+export const REGLES_CHANTIER = [
+  [/confirm/i, 'la confirmation avant de créer'],
+  [/jamais[^.\n]*automatiquement/i, '« jamais » lancée automatiquement (la sous-session)'],
+  [/mcp__ccd_session__start_session/, 'mcp__ccd_session__start_session'],
+  [/initiation\s*:\s*"offer"/, 'initiation: "offer"'],
+  [/proposal_id/, 'proposal_id'],
+  [/context\s*:\s*"fresh"/, 'context: "fresh"'],
+  [/use_worktree\s*:\s*false/, 'use_worktree: false'],
+  [/pilotage-chantier\.mjs/, 'le script pilotage-chantier.mjs (écriture via le script)'],
+  [/jamais[^.\n]*à la main/i, '« jamais à la main »'],
+  [/contrôle d['’]impact/i, 'le contrôle d’impact'],
+  [/chef-de-chantier/, 'l’agent chef-de-chantier'],
+  [/chantier-pilotage/, 'le skill chantier-pilotage'],
+  [/\/pilotage:chantier ouvrir/, '/pilotage:chantier ouvrir'],
+  [/lier-session/, 'l’action lier-session'],
+  [/archiver/, 'l’action archiver'],
+  [/passation/i, 'la passation'],
+  [/--force-report/, '--force-report'],
+  [/absent/i, 'le cas où l’outil de session est absent'],
+]
+export const REGLES_PHASE = [
+  [/portePossible/, 'portePossible'],
+  [/confirm/i, 'la confirmation (forcer, repondre)'],
+  [/forcer/, 'forcer'],
+  [/repondre/, 'repondre'],
+  [/jamais[^.\n]*silence/i, '« jamais » en silence'],
+  [/pilotage-chantier\.mjs/, 'le script pilotage-chantier.mjs (écriture via le script)'],
+  [/jamais[^.\n]*à la main/i, '« jamais à la main »'],
+  [/--confirme/, '--confirme'],
+  [/terminer/i, 'terminer'],
+  [/reporter/i, 'reporter'],
+  [/abandonner/i, 'abandonner'],
+]
+export const REGLES_SKILL_CHANTIER = [
+  [/confirm/i, 'la confirmation'],
+  [/jamais[^.\n]*à la main/i, '« jamais à la main »'],
+  [/pilotage-chantier\.mjs/, 'le script pilotage-chantier.mjs'],
+  [/contrôle d['’]impact/i, 'le contrôle d’impact'],
+  [/que chez soi/i, '« on n’écrit que chez soi »'],
+  [/conversation principale/i, 'la conversation principale'],
+  [/passation/i, 'la passation'],
+  [/une personne à la fois/i, 'le plan modifié « une personne à la fois »'],
+]
+export const REGLES_AGENT_CHEF = [
+  [/lecture seule/i, 'la lecture seule'],
+  [/contrôle d['’]impact/i, 'le contrôle d’impact'],
+  [/confirm/i, 'la confirmation'],
+  [/conversation principale/i, 'la conversation principale (qui lance les scripts)'],
+  [/pilotage-chantier/, 'pilotage-chantier'],
+]
+
 // Neutralité : le plugin ne parle ni de « studio » ni de « jeu » en dehors des données des presets (presets/), des tests et de docs/.
 export const MOTS_INTERDITS = /\bstudio\b|\bjeux?\b/i
 const EXTENSIONS_SCANNEES = /\.(md|mjs|js|ts|tsx|json)$/
@@ -120,6 +171,25 @@ if (existsSync(skills)) {
 const estPlugin = existsSync(join(root, '.claude-plugin', 'plugin.json'))
 if (estPlugin || existsSync(join(skills, 'demarrage-guide'))) exiger('skills/demarrage-guide/SKILL.md', REGLES_DEMARRAGE)
 if (estPlugin || existsSync(join(root, 'commands', 'demarrer.md'))) exiger('commands/demarrer.md', REGLES_DEMARRER)
+
+// Chantiers : commandes, skill et agent. L'agent chef de chantier ne fait que lire : aucun outil d'écriture, d'exécution ou de session.
+const OUTILS_LECTURE = new Set(['Read', 'Glob', 'Grep'])
+function verifierOutilsChef() {
+  const f = join(root, 'agents', 'chef-de-chantier.md')
+  if (!existsSync(f)) return
+  const fm = frontmatter(readFileSync(f, 'utf8'))
+  if (!fm?.tools) return erreurs.push('agents/chef-de-chantier.md : tools manquant (lecture seule : Read, Glob, Grep)')
+  for (const o of fm.tools.split(',').map(x => x.trim()).filter(Boolean))
+    if (!OUTILS_LECTURE.has(o)) erreurs.push(`agents/chef-de-chantier.md : l'outil « ${o} » n'est pas de lecture (autorisés : Read, Glob, Grep)`)
+}
+const FICHIERS_CHANTIER = ['commands/chantier.md', 'commands/phase.md', 'skills/chantier-pilotage/SKILL.md', 'agents/chef-de-chantier.md']
+if (estPlugin || FICHIERS_CHANTIER.some(f => existsSync(join(root, f)))) {
+  exiger('commands/chantier.md', REGLES_CHANTIER)
+  exiger('commands/phase.md', REGLES_PHASE)
+  exiger('skills/chantier-pilotage/SKILL.md', REGLES_SKILL_CHANTIER)
+  exiger('agents/chef-de-chantier.md', REGLES_AGENT_CHEF)
+  verifierOutilsChef()
+}
 
 verifierNeutralite()
 
