@@ -89,15 +89,53 @@ const erreurEcriture = atom({ plugin: 'pilotage', key: 'erreurEcriture' } as con
 // Abandonne les écritures de fiche en attente (changement ou perte de projet) ; posé par `register`.
 let purgerEcritures: () => void = () => undefined
 
-type EntreeListe = { name: string; isLink?: boolean }
-/** Noms d'un dossier, sans les liens (symboliques ou jonctions), dont le chemin va dans `liens` : un lien n'est jamais lu ni parcouru. */
-const listeSansLiens = async ($: any, p: string, liens: string[]): Promise<string[]> => {
-  const base = String(p).replaceAll(String.fromCharCode(92), '/').replace(/\/+$/, '')
-  return ((await $.fs.list(p)) as EntreeListe[]).filter(x => (x.isLink === true ? (liens.push(`${base}/${x.name}`), false) : true)).map(x => x.name)
+type EntreeListe = { name: string; kind?: string; size?: number; mtimeMs?: number; isLink?: boolean }
+type Empreinte = { size: number; mtimeMs: number }
+const cheminNet = (p: string): string => String(p).replaceAll(String.fromCharCode(92), '/').replace(/\/+$/, '')
+/**
+ * Noms d'un dossier, sans les liens (symboliques ou jonctions), dont le chemin va dans `liens` : un lien n'est jamais lu ni parcouru.
+ * La taille et la date de chaque fichier listé vont dans `vus` (quand on les donne) : elles évitent de relire un fichier inchangé.
+ */
+const listeSansLiens = async ($: any, p: string, liens: string[], vus?: Map<string, Empreinte>): Promise<string[]> => {
+  const base = cheminNet(p)
+  const sortie: string[] = []
+  for (const x of (await $.fs.list(p)) as EntreeListe[]) {
+    if (x.isLink === true) { liens.push(`${base}/${x.name}`); continue }
+    if (vus && x.kind === 'file' && typeof x.size === 'number' && typeof x.mtimeMs === 'number' && x.mtimeMs > 0) vus.set(`${base}/${x.name}`, { size: x.size, mtimeMs: x.mtimeMs })
+    sortie.push(x.name)
+  }
+  return sortie
 }
+
+// Textes déjà lus, par chemin, avec la taille et la date que la liste de leur dossier donnait alors. Une lecture qui retrouve, dans les
+// listes qu'ELLE vient de faire, la même taille et la même date rend le texte gardé au lieu de relire le disque (les fiches, archives et
+// fiches d'agents ne sont plus relues à chaque tick). Vidé à chaque changement ou perte de projet ; borné.
+const textesLus = new Map<string, Empreinte & { texte: string }>()
+const MAX_TEXTES_LUS = 2000
+function oublierTextesLus(): void {
+  textesLus.clear()
+}
+
+/** Le disque du modèle pour UNE lecture (une passe) : liens retirés, et fichiers inchangés depuis la passe d'avant pris dans `textesLus`. */
 const adapter = ($: any): FsLike => {
   const liens: string[] = []
-  return { liens, read: async p => String((await $.fs.read(p)) ?? ''), list: p => listeSansLiens($, p, liens) }
+  const vus = new Map<string, Empreinte>() // ce que les listes de cette passe ont vu (jamais une empreinte d'une passe d'avant)
+  return {
+    liens,
+    list: p => listeSansLiens($, p, liens, vus),
+    read: async p => {
+      const cle = cheminNet(p)
+      const vu = vus.get(cle)
+      const garde = textesLus.get(cle)
+      if (vu && garde && garde.size === vu.size && garde.mtimeMs === vu.mtimeMs) return garde.texte
+      const texte = String((await $.fs.read(p)) ?? '')
+      if (vu) {
+        if (textesLus.size >= MAX_TEXTES_LUS) textesLus.clear()
+        textesLus.set(cle, { ...vu, texte })
+      }
+      return texte
+    },
+  }
 }
 
 /** `$.fs.stat(p, { resolve: true })` réduit à ce que le contrôle des liens lit ; null si le chemin n'existe pas ou ne se contrôle pas. */
@@ -118,6 +156,7 @@ async function ecrireDansProjet($: any, racine: string, p: string, texte: string
 /** Plus de projet valide ici : le plugin redevient inactif. */
 async function remettreAZero($: any, auto?: Minuterie): Promise<void> {
   auto?.arreter()
+  oublierTextesLus()
   await viderAgents($)
   await update($, actif, () => false)
   await update($, projetTrouve, () => '')
@@ -232,7 +271,10 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
     await update($, erreursMarqueur, () => [])
     // Autre projet que celui déjà ouvert : les agents suivis ne sont plus les siens. Même projet (/projet relancé) : ils restent.
     const ancien = await read($, projetTrouve)
-    if (ancien !== '' && ancien !== trouve.racine) await viderAgents($)
+    if (ancien !== '' && ancien !== trouve.racine) {
+      oublierTextesLus()
+      await viderAgents($)
+    }
     await update($, projetTrouve, () => trouve.racine)
     await update($, membre, () => membreCourant(trouve.projet, prenom) ?? '')
     await update($, actif, () => true)

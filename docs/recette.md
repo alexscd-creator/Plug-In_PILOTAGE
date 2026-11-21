@@ -150,7 +150,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 **Lecture du plan et des fiches**
 - Une copie de conflit de synchronisation (Dropbox, Syncthing) n'est pas toujours reconnue ; certains vrais fichiers sont pris à tort pour des copies (`Report (2024).md`).
 - Doublons d'identifiant de tâche entre phases perdus à la réécriture ; tâches « Sans phase » repoussées en fin de fichier à la première réécriture ; un identifiant de phase avec `()` ou `|` n'est pas réversible.
-- Une fiche de plus de 256 Ko est lue entièrement avant refus (pas de taille disponible) ; dossiers `lea` et `lea 2` fusionnés comme un même membre ; nombre de dossiers de membres non borné.
+- Une fiche de plus de 256 Ko est lue entièrement avant refus (la taille donnée par la liste ne sert encore qu'à ne pas relire un fichier inchangé : un fichier de même taille et de même date n'est pas relu à chaque rafraîchissement) ; dossiers `lea` et `lea 2` fusionnés comme un même membre ; nombre de dossiers de membres non borné.
 - Chemins UNC non pris en charge ; `projet.json` sensible à la casse.
 
 **Chantiers et sessions**
