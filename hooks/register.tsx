@@ -8,6 +8,7 @@ import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppe
 import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
+import { construireConsigne, entreeDepuisLecture } from './model/consigne.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
@@ -38,6 +39,8 @@ import type { Mode } from './ui/theme'
 import { carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
 
 const PANE = 'pilotage'
+/** Durée pendant laquelle la consigne du modèle n'est pas relue sur le disque. */
+const DUREE_CONSIGNE_MS = 20_000
 
 // Vrai quand un projet valide est ouvert dans cette session : rien ne s'injecte tant qu'il est faux.
 const actif = atom({ plugin: 'pilotage', key: 'actif' } as const, false, { shape: 'actif-1' })
@@ -556,6 +559,7 @@ export const register: Register = on => {
   // configuration ne sont pas relus à chaque dessin).
   let cacheLecture: { cle: string; valeur: LectureProjet; sessions: Map<string, LienSession> } | null = null
   let cacheTheme: { tick: number; mode: Mode } | null = null
+  let cacheConsigne: { cle: string; a: number; texte: string } | null = null
 
   on('session.start', async ($, e, next) => {
     try {
@@ -581,15 +585,27 @@ export const register: Register = on => {
     }
   })
 
-  // Plus tard, une tâche ajoutera la consigne quand `actif` est vrai ; pour l'instant rien n'est injecté.
+  // La section « Projet Pilotage » (projet, phase, chantiers, agents, workflow, règles, capture des idées), seulement quand un projet est
+  // ouvert. Gardée 20 s par projet et membre (une panne passagère n'est pas gardée) ; au moindre échec, le résultat du moteur est rendu tel quel.
   on('prompt.compose', async ($, e, next) => {
     const r = await next(e)
     try {
       if (!(await read($, actif))) return r
+      const racine = await read($, projetTrouve)
+      const moi = await read($, membre)
+      const cle = `${racine}|${moi}`
+      const maintenant = Date.now()
+      if (racine === '') return r
+      if (cacheConsigne?.cle !== cle || maintenant - cacheConsigne.a > DUREE_CONSIGNE_MS) {
+        const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($))
+        const texte = entree ? construireConsigne(entree) : ''
+        cacheConsigne = texte === '' ? null : { cle, a: maintenant, texte }
+      }
+      if (!cacheConsigne) return r
+      return { sections: [...r.sections, { id: 'pilotage:consigne', text: cacheConsigne.texte, scope: 'session' as const }] }
     } catch {
       return r
     }
-    return r
   })
 
   // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /pilotage le relance.

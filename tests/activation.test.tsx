@@ -36,12 +36,12 @@ test('session sans marqueur : aucun panneau, aucune section de prompt', async ($
   expect(await ids($)).toEqual([])
 })
 
-test('session avec marqueur valide : panneau ouvert dès le départ, prompt inchangé', async ($, on) => {
+test('session avec marqueur valide : panneau ouvert dès le départ, la consigne du projet s’ajoute au prompt', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET })
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
   expect(ouverts).toEqual([PANE.requestId])
-  expect(await ids($)).toEqual([])
+  expect(await ids($)).toEqual(['pilotage:consigne'])
 })
 
 test('marqueur dans un dossier parent : panneau ouvert', async ($, on) => {
@@ -78,7 +78,7 @@ test('/pilotage avec marqueur valide : ouvre le panneau', async ($, on) => {
   const r = await $.command.run({ command: 'pilotage' })
   expect(r.text).toBe('Projet « Mon jeu » ouvert.')
   expect(ouverts).toEqual([PANE.requestId])
-  expect(await ids($)).toEqual([])
+  expect(await ids($)).toEqual(['pilotage:consigne'])
 })
 
 test('la config du membre est lue sans bloquer l\'ouverture', async ($, on) => {
