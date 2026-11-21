@@ -5,6 +5,8 @@ import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
 import { lireProjetComplet } from './model/lecture.ts'
+import { creerMinuterie } from './model/minuterie.ts'
+import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
@@ -43,8 +45,8 @@ const adapter = ($: any): FsLike => ({
 })
 
 /** Plus de projet valide ici : le plugin redevient inactif. */
-async function remettreAZero($: any, auto?: Minuteur): Promise<void> {
-  if (auto) arreterAuto(auto)
+async function remettreAZero($: any, auto?: Minuterie): Promise<void> {
+  auto?.arreter()
   await update($, actif, () => false)
   await update($, projetTrouve, () => '')
   await update($, membre, () => '')
@@ -53,29 +55,11 @@ async function remettreAZero($: any, auto?: Minuteur): Promise<void> {
 /** Délai du rafraîchissement automatique du panneau. */
 const PERIODE_AUTO_MS = 5000
 
-/** La minuterie de rafraîchissement : une seule par chargement (l'état vit dans `register`). */
-type Minuteur = { annuler: (() => void) | null }
-
 /** Lance le rafraîchissement automatique (un tick toutes les 5 s) s'il ne tourne pas déjà. Ne lève jamais. */
-function demarrerAuto($: any, auto: Minuteur): void {
-  if (auto.annuler) return
-  try {
-    const annuler = $.clock.every(PERIODE_AUTO_MS, () => {
-      update($, tick, n => n + 1).catch(() => undefined)
-    })
-    auto.annuler = typeof annuler === 'function' ? annuler : () => undefined
-  } catch {
-    // Sans horloge, le bouton Rafraîchir reste là.
-  }
-}
-
-function arreterAuto(auto: Minuteur): void {
-  try {
-    auto.annuler?.()
-  } catch {
-    // Rien de plus à faire.
-  }
-  auto.annuler = null
+function demarrerAuto($: any, auto: Minuterie): void {
+  auto.demarrer({ every: (ms, fn) => $.clock.every(ms, fn) }, () => {
+    update($, tick, n => n + 1).catch(() => undefined)
+  })
 }
 
 /** Dit en une ligne qu'une action du panneau n'a pas abouti. Ne lève jamais. */
@@ -109,7 +93,7 @@ async function themeDeLApplication($: any): Promise<Mode> {
 }
 
 /** Cherche le projet du dossier et applique le résultat ; rend le texte de réponse (jamais ne lève). */
-async function activer($: any, dossier: string, auto: Minuteur): Promise<{ ouvert: boolean; texte: string }> {
+async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouvert: boolean; texte: string }> {
   try {
     const trouve = await trouverProjet(adapter($), dossier)
     if (!trouve) {
@@ -201,7 +185,7 @@ async function envoyer($: any, texte: string, surface?: string): Promise<void> {
 
 export const register: Register = on => {
   let dossierSession = ''
-  const auto: Minuteur = { annuler: null }
+  const auto = creerMinuterie(PERIODE_AUTO_MS)
   // Lecture du projet et thème de l'application : gardés tant que `tick` ne change pas (le disque et le menu de
   // configuration ne sont pas relus à chaque dessin).
   let cacheLecture: { cle: string; valeur: LectureProjet } | null = null
@@ -240,6 +224,16 @@ export const register: Register = on => {
       return r
     }
     return r
+  })
+
+  // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /pilotage le relance.
+  on('ui.close', async ($, e, next) => {
+    try {
+      if (e.id === PANE) auto.arreter()
+    } catch {
+      // Un hook ne doit jamais lever.
+    }
+    return next(e)
   })
 
   // Le panneau : cadre centré, barre du haut, navigation et page courante. LIT seulement : jamais d'écriture disque.

@@ -96,10 +96,10 @@ test('thème « systeme » : suit le thème clair de l’application', async ($,
 test('thème « systeme » par défaut (rien d’écrit) : suit le thème sombre de l’application', async ($, on) => {
   expect(await fondDuPanneau($, on, undefined, 'dark')).toBe('#0d0e12')
 })
-test('thème « systeme » : menu illisible, ligne absente ou « auto » → sombre, sans lever', async ($, on) => {
+test('thème « systeme » : menu en panne → sombre, sans lever', async ($, on) => {
   expect(await fondDuPanneau($, on, 'systeme', 'panne')).toBe('#0d0e12')
 })
-test('thème « systeme » : ligne absente → sombre', async ($, on) => {
+test('thème « systeme » : ligne theme absente du menu → sombre', async ($, on) => {
   expect(await fondDuPanneau($, on, 'systeme', 'absente')).toBe('#0d0e12')
 })
 test('thème « systeme » : valeur « auto » → sombre', async ($, on) => {
@@ -170,4 +170,31 @@ test('un état qui refuse l’écriture : les boutons ne lèvent pas et le disen
   expect(toasts.length).toBe(3)
   expect(toasts[0]).toMatch(/pas pu/)
   await ui.unmount()
+})
+
+/** Horloge simulée : chaque `clock.every` est un minuteur, tenu par une porte que le test ouvre à la main. */
+function horloge(on: Function) {
+  const periodes: number[] = []
+  const portes: (() => void)[] = []
+  on('clock.every', (_: unknown, e: { ms: number }) => {
+    periodes.push(e.ms)
+    return new Promise(r => { portes.push(() => r({ value: undefined })) })
+  })
+  return { periodes, portes }
+}
+
+test('projet qui devient invalide puis valide : le minuteur est relancé une fois, pas cumulé', async ($, on) => {
+  const f: Record<string, string> = fichiers()
+  banc(on, f)
+  const { periodes } = horloge(on)
+  await demarrer($)
+  expect(periodes.length).toBe(1)
+  const valide = f['C:/Projet/.pilotage/projet.json']!
+  f['C:/Projet/.pilotage/projet.json'] = '{"version":2}'
+  await $.command.run({ command: 'pilotage' })
+  f['C:/Projet/.pilotage/projet.json'] = valide
+  await $.command.run({ command: 'pilotage' })
+  expect(periodes.length).toBe(2)
+  await $.command.run({ command: 'pilotage' })
+  expect(periodes.length).toBe(2)
 })
