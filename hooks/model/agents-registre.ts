@@ -3,6 +3,7 @@
 // dans un enclos ; seules les règles écrites ici sont des consignes. Les agents enregistrés sont TOUJOURS en lecture seule.
 import type { FsLike } from './activation.ts'
 import type { AgentDef, Projet } from './projet.ts'
+import { texteSur } from './texte-sur.ts'
 
 export type SpecAgent = { name: string; description: string; prompt: string; tools: string[]; disallowedTools: string[] }
 
@@ -25,8 +26,7 @@ const DELAI_ESSAI_MS = 60_000
 const idValide = (s: unknown): s is string => typeof s === 'string' && s.length > 0 && s.length <= MAX_ID && ID_RE.test(s)
 
 /** Une valeur du projet sur UNE ligne : sauts de ligne et tabulations = espace, espaces réduits, chevrons (donc balises) retirés, bornée. */
-export const ligne = (v: unknown, max: number): string =>
-  String(v ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max).trim()
+export const ligne = (v: unknown, max: number): string => texteSur(v, max)
 
 /**
  * Outils effectivement accordés : ceux que l'agent liste ET qui font partie de la lecture seule (Read, Glob, Grep, TodoWrite) ;

@@ -8,6 +8,7 @@
 // reconnaître « une note que ce membre a créée ». Tout ce qui est écrit est assaini, tout ce qui est relu est validé : une DONNÉE.
 import { texteNet as ligneSure } from './plan.ts'
 import { memeMembre } from './projet.ts'
+import { retirerInvisibles } from './texte-sur.ts'
 
 export type TypeNote = 'idee' | 'feedback'
 export type Note = {
@@ -40,11 +41,11 @@ const ID_RE = /^[a-z0-9-]+$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/
 const CONTROLES = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
 
-const texteNet = (s: unknown, max = MAX_TITRE_NOTE): string => ligneSure(String(s ?? '')).replace(CONTROLES, ' ').slice(0, max).trim()
+const texteNet = (s: unknown, max = MAX_TITRE_NOTE): string => retirerInvisibles(ligneSure(String(s ?? '').replace(CONTROLES, ' '))).slice(0, max).trim()
 const idNet = (s: unknown): string =>
   String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 /** Corps de la note : retours à la ligne unifiés, caractères de contrôle retirés, plafonné. */
-const corpsNet = (s: unknown): string => String(s ?? '').replace(/\r\n?/g, '\n').replace(CONTROLES, '').trim().slice(0, MAX_TEXTE_NOTE).trim()
+const corpsNet = (s: unknown): string => retirerInvisibles(String(s ?? '')).replace(/\r\n?|[\u0085\u2028\u2029]/g, '\n').replace(CONTROLES, '').trim().slice(0, MAX_TEXTE_NOTE).trim()
 const estType = (v: string): v is TypeNote => (TYPES_NOTE as readonly string[]).includes(v)
 const dateValide = (d: string): boolean => DATE_RE.test(d) && !Number.isNaN(Date.parse(d))
 /** Date ISO UTC réelle : `2026-02-31` (que `Date` reporterait au mois suivant) est refusée. */
@@ -70,7 +71,7 @@ export function parseNote(texte: string, auteur: string): ResultatNote {
     const cles: Record<string, string> = {}
     let ferme = false
     for (; i < lignes.length; i++) {
-      const l = lignes[i]!
+      const l = retirerInvisibles(lignes[i]!)
       if (l.trim() === '---') { ferme = true; i++; break }
       const p = l.indexOf(':')
       if (p <= 0) continue

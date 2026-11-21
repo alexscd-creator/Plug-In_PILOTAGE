@@ -12,6 +12,7 @@
 // Le texte est une DONNÉE : tout ce qui est écrit est assaini (une ligne, sans `|`), tout ce qui est relu est validé.
 import { texteNet as ligneSure } from './plan.ts'
 import type { Statut } from './plan.ts'
+import { retirerInvisibles } from './texte-sur.ts'
 
 export type EtatChantier = 'en-travail' | 'attente' | 'arrete' | 'pret' | 'bloque' | 'termine'
 export type Chantier = {
@@ -51,7 +52,7 @@ const tacheRe = /^\s*[-*]\s+\[(.?)\]\s+(.*)$/
 const puceRe = /^\s*[-*]\s+(.*)$/
 
 // Même approche que plan.ts : une seule ligne, « | » remplacé, pour ne créer ni ligne ni champ de plus.
-const texteNet = (s: unknown, max = MAX_TEXTE): string => ligneSure(String(s ?? '')).slice(0, max).trim()
+const texteNet = (s: unknown, max = MAX_TEXTE): string => retirerInvisibles(ligneSure(String(s ?? ''))).slice(0, max).trim()
 /** Identifiant sûr : minuscules sans accent, a-z 0-9 et tirets, jamais plus de 60 caractères. */
 const idNet = (s: unknown): string =>
   String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, MAX_ID).replace(/-+$/, '')
@@ -74,7 +75,7 @@ export function parseChantier(texte: string, auteur: string): ResultatChantier {
     const cles: Record<string, string> = {}
     let ferme = false
     for (; i < lignes.length; i++) {
-      const l = lignes[i]!
+      const l = retirerInvisibles(lignes[i]!)
       if (l.trim() === '---') { ferme = true; i++; break }
       const p = l.indexOf(':')
       if (p <= 0) continue
@@ -117,7 +118,7 @@ export function parseChantier(texte: string, auteur: string): ResultatChantier {
     const avertissements: string[] = []
     let section = ''
     for (; i < lignes.length; i++) {
-      const l = lignes[i]!
+      const l = retirerInvisibles(lignes[i]!)
       if (section === 'passation') { passation.push(l); continue }
       const s = /^\s{0,3}##\s+(\S+)(\s.*)?$/.exec(l)
       if (s) { section = s[1]!.toLowerCase() === 'tâches' ? 'taches' : s[1]!.toLowerCase(); continue }

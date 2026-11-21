@@ -2,13 +2,13 @@
 // Tout ce qui vient des fichiers du projet (noms, titres, workflow, fiches...) est une DONNÉE : une valeur par ligne, nettoyée, bornée
 // et enfermée dans un enclos `<donnees>` ; seules les lignes écrites ici (règles, consignes par outil, capture) sont des consignes.
 // Les consignes par outil sont choisies d'après le NOM de l'outil, jamais recopiées depuis un fichier. Texte déterministe, plafonné.
-import { ligne } from './agents-registre.ts'
 import { etatAffiche } from './chantier.ts'
 import { grouperChantiers } from './chantiers.ts'
 import type { LectureProjet } from './lecture.ts'
 import { portePossible } from './plan.ts'
 import type { AgentDef, Projet } from './projet.ts'
 import { resumerPhases } from './synthese.ts'
+import { texteSur } from './texte-sur.ts'
 
 /** Taille maximale de la section (consignes fixes comprises) ; au-delà, des lignes de données sont retirées et le dit. */
 export const MAX_CONSIGNE = 6000
@@ -33,7 +33,7 @@ const OUVERTURE = '<donnees fichier="projet">'
 const FERMETURE = '</donnees>'
 
 /** Une valeur du projet sur UNE ligne : contrôles, accents graves et chevrons (pleine chasse compris) retirés, bornée. */
-const donnee = (v: unknown, max: number): string => ligne(String(v ?? '').replace(/[\u0000-\u001F\u007F＜＞`]/g, ' '), max)
+const donnee = (v: unknown, max: number): string => texteSur(v, max)
 const norme = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const pluriel = (n: number, un: string, plusieurs: string): string => `${n} ${n > 1 ? plusieurs : un}`
 const tableau = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : [])
@@ -101,9 +101,14 @@ function guide(projet: Projet): string[] {
   return lignes.length === 0 ? [] : ['', 'Outils du workflow (consignes) :', ...lignes]
 }
 
+/** Tout ce qui est écrit ici : en-tête, enclos fermé (sans données) et consignes fixes. Doit rester bien sous MAX_CONSIGNE. */
+export function partieFixe(projet: Projet): string {
+  return [...ENTETE, OUVERTURE, FERMETURE, ...guide(projet), '', ...REGLES, '', CAPTURE].join('\n')
+}
+
 /**
- * La section « Projet Pilotage », ou '' sans projet. Ne lève jamais. Au plus MAX_CONSIGNE caractères : les consignes fixes sont
- * toujours entières, ce sont les lignes de données qui sont retirées (avec une note qui le dit).
+ * La section « Projet Pilotage », ou '' sans projet. Ne lève jamais. Au plus MAX_CONSIGNE caractères : la partie fixe (consignes) est
+ * construite d'abord et jamais coupée ; seules les lignes de données sont retirées pour tenir dans ce qui reste (avec une note qui le dit).
  */
 export function construireConsigne(e: EntreeConsigne): string {
   try {
@@ -111,19 +116,19 @@ export function construireConsigne(e: EntreeConsigne): string {
     if (!projet || typeof projet !== 'object') return ''
     const fixe = [...guide(projet), '', ...REGLES, '', CAPTURE]
     const entete = [...ENTETE, OUVERTURE]
-    const reste = [FERMETURE, ...fixe].join('\n').length + entete.join('\n').length + 4
     const NOTE = (n: number): string => `(… ${n} lignes non listées : section plafonnée à ${MAX_CONSIGNE} caractères)`
     const toutes = lignesDonnees(e, projet)
+    let taille = partieFixe(projet).length + NOTE(toutes.length).length + 1
     const garde: string[] = []
-    let taille = reste + NOTE(999).length + 1
-    for (const l of toutes) {
-      if (taille + l.length + 1 > MAX_CONSIGNE) break
-      garde.push(l)
-      taille += l.length + 1
+    if (taille <= MAX_CONSIGNE) {
+      for (const l of toutes) {
+        if (taille + l.length + 1 > MAX_CONSIGNE) break
+        garde.push(l)
+        taille += l.length + 1
+      }
+      if (garde.length < toutes.length) garde.push(NOTE(toutes.length - garde.length))
     }
-    if (garde.length < toutes.length) garde.push(NOTE(toutes.length - garde.length))
-    const texte = [...entete, ...garde, FERMETURE, ...fixe].join('\n')
-    return texte.length > MAX_CONSIGNE ? `${texte.slice(0, MAX_CONSIGNE - 1)}…` : texte
+    return [...entete, ...garde, FERMETURE, ...fixe].join('\n')
   } catch {
     return ''
   }

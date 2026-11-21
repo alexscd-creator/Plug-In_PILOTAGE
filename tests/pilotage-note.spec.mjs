@@ -228,3 +228,21 @@ test('rien n’est écrit hors de equipe/<prénom>/ : projet.json, plan.md et le
   assert.equal(readFileSync(join(d, '.pilotage', 'projet.json'), 'utf8'), projetAvant)
   assert.equal(readFileSync(join(d, '.pilotage', 'plan.md'), 'utf8'), planAvant)
 })
+
+test('retirer : un dossier nommé x.md n’est pas une note (code 1, français, rien supprimé)', () => {
+  const d = projet()
+  mkdirSync(join(dossierNotes(d), 'x.md'), { recursive: true })
+  const r = lancer(d, 'retirer', 'x', ...M)
+  assert.equal(r.status, 1, r.stderr); assert.match(r.stderr, /introuvable ou n.est pas une note/); sansTrace(r)
+  assert.ok(existsSync(join(dossierNotes(d), 'x.md')))
+})
+
+test('un premier argument qui est un chemin non JSON ne laisse pas fuir le début du fichier', () => {
+  const d = projet()
+  const f = join(mkdtempSync(join(tmpdir(), 'js-')), 'n.json')
+  writeFileSync(f, 'SECRET-JETON-12345 pas du json')
+  const r = lancer(d, 'idee', f, ...M)
+  assert.equal(r.status, 1)
+  assert.match(r.stderr, /Le fichier d.entrée n.est pas un JSON valide\./)
+  assert.doesNotMatch(r.stderr, /SECRET|JETON/)
+})

@@ -44,10 +44,12 @@ const tx = new Transaction()
 // --- aides ----------------------------------------------------------------------------------------------------------
 const estObjet = v => typeof v === 'object' && v !== null && !Array.isArray(v)
 const court = s => String(s).slice(0, 40)
+const estFichier = p => { try { return statSync(p).isFile() } catch { return false } }
 
 function lireJson() {
   let brut = arg
-  if (!/^\s*[[{"]/.test(brut)) {
+  const depuisFichier = !/^\s*[[{"]/.test(brut)
+  if (depuisFichier) {
     try {
       if (statSync(resolve(brut)).size > MAX_JSON) echec(`Le fichier JSON dépasse ${MAX_JSON / 1024} Ko.`)
       brut = readFileSync(resolve(brut), 'utf8')
@@ -57,7 +59,8 @@ function lireJson() {
   }
   if (brut.length > MAX_JSON) echec(`Les données dépassent ${MAX_JSON / 1024} Ko.`)
   let v
-  try { v = JSON.parse(brut) } catch (e) { echec(`Les données ne sont pas du JSON valide (${e instanceof Error ? e.message : 'erreur inconnue'}).`) }
+  // Le message d'erreur de JSON.parse cite le début du texte : jamais repris (le fichier peut contenir autre chose que du JSON).
+  try { v = JSON.parse(brut) } catch { echec(depuisFichier ? 'Le fichier d\'entrée n\'est pas un JSON valide.' : 'Les données ne sont pas du JSON valide.') }
   if (!estObjet(v)) echec('Les données doivent être un objet JSON.')
   return v
 }
@@ -128,8 +131,8 @@ function creer(type, d, projet, membre, racine, rel) {
 
 function retirer(membre, racine, rel) {
   if (!ID.test(arg) || arg.length > 60) echec('L\'identifiant d\'une note s\'écrit en minuscules, chiffres et tirets seulement (60 caractères au plus) : rien n\'est supprimé.')
-  const types = (options.type === '' ? ['idee', 'feedback'] : [options.type]).filter(t => existsSync(join(racine, DOSSIER_NOTE[t], `${arg}.md`)))
-  if (types.length === 0) echec(`La note « ${arg} » est introuvable chez ${membre.prenom} (on ne retire que ses propres notes) : rien n'est supprimé.`)
+  const types = (options.type === '' ? ['idee', 'feedback'] : [options.type]).filter(t => estFichier(join(racine, DOSSIER_NOTE[t], `${arg}.md`)))
+  if (types.length === 0) echec(`La note « ${arg} » est introuvable ou n'est pas une note chez ${membre.prenom} (on ne retire que ses propres notes) : rien n'est supprimé.`)
   if (types.length > 1) echec(`La note « ${arg} » existe dans idees et dans feedback : relancer avec --type idee ou --type feedback. Rien n'est supprimé.`)
   const f = join(racine, DOSSIER_NOTE[types[0]], `${arg}.md`)
   if (statSync(f).size > MAX_FICHIER_NOTE) echec(`La note « ${arg} » est trop volumineuse pour être une note de Pilotage : rien n'est supprimé.`)

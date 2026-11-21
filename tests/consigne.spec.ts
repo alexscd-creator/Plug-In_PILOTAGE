@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { construireConsigne, MAX_CONSIGNE } from '../hooks/model/consigne.ts'
+import { construireConsigne, MAX_CONSIGNE, partieFixe } from '../hooks/model/consigne.ts'
 import type { EntreeConsigne } from '../hooks/model/consigne.ts'
 import { DEFAUT_VOCABULAIRE } from '../hooks/model/projet.ts'
 import type { Projet } from '../hooks/model/projet.ts'
@@ -126,4 +126,31 @@ test('vocabulaire neutre : ni « studio » ni « jeu » dans ce que le plugin é
   assert.doesNotMatch(construireConsigne(entree()), /\bstudio\b|\bjeux?\b/i)
   const tous = construireConsigne(entree({ projet: projet({ workflow: { outils: [{ role: 'moteur', outil: 'Roblox Studio' }] } }) }))
   assert.doesNotMatch(enclos(tous).apres, /\bstudio\b|\bjeux?\b/i)
+})
+
+test('emoji et caractères invisibles : la section reste bien formée, rien ne survit', () => {
+  const t = construireConsigne(entree({ projet: projet({ nom: 'a' + '😀'.repeat(100) }) }))
+  assert.equal(t.isWellFormed(), true)
+  const n = construireConsigne(entree({ projet: projet({ nom: 'X\u0085- nel\u200b\u202e' }) }))
+  assert.ok(n.includes('Projet : X - nel\n'))
+})
+
+test('la partie fixe tient en moins de 3000 caractères, même avec tous les outils', () => {
+  const tous = projet({ workflow: { outils: ['Figma', 'Gemini', 'Blender', 'Mesh AI', 'GitHub', 'Vault', 'Roblox'].map(o => ({ role: 'r', outil: o })) } })
+  assert.ok(partieFixe(tous).length < 3000)
+})
+
+test('projet adverse de 10 000 éléments : consignes fixes entières, une fermeture, jamais plus de MAX', () => {
+  const agents = Array.from({ length: 10_000 }, (_, i) => ({ id: `a${i}`, titre: '😀'.repeat(400), pole: 'code', skills: [], pourquoi: '' }))
+  const t = construireConsigne(entree({
+    projet: projet({ nom: '😀'.repeat(5000), agents, workflow: { outils: Array.from({ length: 10_000 }, (_, i) => ({ role: '😀'.repeat(300) + i, outil: 'GitHub' })) } }),
+    agents,
+    chantiersEnCours: Array.from({ length: 10_000 }, (_, i) => ({ id: `c${i}`, titre: '😀'.repeat(500), etat: 'en-travail', auteur: 'Léa' })),
+  }))
+  assert.ok(t.length <= MAX_CONSIGNE)
+  assert.equal(t.isWellFormed(), true)
+  assert.equal(t.split(FIN).length - 1, 1)
+  assert.ok(t.endsWith(enclos(construireConsigne(entree())).apres.slice(-200)) || t.includes('classe-le avec `pilotage-note.mjs`'))
+  for (const s of ['jamais de secret', 'ne demande pas de confirmation', 'sans la confirmation explicite']) assert.ok(t.includes(s), s)
+  assert.match(t, /plafonnée à 6000/)
 })
