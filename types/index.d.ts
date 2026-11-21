@@ -34,6 +34,8 @@ declare module 'claude-code' {
       filtrePole: Shaped<string>
       /** Agent dont le détail est ouvert dans la page Agents ('' : la grille). */
       agentOuvert: Shaped<string>
+      /** Filtre de la page Idées : tout, les idées ou les retours. */
+      filtreIdees: Shaped<'tout' | 'idee' | 'feedback'>
       /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
       tick: Shaped<number>
       /** Thème du panneau. */

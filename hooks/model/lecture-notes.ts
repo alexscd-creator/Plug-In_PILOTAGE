@@ -10,7 +10,9 @@ import { memeMembre } from './projet.ts'
 /** Notes les plus récentes lues par membre et par type (les noms commencent par la date : l'ordre alphabétique est l'ordre du temps). */
 export const MAX_NOTES_PAR_MEMBRE = 200
 
-export type LectureNotes = { notes: Note[]; erreurs: string[] }
+/** Une note lue, avec le chemin de son fichier relatif au projet (`.pilotage/equipe/<dossier>/<idees|feedback>/<nom>.md`). */
+export type NoteLue = Note & { chemin: string }
+export type LectureNotes = { notes: NoteLue[]; erreurs: string[] }
 
 const BS = String.fromCharCode(92)
 const normaliser = (p: string): string => p.replaceAll(BS, '/').replace(/\/+/g, '/').replace(/\/$/, '')
@@ -21,7 +23,7 @@ const liste = async (fs: FsLike, dossier: string): Promise<string[] | null> => {
     return null
   }
 }
-const plusRecentes = (a: Note, b: Note): number => {
+const plusRecentes = (a: NoteLue, b: NoteLue): number => {
   const d = Date.parse(b.date) - Date.parse(a.date)
   return d !== 0 && !Number.isNaN(d) ? d : a.id < b.id ? 1 : a.id > b.id ? -1 : 0
 }
@@ -71,7 +73,7 @@ export async function lireNotes(fs: FsLike, racine: string, equipe: string[]): P
           if (!r.ok) sortie.erreurs.push(`La note ${chemin} est écartée : ${r.erreurs.join(' ')}`)
           else if (r.note.type !== type) sortie.erreurs.push(`La note ${chemin} est écartée : son type (${r.note.type}) n’est pas celui de son dossier (${type}).`)
           else {
-            sortie.notes.push(r.note)
+            sortie.notes.push({ ...r.note, chemin })
             for (const a of r.avertissements) sortie.erreurs.push(`(avertissement) ${chemin} : ${a}`)
           }
         }

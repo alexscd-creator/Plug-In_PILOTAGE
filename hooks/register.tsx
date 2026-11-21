@@ -13,8 +13,8 @@ import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
-import { lireProjetComplet, lireSessions } from './model/lecture.ts'
-import type { LienSession } from './model/lecture.ts'
+import { lireNotes, lireProjetComplet, lireSessions } from './model/lecture.ts'
+import type { LectureNotes, LienSession } from './model/lecture.ts'
 import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
@@ -24,7 +24,6 @@ import type { Projet, Workflow } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
 import { pageAgents } from './ui/agents'
-import { pageAvenir } from './ui/avenir'
 import { bandeauChantier } from './ui/bandeau'
 import { pageChantiers } from './ui/chantiers'
 import { cadre, creerCtx } from './ui/kit'
@@ -32,6 +31,8 @@ import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
 import type { NomIcone } from './ui/icones'
 import { pageParametres } from './ui/parametres'
+import { pageIdees } from './ui/idees'
+import type { FiltreIdees } from './ui/idees'
 import { pagePhases } from './ui/phases'
 import { pagePlan } from './ui/plan'
 import { jetons, modeDeTheme } from './ui/theme'
@@ -62,6 +63,8 @@ const chantierOuvert = atom({ plugin: 'pilotage', key: 'chantierOuvert' } as con
 const filtrePole = atom({ plugin: 'pilotage', key: 'filtrePole' } as const, '', { shape: 'filtre-pole-1' })
 // Agent dont le détail est ouvert dans la page Agents ('' : la grille).
 const agentOuvert = atom({ plugin: 'pilotage', key: 'agentOuvert' } as const, '', { shape: 'agent-ouvert-1' })
+// Filtre de la page Idées : tout, les idées seulement ou les retours seulement.
+const filtreIdees = atom({ plugin: 'pilotage', key: 'filtreIdees' } as const, 'tout' as FiltreIdees, { shape: 'filtre-idees-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
 // Thème du panneau : le mod ne peut pas lire le mode de l'application, « systeme » prend donc le sombre.
@@ -559,6 +562,7 @@ export const register: Register = on => {
   // configuration ne sont pas relus à chaque dessin).
   let cacheLecture: { cle: string; valeur: LectureProjet; sessions: Map<string, LienSession> } | null = null
   let cacheTheme: { tick: number; mode: Mode } | null = null
+  let cacheNotes: { cle: string; valeur: LectureNotes } | null = null
   let cacheConsigne: { cle: string; a: number; texte: string } | null = null
 
   on('session.start', async ($, e, next) => {
@@ -725,6 +729,12 @@ export const register: Register = on => {
       const detailOuvert = await read($, chantierOuvert)
       const donneesAgents = courante === 'agents' ? await lireDonneesAgents($, lecture, maintenant) : null
       const projet = lecture.projet
+      // Les idées et retours ne se lisent que sur leur page (même cache que le projet : relus à chaque rafraîchissement).
+      let notes: LectureNotes = { notes: [], erreurs: [] }
+      if (courante === 'idees') {
+        if (cacheNotes?.cle !== cle) cacheNotes = { cle, valeur: await lireNotes(adapter($), racine, lecture.projet.equipe) }
+        notes = cacheNotes.valeur
+      }
       const monWorkflow = courante === 'parametres' ? await lireMonWorkflow($) : null
       const aller = sur($, async (p: Page) => { await update($, erreursReglages, () => []); await update($, page, () => p) })
       const { Text } = ui
@@ -774,8 +784,10 @@ export const register: Register = on => {
                         signaler: sur($, async (liste: string[]) => { await update($, erreursReglages, () => liste) }),
                         enregistrerWorkflow: sur($, () => enregistrerMonWorkflow($, projet.workflow)),
                       })
-                  // L'autre page (Idées) est une carte « Bientôt ».
-                  : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
+                  : pageIdees(ctx, {
+                      projet: lecture.projet, racine, notes: notes.notes, erreursNotes: notes.erreurs, filtre: await read($, filtreIdees), copier: copierLeChemin,
+                      filtrer: sur($, async (f: FiltreIdees) => { await update($, filtreIdees, () => f) }),
+                    })),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

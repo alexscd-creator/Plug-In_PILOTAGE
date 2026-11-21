@@ -230,4 +230,4 @@ export async function lireSessions(fs: FsLike, racine: string, equipe: string[] 
 
 /** Idées et retours de toute l'équipe (voir lecture-notes.ts, séparé pour garder ce fichier court). */
 export { lireNotes } from './lecture-notes.ts'
-export type { LectureNotes } from './lecture-notes.ts'
+export type { LectureNotes, NoteLue } from './lecture-notes.ts'
