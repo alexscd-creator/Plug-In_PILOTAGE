@@ -2,6 +2,8 @@
 // arrive par FsLike (les hooks tournent hors Node) et ne reçoit jamais d'écriture. Ne lève jamais : un fichier
 // absent est vide, un fichier illisible est vide AVEC une erreur en français.
 import type { FsLike } from './activation.ts'
+import { parseChantier } from './chantier.ts'
+import type { Chantier } from './chantier.ts'
 import { lirePortes } from './phases.ts'
 import type { Portes } from './phases.ts'
 import { estCopieDeConflit, parsePlan } from './plan.ts'
@@ -15,6 +17,10 @@ export type LectureProjet = {
   taches: Tache[]
   /** Une entrée par membre de l'équipe, sous le prénom écrit dans le projet ; le membre courant d'abord. */
   portes: Record<string, Portes>
+  /** Fiches de chantier valides de toute l'équipe (en cours et archivées). */
+  chantiers: Chantier[]
+  /** Une phrase par fiche ou dossier de chantier illisible ou invalide. */
+  erreursChantiers: string[]
   erreurs: string[]
 }
 
@@ -30,7 +36,7 @@ const liste = async (fs: FsLike, dossier: string): Promise<string[] | null> => {
 }
 
 export async function lireProjetComplet(fs: FsLike, racine: string, moi: string): Promise<LectureProjet> {
-  const sortie: LectureProjet = { projet: null, taches: [], portes: {}, erreurs: [] }
+  const sortie: LectureProjet = { projet: null, taches: [], portes: {}, chantiers: [], erreursChantiers: [], erreurs: [] }
   try {
     if (typeof racine !== 'string' || racine.trim() === '') {
       sortie.erreurs.push('Aucun dossier de projet n’est indiqué.')
@@ -83,9 +89,63 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
         sortie.erreurs.push(`Les portes de ${m} (.pilotage/equipe/${d}/portes.md) n’ont pas pu être lues : elles sont affichées vides.`)
       }
     }
+    const c = await lireChantiersDetail(fs, dossier, r.projet.equipe)
+    sortie.chantiers = c.chantiers
+    sortie.erreursChantiers = c.erreurs
     return sortie
   } catch {
     // Dernier filet : une anomalie imprévue ne doit jamais faire tomber le panneau.
-    return { projet: null, taches: [], portes: {}, erreurs: ['Le projet n’a pas pu être lu.'] }
+    return { projet: null, taches: [], portes: {}, chantiers: [], erreursChantiers: [], erreurs: ['Le projet n’a pas pu être lu.'] }
+  }
+}
+
+/**
+ * Fiches de chantier de l'équipe : `equipe/<prénom>/chantiers/*.md` (en cours) et `equipe/<prénom>/archive/*.md` (archivées, `archive` forcé à vrai).
+ * `auteur` = le prénom de `equipe` qui correspond au dossier (sinon le nom du dossier). Copies de conflit ignorées ; les fiches
+ * illisibles ou invalides sont écartées et listées dans `erreurs`. Deux membres peuvent avoir le même id : les deux sont gardées.
+ */
+async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]): Promise<{ chantiers: Chantier[]; erreurs: string[] }> {
+  const sortie: { chantiers: Chantier[]; erreurs: string[] } = { chantiers: [], erreurs: [] }
+  try {
+    const membres = await liste(fs, `${dossier}/equipe`)
+    if (membres === null) return sortie
+    for (const d of membres.filter(n => !estCopieDeConflit(n)).sort()) {
+      const auteur = equipe.find(m => memeMembre(m, d)) ?? d
+      for (const sous of ['chantiers', 'archive'] as const) {
+        const noms = await liste(fs, `${dossier}/equipe/${d}/${sous}`)
+        if (noms === null) {
+          // Un dossier simplement absent n'est pas une erreur ; on ne le distingue pas d'une panne de liste, sauf si le parent le contient.
+          const parent = await liste(fs, `${dossier}/equipe/${d}`)
+          if (parent?.includes(sous)) sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
+          continue
+        }
+        for (const nom of noms.filter(n => /\.md$/i.test(n) && !estCopieDeConflit(n)).sort()) {
+          const chemin = `.pilotage/equipe/${d}/${sous}/${nom}`
+          let texte: string
+          try {
+            texte = await fs.read(`${dossier}/equipe/${d}/${sous}/${nom}`)
+          } catch {
+            sortie.erreurs.push(`La fiche de chantier ${chemin} n’a pas pu être lue.`)
+            continue
+          }
+          const f = parseChantier(texte, auteur)
+          if (f.ok) sortie.chantiers.push(sous === 'archive' ? { ...f.chantier, archive: true } : f.chantier)
+          else sortie.erreurs.push(`La fiche de chantier ${chemin} est écartée : ${f.erreurs.join(' ')}`)
+        }
+      }
+    }
+  } catch {
+    sortie.erreurs.push('Les chantiers n’ont pas pu être lus.')
+  }
+  return sortie
+}
+
+/** Fiches de chantier valides de toute l'équipe (voir `lireChantiersDetail` pour les règles). Ne lève jamais. */
+export async function lireChantiers(fs: FsLike, racine: string, equipe: string[]): Promise<Chantier[]> {
+  try {
+    if (typeof racine !== 'string' || racine.trim() === '') return []
+    return (await lireChantiersDetail(fs, `${normaliser(racine)}/.pilotage`, Array.isArray(equipe) ? equipe : [])).chantiers
+  } catch {
+    return []
   }
 }

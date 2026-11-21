@@ -121,3 +121,59 @@ test('projet absent ou disque en panne : projet nul, jamais d’exception', asyn
   const mauvais = await lireProjetComplet(fsDe({}), '', '')
   assert.equal(mauvais.projet, null)
 })
+
+// --- chantiers ---
+import { lireChantiers } from '../hooks/model/lecture.ts'
+import { serializeChantier } from '../hooks/model/chantier.ts'
+import type { Chantier } from '../hooks/model/chantier.ts'
+
+const chantier = (id: string, extra: Partial<Chantier> = {}): Chantier => ({
+  id, titre: `Chantier ${id}`, pole: 'code', phase: 'p1', etat: 'en-travail', session: 's', agents: [], taches: [], fichiers: [],
+  cree: '2026-11-21T10:00:00.000Z', maj: '2026-11-21T10:00:00.000Z', passation: '', archive: false, auteur: '', ...extra,
+})
+
+test('chantiers : fiches en cours et archives de chaque membre, auteur = prénom du projet', async () => {
+  const r = await lireProjetComplet(fsDe(base({
+    [`${R}/equipe/lea/chantiers/a.md`]: serializeChantier(chantier('a')),
+    [`${R}/equipe/lea/archive/vieux.md`]: serializeChantier(chantier('vieux', { etat: 'termine' })),
+    [`${R}/equipe/jean-luc/chantiers/a.md`]: serializeChantier(chantier('a', { titre: 'Même id' })),
+  })), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.erreursChantiers, [])
+  assert.deepEqual(r.chantiers.map(c => [c.id, c.auteur, c.archive]).sort(), [['a', 'Jean-Luc', false], ['a', 'Léa', false], ['vieux', 'Léa', true]])
+})
+
+test('chantiers : copies de conflit ignorées, fiche invalide listée sans casser les autres', async () => {
+  const r = await lireProjetComplet(fsDe(base({
+    [`${R}/equipe/lea/chantiers/a.md`]: serializeChantier(chantier('a')),
+    [`${R}/equipe/lea/chantiers/a (1).md`]: serializeChantier(chantier('copie')),
+    [`${R}/equipe/lea/chantiers/b - Copie.md`]: serializeChantier(chantier('copie2')),
+    [`${R}/equipe/lea/chantiers/cassee.md`]: '---\netat: explose\n---\n',
+    [`${R}/equipe/lea/chantiers/vide.md`]: '',
+    [`${R}/equipe/lea/chantiers/notes.txt`]: 'pas une fiche',
+    [`${R}/equipe/lea (1)/chantiers/c.md`]: serializeChantier(chantier('dossier-copie')),
+  })), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.chantiers.map(c => c.id), ['a'])
+  assert.equal(r.erreursChantiers.length, 2)
+  assert.ok(r.erreursChantiers.some(e => e.includes('cassee.md') && e.includes('explose')))
+  assert.ok(r.erreursChantiers.some(e => e.includes('vide.md')))
+})
+
+test('chantiers : fiche illisible ou dossier en panne = erreur, pas d’exception ; absent = rien', async () => {
+  const fiche = `${R}/equipe/lea/chantiers/a.md`
+  const r = await lireProjetComplet(fsDe(base({ [fiche]: 'x', [`${R}/equipe/lea/chantiers/b.md`]: serializeChantier(chantier('b')) }), [fiche]), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.chantiers.map(c => c.id), ['b'])
+  assert.equal(r.erreursChantiers.length, 1)
+  const p = await lireProjetComplet(fsDe(base({ [`${R}/equipe/lea/chantiers/a.md`]: 'x' }), [], [`${R}/equipe/lea/chantiers`]), 'C:/Projet', 'Léa')
+  assert.deepEqual(p.chantiers, [])
+  assert.equal(p.erreursChantiers.length, 1)
+  const v = await lireProjetComplet(fsDe(base({ [`${R}/equipe/lea/portes.md`]: 'porte: p1\n' })), 'C:/Projet', 'Léa')
+  assert.deepEqual(v.chantiers, [])
+  assert.deepEqual(v.erreursChantiers, [])
+})
+
+test('lireChantiers : membre inconnu du projet = nom du dossier ; ne lève jamais', async () => {
+  const c = await lireChantiers(fsDe({ [`${R}/equipe/zoe/chantiers/a.md`]: serializeChantier(chantier('a')) }), 'C:/Projet', ['Léa'])
+  assert.deepEqual(c.map(x => x.auteur), ['zoe'])
+  assert.deepEqual(await lireChantiers(fsDe({}), 'C:/Projet', ['Léa']), [])
+  assert.deepEqual(await lireChantiers(fsDe({}), '', ['Léa']), [])
+})
