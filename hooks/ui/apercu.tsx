@@ -1,4 +1,6 @@
 // Page « Vue d'ensemble » (maquette §6, écran 01) : carte projet, pôles, plan, chantiers en cours. LIT seulement.
+import type { Chantier } from '../model/chantier.ts'
+import { grouperChantiers, separerAvis } from '../model/chantiers.ts'
 import type { Portes } from '../model/phases.ts'
 import type { Tache } from '../model/plan.ts'
 import { avancementGlobal, avancementPole, resumerPhases } from '../model/synthese.ts'
@@ -7,6 +9,8 @@ import { libelle } from '../model/presets.ts'
 import type { NomIcone } from './icones'
 import { avatar, barreProgression, bulle, carte, iconeEl, titreSection } from './kit'
 import type { Ctx } from './kit'
+import { carteVide } from './chantiers'
+import { cles, ligneChantier } from './ligne-chantier'
 import { couleurPole } from './theme'
 
 export type DonneesApercu = {
@@ -16,6 +20,11 @@ export type DonneesApercu = {
   portes: Record<string, Portes>
   iconeType: NomIcone
   ouvrirPlan: () => void | Promise<void>
+  /** Fiches de chantier lues avec le projet, leurs erreurs de lecture, l'heure et la copie d'un texte. */
+  chantiers: Chantier[]
+  erreursChantiers: string[]
+  maintenant: number
+  copier: (texte: string, surface?: string) => Promise<void>
 }
 
 export const pluriel = (n: number, un: string, plusieurs: string): string => `${n} ${n > 1 ? plusieurs : un}`
@@ -35,6 +44,7 @@ function carteProjet(c: Ctx, d: DonneesApercu) {
   const { Box, Text } = c.ui
   const { j } = c
   const g = avancementGlobal(d.taches)
+  const enCours = grouperChantiers(d.chantiers).enCours.length
   const ph = resumerPhases(d.projet, d.taches, d.moi, d.portes)
   return carte(c, [
     <Box key="etiquettes" flexDirection="row" flexWrap="wrap" gap="sm">
@@ -48,7 +58,7 @@ function carteProjet(c: Ctx, d: DonneesApercu) {
     <Box key="progression" flexDirection="column" gap="sm">
       <Text weight="semibold" color={j.texte}>Progression du projet</Text>
       {barreProgression(c, 'Progression du projet', g.pourcent / 100)}
-      <Text size="caption" color={j.texteDim}>{`${pluriel(g.faites, 'tâche terminée', 'tâches terminées')} sur ${g.total}`}</Text>
+      <Text size="caption" color={j.texteDim}>{`${pluriel(g.faites, 'tâche terminée', 'tâches terminées')} sur ${g.total}${enCours > 0 ? ` · ${pluriel(enCours, 'chantier en cours', 'chantiers en cours')}` : ''}`}</Text>
     </Box>,
   ], { cle: 'carte-projet' })
 }
@@ -57,7 +67,7 @@ function cartePole(c: Ctx, d: DonneesApercu, i: number) {
   const { Box, Text } = c.ui
   const pole = d.projet.poles[i]!
   const teinte = couleurPole(pole.couleur, i)
-  const a = avancementPole(d.projet, d.taches, pole.id)
+  const a = avancementPole(d.projet, d.taches, pole.id, d.chantiers)
   const resume = a.total === 0 ? 'Aucune tâche rattachée' : `${pluriel(a.faites, 'tâche terminée', 'tâches terminées')} sur ${a.total}`
   return carte(c, [
     <Box key="entete" flexDirection="row" alignItems="center" gap="md">
@@ -122,21 +132,25 @@ function cartePlan(c: Ctx, d: DonneesApercu) {
   ], { cle: 'carte-plan' })
 }
 
-/** « Chantiers en cours » : le panneau ne lit pas encore les chantiers ; le jalon suivant définira leurs lignes. */
-function sectionChantiers(c: Ctx) {
+/** « Chantiers en cours » : les vrais chantiers (mêmes lignes que la page Chantiers) ; sinon un état vide honnête. */
+function sectionChantiers(c: Ctx, d: DonneesApercu) {
   const { Box, Text } = c.ui
+  const { enCours } = grouperChantiers(d.chantiers)
+  const ligne = { projet: d.projet, maintenant: d.maintenant, copier: d.copier }
+  const nb = cles(enCours)
+  const illisibles = separerAvis(d.erreursChantiers).erreurs.length
   return (
     <Box key="chantiers" flexDirection="column" gap="lg">
-      {titreSection(c, 'Chantiers en cours')}
-      {carte(c, [
-        <Box key="bulle" alignSelf="center">{bulle(c, 'chantier', 48)}</Box>,
-        <Text key="titre" weight="semibold" color={c.j.texte}>Le suivi des chantiers arrive bientôt.</Text>,
-      ], { cle: 'carte-chantiers-vide', centre: true })}
+      {titreSection(c, 'Chantiers en cours', enCours.length > 0 ? 'État en direct de chaque sous-session. Rafraîchi automatiquement.' : undefined)}
+      {enCours.map((ch, i) => ligneChantier(c, ligne, ch, nb[i]!))}
+      {enCours.length === 0 && d.chantiers.length === 0 && illisibles === 0 ? carteVide(c) : null}
+      {enCours.length === 0 && d.chantiers.length > 0 ? <Text color={c.j.texteDim}>Aucun chantier en cours : tous sont archivés.</Text> : null}
+      {illisibles > 0 ? <Text color={c.j.texteDim}>{`${pluriel(illisibles, 'fiche de chantier n’a pas pu être lue', 'fiches de chantier n’ont pas pu être lues')} : voir la page Chantiers.`}</Text> : null}
       <Text size="caption" color={c.j.texteDim}>Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.</Text>
     </Box>
   )
 }
 
 export function pageApercu(c: Ctx, d: DonneesApercu) {
-  return [carteProjet(c, d), sectionPoles(c, d), cartePlan(c, d), sectionChantiers(c)]
+  return [carteProjet(c, d), sectionPoles(c, d), cartePlan(c, d), sectionChantiers(c, d)]
 }

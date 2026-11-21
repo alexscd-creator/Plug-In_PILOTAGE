@@ -4,7 +4,8 @@ import type { Register } from 'claude-code'
 import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
-import { lireProjetComplet } from './model/lecture.ts'
+import { chantierDeSession } from './model/chantiers.ts'
+import { lireProjetComplet, lireSessions } from './model/lecture.ts'
 import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
@@ -12,6 +13,8 @@ import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
 import { pageAvenir } from './ui/avenir'
+import { bandeauChantier } from './ui/bandeau'
+import { pageChantiers } from './ui/chantiers'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
@@ -38,6 +41,8 @@ const erreursMarqueur = atom({ plugin: 'pilotage', key: 'erreursMarqueur' } as c
 const page = atom({ plugin: 'pilotage', key: 'page' } as const, 'apercu' as Page, { shape: 'page-1' })
 // Phase ouverte dans la page Phases ('' : la phase en cours).
 const phaseOuverte = atom({ plugin: 'pilotage', key: 'phaseOuverte' } as const, '', { shape: 'phase-ouverte-1' })
+// Chantier dont le détail est ouvert dans la page Chantiers ('' : aucun).
+const chantierOuvert = atom({ plugin: 'pilotage', key: 'chantierOuvert' } as const, '', { shape: 'chantier-ouvert-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
 // Thème du panneau : le mod ne peut pas lire le mode de l'application, « systeme » prend donc le sombre.
@@ -149,11 +154,11 @@ const copier = async ($: any, texte: string, surface?: string): Promise<boolean>
     .then((r: { isCopied: boolean }) => r.isCopied === true)
     .catch(() => false)
 
-/** Copie un chemin puis le dit en une ligne (« Copié » ou l'échec). Ne lève jamais. */
+/** Copie un texte (chemin, nom de session) puis le dit en une ligne (« Copié » ou l'échec). Ne lève jamais. */
 async function copierChemin($: any, texte: string, surface?: string): Promise<void> {
   const ok = await copier($, texte, surface)
   try {
-    $.ui.toast(ok ? `Copié : ${texte}` : "Le chemin n'a pas pu être copié : sélectionnez-le à la main.")
+    $.ui.toast(ok ? `Copié : ${texte}` : "La copie n'a pas pu se faire : sélectionnez le texte à la main.")
   } catch {
     // Un toast qui échoue ne casse rien.
   }
@@ -194,7 +199,7 @@ export const register: Register = on => {
   const auto = creerMinuterie(PERIODE_AUTO_MS)
   // Lecture du projet et thème de l'application : gardés tant que `tick` ne change pas (le disque et le menu de
   // configuration ne sont pas relus à chaque dessin).
-  let cacheLecture: { cle: string; valeur: LectureProjet } | null = null
+  let cacheLecture: { cle: string; valeur: LectureProjet; sessions: Map<string, string> } | null = null
   let cacheTheme: { tick: number; mode: Mode } | null = null
 
   on('session.start', async ($, e, next) => {
@@ -279,12 +284,17 @@ export const register: Register = on => {
       const racine = await read($, projetTrouve)
       const moi = await read($, membre)
       const cle = `${numero}|${racine}|${moi}`
-      if (cacheLecture?.cle !== cle) cacheLecture = { cle, valeur: await lireProjetComplet(adapter($), racine, moi) }
+      if (cacheLecture?.cle !== cle) cacheLecture = { cle, valeur: await lireProjetComplet(adapter($), racine, moi), sessions: await lireSessions(adapter($), racine) }
       const lecture = cacheLecture.valeur
+      const maintenant = Date.now()
+      // La session courante est-elle celle d'un chantier en cours ? (jamais d'erreur : sans id, pas de bandeau)
+      const idSession = String((await $.session.id().catch(() => '')) ?? '')
+      const chantierCourant = chantierDeSession(lecture.chantiers, cacheLecture.sessions, idSession)
       if (!lecture.projet) return lecture.erreurs.length > 0 ? erreurs(lecture.erreurs) : await vide()
 
       const courante = await read($, page)
       const ouverte = await read($, phaseOuverte)
+      const detailOuvert = await read($, chantierOuvert)
       const aller = sur($, async (p: Page) => { await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
@@ -296,12 +306,14 @@ export const register: Register = on => {
           rafraichir: sur($, async () => { await update($, tick, n => n + 1) }),
           reglages: () => aller('parametres'),
         }),
+        ...(chantierCourant ? [bandeauChantier(ctx, { chantier: chantierCourant, projet: lecture.projet, maintenant })] : []),
         navigation(ctx, courante, aller),
         <Text key="titre-page" weight="bold" size="title" color={ctx.j.texte}>{titre}</Text>,
         ...(courante === 'apercu'
           ? pageApercu(ctx, {
               projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes,
               iconeType: iconeType(lecture.projet.preset), ouvrirPlan: () => aller('plan'),
+              chantiers: lecture.chantiers, erreursChantiers: lecture.erreursChantiers, maintenant, copier: copierLeChemin,
             })
           : courante === 'plan'
             ? pagePlan(ctx, { projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, copier: copierLeChemin })
@@ -310,8 +322,14 @@ export const register: Register = on => {
                   projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, ouverte, copier: copierLeChemin,
                   choisir: sur($, async (id: string) => { await update($, phaseOuverte, () => id) }),
                 })
-              // Les autres pages (Chantiers, Agents, Idées, Paramètres) sont des cartes « Bientôt ».
-              : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
+              : courante === 'chantiers'
+                ? pageChantiers(ctx, {
+                    projet: lecture.projet, chantiers: lecture.chantiers, erreursChantiers: lecture.erreursChantiers, maintenant,
+                    copier: copierLeChemin, ouvert: detailOuvert,
+                    basculer: sur($, async (cle: string) => { await update($, chantierOuvert, () => cle) }),
+                  })
+                // Les autres pages (Agents, Idées, Paramètres) sont des cartes « Bientôt ».
+                : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

@@ -14,12 +14,11 @@ const PROJET = {
 }
 
 const PHRASES = {
-  chantiers: 'Les chantiers en cours et archivés, avec l’état de chaque sous-session.',
   agents: 'Les agents du projet, leurs skills et leur état en direct.',
   idees: 'Les idées et retours classés automatiquement.',
   parametres: 'Thème, workflow, agents, pôles et réglages du type de projet.',
 } as const
-const TITRES = { chantiers: 'Chantiers', agents: 'Agents', idees: 'Idées', parametres: 'Paramètres' } as const
+const TITRES = { agents: 'Agents', idees: 'Idées', parametres: 'Paramètres' } as const
 const ETATS_VIVANTS = ['En travail', 'En attente d’une réponse', 'Arrêté', 'Prêt à reprendre', 'Bloqué', 'Terminé', 'Connecté']
 
 const texte = (ui: any, t: string | RegExp) => ui.find({ type: 'Text', text: t })

@@ -27,7 +27,7 @@ function couleurStatut(c: Ctx, s: Statut): string {
   return { 'a faire': j.texteDim, 'en cours': j.etats.travail.fg, termine: j.etats.termine.fg, reporte: j.etats.attente.fg, abandonne: j.etats.arrete.fg }[s]
 }
 
-function statut(c: Ctx, s: Statut, cle: string) {
+export function statut(c: Ctx, s: Statut, cle: string) {
   const { Box, Text } = c.ui
   const col = couleurStatut(c, s)
   return (

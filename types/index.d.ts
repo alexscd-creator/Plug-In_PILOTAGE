@@ -18,6 +18,8 @@ declare module 'claude-code' {
       page: Shaped<Page>
       /** Phase ouverte dans la page Phases ('' : la phase en cours). */
       phaseOuverte: Shaped<string>
+      /** Chantier dont le détail est ouvert dans la page Chantiers ('' : aucun). */
+      chantierOuvert: Shaped<string>
       /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
       tick: Shaped<number>
       /** Thème du panneau. */

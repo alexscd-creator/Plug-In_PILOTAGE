@@ -1,4 +1,4 @@
-// Pages pas encore remplies (Chantiers, Agents, Idées, Paramètres) : une carte honnête (titre, « Bientôt », ce que la
+// Pages pas encore remplies (Agents, Idées, Paramètres) : une carte honnête (titre, « Bientôt », ce que la
 // page montrera). Pour Agents, la liste des agents du projet en lecture seule : aucun état en direct n'existe encore.
 import type { Page } from '../../types'
 import type { AgentDef, Projet } from '../model/projet.ts'
@@ -7,7 +7,6 @@ import type { Ctx } from './kit'
 import { couleurPole } from './theme'
 
 const PAGES_AVENIR: Partial<Record<Page, { titre: string; phrase: string }>> = {
-  chantiers: { titre: 'Chantiers', phrase: 'Les chantiers en cours et archivés, avec l’état de chaque sous-session.' },
   agents: { titre: 'Agents', phrase: 'Les agents du projet, leurs skills et leur état en direct.' },
   idees: { titre: 'Idées', phrase: 'Les idées et retours classés automatiquement.' },
   parametres: { titre: 'Paramètres', phrase: 'Thème, workflow, agents, pôles et réglages du type de projet.' },

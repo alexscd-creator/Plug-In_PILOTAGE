@@ -74,16 +74,16 @@ test('une seule tâche restante : accord au singulier', async ($, on) => {
   await ui.unmount()
 })
 
-test('chantiers : suivi à venir (le panneau ne lit pas encore les chantiers) et pied de la maquette', async ($, on) => {
+test('chantiers : sans fiche, état vide honnête et pied de la maquette (le détail vit dans chantiers.test.tsx)', async ($, on) => {
   banc(on, dossierPages())
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await texte(ui, 'Chantiers en cours')).toBeTruthy()
-    expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeTruthy()
-    expect(await texte(ui, 'Aucun chantier en cours')).toBeFalsy()
+    expect(await texte(ui, 'Aucun chantier pour l’instant. Lancer un chantier : /chantier <nom> dans la conversation')).toBeTruthy()
+    expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeFalsy()
     expect(await texte(ui, /Rafraîchi automatiquement/)).toBeFalsy()
-    expect(await texte(ui, /Pour lancer un chantier : tapez \/chantier suivi de son nom dans la conversation\./)).toBeTruthy()
+    expect(await texte(ui, 'Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.')).toBeTruthy()
     await ui.unmount()
   }
 })
