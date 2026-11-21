@@ -74,16 +74,47 @@ test('une seule tâche restante : accord au singulier', async ($, on) => {
   await ui.unmount()
 })
 
-test('chantiers : état vide propre (aucun chantier n’existe encore) et pied de la maquette', async ($, on) => {
+test('chantiers : suivi à venir (le panneau ne lit pas encore les chantiers) et pied de la maquette', async ($, on) => {
   banc(on, dossierPages())
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await texte(ui, 'Chantiers en cours')).toBeTruthy()
-    expect(await texte(ui, 'Aucun chantier en cours')).toBeTruthy()
+    expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeTruthy()
+    expect(await texte(ui, 'Aucun chantier en cours')).toBeFalsy()
+    expect(await texte(ui, /Rafraîchi automatiquement/)).toBeFalsy()
     expect(await texte(ui, /Pour lancer un chantier : tapez \/chantier suivi de son nom dans la conversation\./)).toBeTruthy()
     await ui.unmount()
   }
+})
+
+test('toutes les phases franchies : pastille « Toutes les phases sont franchies », plus de « dans la phase en cours »', async ($, on) => {
+  const tout = ['porte: p1', 'porte: p2', 'porte: p3', ''].join(String.fromCharCode(10))
+  const f = {
+    ...dossierPages(),
+    'C:/Projet/.pilotage/equipe/lea/portes.md': tout,
+    'C:/Projet/.pilotage/equipe/sam/portes.md': tout,
+  }
+  banc(on, f)
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await texte(ui, 'Toutes les phases sont franchies')).toBeTruthy()
+  expect(await texte(ui, /Phase \d sur 3/)).toBeFalsy()
+  expect(await texte(ui, '4 tâches restent à faire')).toBeTruthy()
+  await ui.unmount()
+})
+
+test('nombre impair de pôles : la dernière carte garde la largeur d’une colonne (cellule vide à côté)', async ($, on) => {
+  const poles = [...PROJET_PAGES.poles, { id: 'qa', titre: 'Qualité' }]
+  banc(on, dossierPages({ ...PROJET_PAGES, poles }))
+  await demarrer($)
+  const bureau = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await bureau.find({ key: 'cellule-vide' })).toBeTruthy()
+  expect((await bureau.find({ key: 'cellule-vide' }))?.props.width).toBe('50%')
+  await bureau.unmount()
+  const mobile = await $.ui.mount({ ...PANE, surface: 'mobile' })
+  expect(await mobile.find({ key: 'cellule-vide' })).toBeFalsy()
+  await mobile.unmount()
 })
 
 test('plan vide, projet sans pôle, nom très long : rien ne casse', async ($, on) => {

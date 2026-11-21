@@ -62,3 +62,20 @@ test('bandeauPorte : bloquée tant qu’une tâche est à faire ou en cours', ()
   assert.deepEqual(bandeauPorte([t('1', 'p2', 'abandonne')], 'p2'), { bloquee: false, ouvertes: [] })
   assert.deepEqual(bandeauPorte([], ''), { bloquee: false, ouvertes: [] })
 })
+
+test('resumerPhases : toutes les phases franchies = aucune phase actuelle, rang 0', () => {
+  const tout = { valides: ['p1', 'p2', 'p3'], forces: [], refus: [] }
+  const r = resumerPhases(projet, [], 'Lea', { Lea: tout, Sam: tout })
+  assert.equal(r.actuelle, null)
+  assert.equal(r.indice, 0)
+  assert.equal(r.sur, 3)
+  assert.ok(r.historique.every(h => h.etat === 'terminee'))
+})
+test('resumerPhases : membre inconnu ou vide = aucune porte à son nom, donc phase 1 par défaut', () => {
+  const p = { valides: ['p1'], forces: [], refus: [] }
+  for (const moi of ['', 'Zoe']) {
+    const r = resumerPhases(projet, [], moi, { Lea: p, Sam: p })
+    assert.equal(r.actuelle?.id, 'p1', moi)
+    assert.equal(r.indice, 1)
+  }
+})

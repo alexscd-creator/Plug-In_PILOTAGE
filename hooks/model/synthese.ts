@@ -1,5 +1,5 @@
 // Synthèses du panneau (vue d'ensemble, plan) : logique pure, sans fs ni process (les hooks tournent hors Node).
-import { historique, phaseActuelle } from './phases.ts'
+import { historique } from './phases.ts'
 import type { Portes } from './phases.ts'
 import { portePossible } from './plan.ts'
 import type { Tache } from './plan.ts'
@@ -18,12 +18,16 @@ export function avancementGlobal(taches: Tache[]): Avancement {
   return { total: comptees.length, faites, pourcent: comptees.length === 0 ? 0 : Math.round((faites / comptees.length) * 100) }
 }
 
-/** Phase où je travaille (null sans phase), son rang à partir de 1 (0 sans phase), le nombre de phases et l'historique. */
+/**
+ * Phase où je travaille : celle que l'historique marque « en cours ». Null (rang 0) sans phase ou quand toutes les
+ * phases sont franchies : la page Plan et la Vue d'ensemble lisent donc la même phase. Un membre inconnu n'a aucune
+ * porte à son nom : il est en phase 1.
+ */
 export function resumerPhases(projet: Projet, _taches: Tache[], moi: string, portes: Record<string, Portes>) {
-  const id = phaseActuelle(moi, projet.phases, portes)
-  const i = projet.phases.findIndex(p => p.id === id)
+  const hist = historique(moi, projet.phases, portes)
+  const i = hist.findIndex(h => h.etat === 'en-cours')
   const actuelle: PhaseDef | null = i < 0 ? null : projet.phases[i]!
-  return { actuelle, indice: i + 1, sur: projet.phases.length, historique: historique(moi, projet.phases, portes) }
+  return { actuelle, indice: i + 1, sur: projet.phases.length, historique: hist }
 }
 
 /** Avancement des tâches rattachées à un pôle (champ `pole` du plan) et les agents de ce pôle. */

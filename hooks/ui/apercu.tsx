@@ -16,8 +16,6 @@ export type DonneesApercu = {
   portes: Record<string, Portes>
   iconeType: NomIcone
   ouvrirPlan: () => void | Promise<void>
-  /** Chantiers en cours : ils n'existent pas encore (jalon suivant), la section se branche ici. */
-  chantiers?: unknown[]
 }
 
 export const pluriel = (n: number, un: string, plusieurs: string): string => `${n} ${n > 1 ? plusieurs : un}`
@@ -41,7 +39,9 @@ function carteProjet(c: Ctx, d: DonneesApercu) {
   return carte(c, [
     <Box key="etiquettes" flexDirection="row" flexWrap="wrap" gap="sm">
       {etiquette(c, 'etiquette-type', libelle(d.projet, 'type'), d.iconeType)}
-      {ph.actuelle ? etiquette(c, 'etiquette-phase', `Phase ${ph.indice} sur ${ph.sur} : ${ph.actuelle.titre}`) : null}
+      {ph.actuelle
+        ? etiquette(c, 'etiquette-phase', `Phase ${ph.indice} sur ${ph.sur} : ${ph.actuelle.titre}`)
+        : ph.sur > 0 ? etiquette(c, 'etiquette-phase', 'Toutes les phases sont franchies') : null}
     </Box>,
     <Text key="nom" weight="bold" size="title" color={j.texte}>{d.projet.nom}</Text>,
     <Text key="objectif" color={j.texteSec}>{`Objectif : ${d.projet.but}`}</Text>,
@@ -93,6 +93,7 @@ function sectionPoles(c: Ctx, d: DonneesApercu) {
       {rangees.map((r, k) => (
         <Box key={`rangee-${k}`} flexDirection="row" gap="lg">
           {r.map((x, m) => <Box key={`cellule-${k}-${m}`} flexGrow={1} flexShrink={1} width="50%">{x as never}</Box>)}
+          {!c.mobile && r.length === 1 ? <Box key="cellule-vide" flexGrow={1} flexShrink={1} width="50%" /> : null}
         </Box>
       ))}
     </Box>
@@ -106,7 +107,7 @@ function cartePlan(c: Ctx, d: DonneesApercu) {
   const dansPhase = ph.actuelle ? ouvertes.filter(t => t.phase === ph.actuelle!.id).length : 0
   const resume = ouvertes.length === 0
     ? 'Aucune tâche ne reste à faire.'
-    : `${ouvertes.length > 1 ? `${ouvertes.length} tâches restent` : '1 tâche reste'} à faire, dont ${dansPhase} dans la phase en cours`
+    : `${ouvertes.length > 1 ? `${ouvertes.length} tâches restent` : '1 tâche reste'} à faire${ph.actuelle ? `, dont ${dansPhase} dans la phase en cours` : ''}`
   return carte(c, [
     <Box key="plan" flexDirection="row" alignItems="center" gap="md">
       {bulle(c, 'plan', 48)}
@@ -121,23 +122,21 @@ function cartePlan(c: Ctx, d: DonneesApercu) {
   ], { cle: 'carte-plan' })
 }
 
-/** « Chantiers en cours » : vide pour l'instant ; le jalon des chantiers branche ses lignes via `chantiers`. */
-function sectionChantiers(c: Ctx, chantiers: unknown[]) {
+/** « Chantiers en cours » : le panneau ne lit pas encore les chantiers ; le jalon suivant définira leurs lignes. */
+function sectionChantiers(c: Ctx) {
   const { Box, Text } = c.ui
   return (
     <Box key="chantiers" flexDirection="column" gap="lg">
-      {titreSection(c, 'Chantiers en cours', 'État en direct de chaque sous-session. Rafraîchi automatiquement.')}
-      {chantiers.length === 0
-        ? carte(c, [
-            <Box key="bulle" alignSelf="center">{bulle(c, 'chantier', 48)}</Box>,
-            <Text key="titre" weight="semibold" color={c.j.texte}>Aucun chantier en cours</Text>,
-          ], { cle: 'carte-chantiers-vide', centre: true })
-        : chantiers.map(x => x as never)}
+      {titreSection(c, 'Chantiers en cours')}
+      {carte(c, [
+        <Box key="bulle" alignSelf="center">{bulle(c, 'chantier', 48)}</Box>,
+        <Text key="titre" weight="semibold" color={c.j.texte}>Le suivi des chantiers arrive bientôt.</Text>,
+      ], { cle: 'carte-chantiers-vide', centre: true })}
       <Text size="caption" color={c.j.texteDim}>Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.</Text>
     </Box>
   )
 }
 
 export function pageApercu(c: Ctx, d: DonneesApercu) {
-  return [carteProjet(c, d), sectionPoles(c, d), cartePlan(c, d), sectionChantiers(c, d.chantiers ?? [])]
+  return [carteProjet(c, d), sectionPoles(c, d), cartePlan(c, d), sectionChantiers(c)]
 }

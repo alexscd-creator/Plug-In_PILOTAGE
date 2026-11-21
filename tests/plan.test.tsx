@@ -16,7 +16,9 @@ test('plan : intro, légende des 5 états (icône et libellé), une carte par ph
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
-    expect(await texte(ui, /Le cahier des charges est le plan de travail/)).toBeTruthy()
+    expect(await texte(ui, /Le cahier des charges est le plan de travail : chaque point à faire est une tâche\./)).toBeTruthy()
+    expect(await texte(ui, 'Chaque tâche liée à un fichier a un bouton « Copier le chemin » pour l’ouvrir dans votre éditeur.')).toBeTruthy()
+    expect(await texte(ui, /Cliquez une ligne/)).toBeFalsy()
     expect(await texte(ui, 'États d’une tâche')).toBeTruthy()
     const dedans = JSON.stringify(await ui.find({ key: 'carte-legende' }))
     for (const l of ['À faire', 'En cours', 'Terminé', 'Reporté', 'Abandonné']) expect(dedans).toContain(l)
@@ -152,5 +154,32 @@ test('plan : projet sans couleur de pôle et tâche d’un pôle inconnu : rien 
   await demarrer($)
   const ui = await monter($, 'desktop')
   expect(await texte(ui, 'Phase 2 · Conception')).toBeTruthy()
+  await ui.unmount()
+})
+
+const NL = String.fromCharCode(10)
+const TOUT = ['porte: p1', 'porte: p2', 'porte: p3', ''].join(NL)
+const FRANCHIES = (d: ReturnType<typeof dossierPages>) => ({
+  ...d,
+  'C:/Projet/.pilotage/equipe/lea/portes.md': TOUT,
+  'C:/Projet/.pilotage/equipe/sam/portes.md': TOUT,
+})
+
+test('plan : toutes les phases franchies : ni bandeau ni pied de porte, les tâches ouvertes restent visibles', async ($, on) => {
+  banc(on, FRANCHIES(dossierPages()))
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await texte(ui, 'Tâches ouvertes : impossible de valider la porte')).toBeFalsy()
+  expect(await texte(ui, /Porte verrouillée/)).toBeFalsy()
+  expect(await ui.find({ key: 'tache-p2-3' })).toBeTruthy()
+  await ui.unmount()
+})
+
+test('plan : une tâche d’une phase inconnue est rangée sous « Sans phase »', async ($, on) => {
+  banc(on, dossierPages(PROJET_PAGES, ['## Ailleurs (zzz)', '- [ ] z-1 | Perdue'].join(NL)))
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await texte(ui, 'Sans phase')).toBeTruthy()
+  expect(JSON.stringify(await ui.find({ key: 'phase-sans' }))).toContain('Perdue')
   await ui.unmount()
 })

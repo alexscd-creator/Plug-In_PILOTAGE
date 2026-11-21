@@ -121,11 +121,12 @@ function cartePhase(c: Ctx, cle: string, titre: string, etat: keyof typeof ETATS
 }
 
 export function pagePlan(c: Ctx, d: DonneesPlan) {
-  const { Text } = c.ui
+  const { Box, Text } = c.ui
   const intro = (
-    <Text key="intro" color={c.j.texteSec}>
-      Le cahier des charges est le plan de travail : chaque point à faire est une tâche. Cliquez une ligne pour ouvrir son document.
-    </Text>
+    <Box key="intro" flexDirection="column" gap="xs">
+      <Text color={c.j.texteSec}>Le cahier des charges est le plan de travail : chaque point à faire est une tâche.</Text>
+      <Text color={c.j.texteSec}>Chaque tâche liée à un fichier a un bouton « Copier le chemin » pour l’ouvrir dans votre éditeur.</Text>
+    </Box>
   )
   if (d.taches.length === 0) {
     return [intro, legende(c), carte(c, [
