@@ -100,3 +100,19 @@ test('disque en panne ou projet devenu illisible : le résultat du moteur est re
   panne = true
   expect(await composer($)).toEqual({ sections: MOTEUR })
 })
+
+test('la consigne donne l’identifiant de la session quand le moteur le connaît, et l’omet sinon', async ($, on) => {
+  socle(on, dossierPages())
+  on('session.id', () => ({ value: 'sess-abc' }))
+  await demarrer($)
+  expect(await consigne($)).toContain('Identifiant de cette session : sess-abc')
+})
+
+test('sans identifiant de session : pas de ligne d’identifiant (repli par le nom)', async ($, on) => {
+  socle(on, dossierPages())
+  on('session.id', () => { throw new Error('inconnu') })
+  await demarrer($)
+  const t = await consigne($)
+  expect(t).toContain('# Projet Pilotage')
+  expect(t).not.toContain('Identifiant de cette session')
+})

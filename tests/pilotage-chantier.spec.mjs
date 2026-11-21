@@ -452,3 +452,16 @@ test('un fichier d\u2019entrée qui n\u2019est pas du JSON : message fixe, jamai
   assert.equal(r2.status, 1)
   assert.ok(!/Unexpected|position|pas du json/.test(r2.stderr), r2.stderr)
 })
+
+test('lier-session : --session-id <id> (celui que la consigne donne) écrit sessions.json comme sessionId ; deux valeurs différentes sont refusées', () => {
+  const d = projet(); creerBase(d)
+  const r = lancer(d, 'lier-session', { id: 'carte' }, ...M, '--session-id', 'sess-42')
+  assert.equal(r.status, 0, r.stderr)
+  assert.deepEqual(JSON.parse(lire(sessions(d))), { 'sess-42': 'carte' })
+  const avant = lire(sessions(d))
+  assert.equal(lancer(d, 'lier-session', { id: 'carte', sessionId: 'autre' }, ...M, '--session-id', 'sess-42').status, 1)
+  assert.equal(lancer(d, 'lier-session', { id: 'carte' }, ...M, '--session-id', '../x').status, 1)
+  assert.equal(lancer(d, 'lier-session', { id: 'carte' }, ...M, '--session-id').status, 64)
+  assert.equal(lancer(d, 'creer', { titre: 'Encore' }, ...M, '--session-id', 'sess-42').status, 64)
+  assert.equal(lire(sessions(d)), avant)
+})

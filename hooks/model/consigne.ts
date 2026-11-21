@@ -25,10 +25,14 @@ export type EntreeConsigne = {
   moi: string
   /** Nom du plugin : les agents s'appellent `<plugin>:<id>` ; vide : l'identifiant seul. */
   plugin?: string
+  /** Identifiant de la session (`$.session.id()`), stable pour toute la session ; absent ou invalide : pas de ligne. */
+  session?: string
 }
 
 const MAX_CHANTIERS = 15, MAX_AGENTS = 30, MAX_OUTILS = 30
 const ID_RE = /^[a-z0-9-]+$/
+/** Même alphabet que `lier-session` (scripts/pilotage-chantier.mjs) : un identifiant hors de cet alphabet n'est jamais écrit. */
+const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/
 const OUVERTURE = '<donnees fichier="projet">'
 const FERMETURE = '</donnees>'
 
@@ -94,6 +98,12 @@ function lignesDonnees(e: EntreeConsigne, projet: Projet): string[] {
   ]
 }
 
+// Identifiant de cette session : il vient du moteur (pas des fichiers) et il est validé, donc hors de l'enclos ; rien s'il est inconnu.
+function ligneSession(session: unknown): string[] {
+  if (typeof session !== 'string' || !SESSION_ID.test(session)) return []
+  return ['', `Identifiant de cette session : ${session} (pour ouvrir un chantier ici, le passer à l’action lier-session avec --session-id ${session} ; ne jamais en inventer un autre).`]
+}
+
 /** Consignes par outil connu du workflow (texte fixe, une fois par famille) ; vide sans outil connu. */
 function guide(projet: Projet): string[] {
   const noms = tableau<{ outil: string }>(projet.workflow?.outils).map(o => norme(String(o?.outil ?? '')))
@@ -102,8 +112,8 @@ function guide(projet: Projet): string[] {
 }
 
 /** Tout ce qui est écrit ici : en-tête, enclos fermé (sans données) et consignes fixes. Doit rester bien sous MAX_CONSIGNE. */
-export function partieFixe(projet: Projet): string {
-  return [...ENTETE, OUVERTURE, FERMETURE, ...guide(projet), '', ...REGLES, '', CAPTURE].join('\n')
+export function partieFixe(projet: Projet, session?: string): string {
+  return [...ENTETE, OUVERTURE, FERMETURE, ...ligneSession(session), ...guide(projet), '', ...REGLES, '', CAPTURE].join('\n')
 }
 
 /**
@@ -114,11 +124,11 @@ export function construireConsigne(e: EntreeConsigne): string {
   try {
     const projet = e?.projet
     if (!projet || typeof projet !== 'object') return ''
-    const fixe = [...guide(projet), '', ...REGLES, '', CAPTURE]
+    const fixe = [...ligneSession(e.session), ...guide(projet), '', ...REGLES, '', CAPTURE]
     const entete = [...ENTETE, OUVERTURE]
     const NOTE = (n: number): string => `(… ${n} lignes non listées : section plafonnée à ${MAX_CONSIGNE} caractères)`
     const toutes = lignesDonnees(e, projet)
-    let taille = partieFixe(projet).length + NOTE(toutes.length).length + 1
+    let taille = partieFixe(projet, e.session).length + NOTE(toutes.length).length + 1
     const garde: string[] = []
     if (taille <= MAX_CONSIGNE) {
       for (const l of toutes) {
@@ -135,13 +145,13 @@ export function construireConsigne(e: EntreeConsigne): string {
 }
 
 /** L'entrée de la consigne d'après la lecture du projet : phase du membre, ses tâches ouvertes, chantiers en cours (état à l'écran), agents. Null sans projet. */
-export function entreeDepuisLecture(l: LectureProjet, moi: string, maintenant: number, plugin: string): EntreeConsigne | null {
+export function entreeDepuisLecture(l: LectureProjet, moi: string, maintenant: number, plugin: string, session = ''): EntreeConsigne | null {
   if (!l?.projet) return null
   const { actuelle } = resumerPhases(l.projet, l.taches, moi, l.portes)
   return {
     projet: l.projet, phaseActuelle: actuelle ? { id: actuelle.id, titre: actuelle.titre } : null,
     tachesOuvertes: actuelle ? portePossible(l.taches, actuelle.id).ouvertes.length : 0,
     chantiersEnCours: grouperChantiers(l.chantiers).enCours.map(c => ({ id: c.id, titre: c.titre, etat: etatAffiche(c, maintenant), auteur: c.auteur })),
-    agents: l.projet.agents, moi, plugin,
+    agents: l.projet.agents, moi, plugin, session,
   }
 }

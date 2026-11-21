@@ -20,7 +20,7 @@ Un chantier est un travail délimité (une fonctionnalité, un lot de contenu) m
 
 1. **Contrôle d'impact** (agent `pilotage:chef-de-chantier`, lecture seule) : pôles et agents concernés, fichiers touchés, chevauchements avec les autres chantiers, tâches proposées.
 2. **Confirmation** du récapitulatif par l'utilisateur, puis `creer`.
-3. **Sous-session** proposée (jamais automatiquement), qui commence par `/pilotage:chantier ouvrir <id>`.
+3. **Sous-session** proposée (jamais automatiquement), qui commence par `/pilotage:chantier ouvrir <id>`. On y lie la session avec `lier-session` et `--session-id <identifiant>`, l'identifiant étant celui de la ligne « Identifiant de cette session » des consignes du projet (jamais inventé) ; sans cette ligne, repli par le nom de la sous-session.
 4. **Suivi** : `maj` (état, agent, tâche, fichier). L'état d'un chantier : `en-travail`, `attente`, `arrete`, `pret`, `bloque`, `termine` (ce dernier seulement par `archiver`).
 5. **Passation puis archivage** : texte de passation relu par l'utilisateur, puis `archiver`.
 
@@ -32,7 +32,7 @@ Un chantier est un travail délimité (une fonctionnalité, un lot de contenu) m
 | --- | --- | --- |
 | `creer` | `id?`, `titre`, `pole?`, `phase?`, `agents?` (`{id, etat?, quoi?}`), `taches?`, `fichiers?`, `passation?` | Nouvelle fiche `chantiers/<id>.md`, état `attente`, jamais d'écrasement |
 | `maj` | `id`, et au moins un de `etat`, `agent`, `tache` (`{titre, statut?}`), `fichier`, `passation` | Met la fiche à jour, `maj` = maintenant |
-| `lier-session` | `id`, `sessionId?` ou `nom?` | `sessions.json` : id de session vers id du chantier ; ou nom de la sous-session dans la fiche |
+| `lier-session` | `id`, et `--session-id <identifiant>` (ou `sessionId`), sinon `nom` | `sessions.json` : id de session vers id du chantier ; ou, en repli, nom de la sous-session dans la fiche |
 | `archiver` | `id`, `passation` | Fiche déplacée dans `archive/`, état `termine` ; refusé tant que des tâches « a faire » ou « en cours » restent, sauf `--force-report` (elles passent à « reporte ») |
 | `tache` | `id`, `statut` | Statut d'une tâche du plan partagé (`a faire`, `en cours`, `termine`, `reporte`, `abandonne`) |
 | `porte` | `phase`, `mode` (`valider`, `forcer`, `repondre`), `note?` | Porte de phase dans `portes.md` ; `forcer` et `repondre` exigent `--confirme` |

@@ -85,6 +85,7 @@ export const REGLES_CHANTIER = [
   [/chantier-pilotage/, 'le skill chantier-pilotage'],
   [/\/pilotage:chantier ouvrir/, '/pilotage:chantier ouvrir'],
   [/lier-session/, 'l’action lier-session'],
+  [/--session-id/, '--session-id (l’identifiant de cette session, donné par la consigne)'],
   [/archiver/, 'l’action archiver'],
   [/passation/i, 'la passation'],
   [/--force-report/, '--force-report'],
@@ -112,6 +113,7 @@ export const REGLES_SKILL_CHANTIER = [
   [/conversation principale/i, 'la conversation principale'],
   [/passation/i, 'la passation'],
   [/une personne à la fois/i, 'le plan modifié « une personne à la fois »'],
+  [/--session-id/, '--session-id (lier la session)'],
 ]
 export const REGLES_AGENT_CHEF = [
   [/lecture seule/i, 'la lecture seule'],
@@ -153,6 +155,7 @@ export const REGLES_SKILL_WORKFLOW = [
 export const REGLES_CONSIGNE = [
   [/pilotage-note\.mjs/,'le script pilotage-note.mjs'],
   [/ne demande pas de confirmation/, '« ne demande pas de confirmation » (capture des idées)'],
+  [/Identifiant de cette session/, '« Identifiant de cette session » (pour lier-session --session-id)'],
 ]
 
 // Neutralité : le plugin ne parle ni de « studio » ni de « jeu » en dehors des données des presets (presets/), des tests et de docs/.

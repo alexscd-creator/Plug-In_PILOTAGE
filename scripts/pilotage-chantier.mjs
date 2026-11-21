@@ -1,9 +1,9 @@
 // Écrit les chantiers de l'équipe : fiches `equipe/<prénom>/chantiers/<id>.md`, archives, liens de session, tâches du plan, portes de phase.
-// Usage : node scripts/pilotage-chantier.mjs <dossier> <action> <json | fichier.json> [--membre <prénom>] [--force-report] [--confirme]
+// Usage : node scripts/pilotage-chantier.mjs <dossier> <action> <json | fichier.json> [--membre <prénom>] [--force-report] [--confirme] [--session-id <id>]
 // Actions (le JSON dit quoi) :
 //   creer         {id?, titre, pole?, phase?, etat?, session?, agents?, taches?, fichiers?, passation?}  nouvelle fiche, jamais d'écrasement
 //   maj           {id, etat?, agent?, tache?, fichier?, passation?}   met la fiche à jour (`maj` = maintenant) ; `termine` seulement par `archiver`
-//   lier-session  {id, sessionId?, nom?}   `equipe/<prénom>/sessions.json` : { "<id de session>": "<id du chantier>" } ; `nom` : nom de la sous-session dans la fiche
+//   lier-session  {id, sessionId?, nom?} [--session-id <id>]   `equipe/<prénom>/sessions.json` : { "<id de session>": "<id du chantier>" } ; `nom` : nom de la sous-session dans la fiche
 //   archiver      {id, passation}  fiche déplacée dans `archive/`, état `termine` ; refusé tant que des tâches « a faire » ou « en cours » restent, sauf `--force-report` (elles passent à `reporte`)
 //   tache         {id, statut}     statut d'une tâche du plan partagé `.pilotage/plan.md`, modifié EN PLACE (seule la marque de la ligne change, le reste du fichier est conservé) ; --membre facultatif
 //   porte         {phase, mode: valider|forcer|repondre, note?}   `equipe/<prénom>/portes.md` ; `forcer` et `repondre` exigent `--confirme` ; `valider` et `forcer` exigent qu'aucune tâche de la phase soit ouverte
@@ -14,7 +14,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug } from './lib/ecriture.mjs'
 
-const USAGE = 'usage : node scripts/pilotage-chantier.mjs <dossier> <creer|maj|lier-session|archiver|tache|porte> <json | fichier.json> [--membre <prénom>] [--force-report] [--confirme]'
+const USAGE = 'usage : node scripts/pilotage-chantier.mjs <dossier> <creer|maj|lier-session|archiver|tache|porte> <json | fichier.json> [--membre <prénom>] [--force-report] [--confirme] [--session-id <id>]'
 const ACTIONS = ['creer', 'maj', 'lier-session', 'archiver', 'tache', 'porte']
 const MAX_JSON = 64 * 1024
 const MAX_TEXTE = 200, MAX_PASSATION = 4000, MAX_TACHES = 100, MAX_AGENTS = 20, MAX_FICHIERS = 200
@@ -26,12 +26,13 @@ const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/
 
 // --- arguments ------------------------------------------------------------------------------------------------------
 const positionnels = []
-const options = { membre: '', forceReport: false, confirme: false }
+const options = { membre: '', forceReport: false, confirme: false, sessionId: null }
 {
   const args = process.argv.slice(2)
   for (let i = 0; i < args.length; i++) {
     const a = args[i]
     if (a === '--membre') { options.membre = args[++i] ?? ''; if (options.membre === '') usage() }
+    else if (a === '--session-id') { options.sessionId = args[++i] ?? ''; if (options.sessionId === '') usage('--session-id attend l’identifiant de la session.') }
     else if (a === '--force-report') options.forceReport = true
     else if (a === '--confirme') options.confirme = true
     else if (a.startsWith('--')) usage(`option inconnue : ${a.slice(0, 30)}`)
@@ -42,6 +43,7 @@ function usage(message) { console.error((message ? message + '\n' : '') + USAGE)
 const [dossierArg, action, jsonArg] = positionnels
 if (positionnels.length !== 3 || !ACTIONS.includes(action)) usage()
 if (action !== 'tache' && options.membre === '') usage('--membre <prénom> est obligatoire pour cette action.')
+if (options.sessionId !== null && action !== 'lier-session') usage('--session-id ne sert qu’à « lier-session ».')
 
 const [chantierModele, planModele, phasesModele, projetModele] = await importerModele(['chantier', 'plan', 'phases', 'projet'], 4)
 const { parseChantier, serializeChantier, validerChantier } = chantierModele
@@ -270,6 +272,11 @@ function maj(d, projet, membre, racine, rel) {
 function lierSession(d, membre, racine, rel) {
   const id = identifiant(d.id)
   const { f, c } = ficheExistante(racine, id, membre.prenom)
+  // `--session-id` : l'identifiant que la consigne du projet donne (« Identifiant de cette session »), équivalent de `sessionId`.
+  if (options.sessionId !== null) {
+    if (d.sessionId !== undefined && d.sessionId !== options.sessionId) echec('« sessionId » et --session-id disent deux sessions différentes : rien n\'est modifié.')
+    d.sessionId = options.sessionId
+  }
   if (d.sessionId === undefined && d.nom === undefined) echec('Il faut un « sessionId » (id de la session) ou un « nom » (nom de la sous-session).')
   let sessions = null
   if (d.sessionId !== undefined) {

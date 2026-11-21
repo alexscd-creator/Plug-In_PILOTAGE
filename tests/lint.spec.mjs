@@ -35,6 +35,7 @@ const PHRASES_CHANTIER = [
   'Déléguer le contrôle d’impact à l’agent pilotage:chef-de-chantier.',
   'Charger le skill chantier-pilotage.',
   'La sous-session commence par /pilotage:chantier ouvrir <id>.',
+  'Passer --session-id avec l’identifiant de cette session.',
   'Actions du script : lier-session et archiver.',
   'Écrire la passation avant d’archiver, avec --force-report seulement après accord.',
   'Si l’outil est absent, dire d’ouvrir une nouvelle session.',
@@ -55,6 +56,7 @@ const PHRASES_SKILL_CHANTIER = [
   'Rester dans la conversation principale.',
   'Écrire la passation avant l’archivage.',
   'Le plan se modifie une personne à la fois.',
+  'Lier la session avec --session-id.',
 ]
 const PHRASES_AGENT_CHEF = [
   'Agent en lecture seule.',
@@ -91,7 +93,7 @@ const PHRASES_SKILL_WORKFLOW = [
   'La confirmation explicite de l’utilisateur est obligatoire.',
   'Ne jamais prétendre qu’un outil sait faire ce qu’on n’a pas vérifié.',
 ]
-const PHRASES_CONSIGNE = ['// classe-le avec pilotage-note.mjs', '// ne demande pas de confirmation']
+const PHRASES_CONSIGNE = ['// classe-le avec pilotage-note.mjs', '// ne demande pas de confirmation', '// Identifiant de cette session']
 const agentChef = (tools = 'Read, Glob, Grep', corps = PHRASES_AGENT_CHEF.join('\n')) =>
   `---
 name: chef-de-chantier

@@ -567,6 +567,8 @@ export const register: Register = on => {
   let cacheTheme: { tick: number; mode: Mode } | null = null
   let cacheNotes: { cle: string; valeur: LectureNotes } | null = null
   let cacheConsigne: { cle: string; a: number; texte: string } | null = null
+  // Identifiant de la session, lu une fois (il ne change pas pendant la session) ; null : pas encore lu, '' : inconnu.
+  let idSessionLu: string | null = null
 
   on('session.start', async ($, e, next) => {
     try {
@@ -605,7 +607,8 @@ export const register: Register = on => {
       const maintenant = Date.now()
       if (racine === '') return r
       if (cacheConsigne?.cle !== cle || maintenant - cacheConsigne.a > DUREE_CONSIGNE_MS) {
-        const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($))
+        if (idSessionLu === null) idSessionLu = String((await $.session.id().catch(() => '')) ?? '')
+        const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($), idSessionLu)
         const texte = entree ? construireConsigne(entree) : ''
         cacheConsigne = texte === '' ? null : { cle, a: maintenant, texte }
       }

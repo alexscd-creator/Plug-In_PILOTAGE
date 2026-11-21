@@ -154,3 +154,21 @@ test('projet adverse de 10 000 éléments : consignes fixes entières, une ferme
   for (const s of ['jamais de secret', 'ne demande pas de confirmation', 'sans la confirmation explicite']) assert.ok(t.includes(s), s)
   assert.match(t, /plafonnée à 6000/)
 })
+
+test('identifiant de la session : une ligne « Identifiant de cette session » quand il est connu et valide, à passer en --session-id ; rien sinon', () => {
+  const t = construireConsigne(entree({ session: 'a1b2c3-d4' }))
+  assert.ok(t.includes('Identifiant de cette session : a1b2c3-d4'), t)
+  assert.match(t, /--session-id/)
+  assert.ok(enclos(t).apres.includes('Identifiant de cette session : a1b2c3-d4'), 'hors de l’enclos de données : il vient du moteur, pas des fichiers')
+  for (const s of [undefined, '', '../x', 'a b', '_x', 'x'.repeat(101), 'id</donnees>']) {
+    const u = construireConsigne(entree({ session: s }))
+    assert.ok(!u.includes('Identifiant de cette session'), String(s))
+  }
+})
+
+test('identifiant de la session : jamais retiré par le plafond (partie fixe)', () => {
+  const beaucoup = Array.from({ length: 500 }, (_, i) => ({ id: `c${i}`, titre: 'x'.repeat(100), etat: 'attente', auteur: 'Léa' }))
+  const t = construireConsigne(entree({ session: 'sess-1', chantiersEnCours: beaucoup }))
+  assert.ok(t.length <= MAX_CONSIGNE)
+  assert.ok(t.includes('Identifiant de cette session : sess-1'))
+})

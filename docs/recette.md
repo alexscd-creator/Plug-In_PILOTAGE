@@ -55,7 +55,7 @@ Résultat : (à remplir)
 
 1. `/pilotage:chantier <nom>`. Vérifier le contrôle d'impact (l'agent `pilotage:chef-de-chantier`, ce préfixe se voit dans la conversation, et non celui de l'ancien plugin), le récapitulatif, la demande « Créer ce chantier ? » (sans oui, rien n'est écrit).
 2. Après le oui : la carte **« Nouvelle session / Faire ici »** apparaît ; choisir « Nouvelle session ».
-3. Dans la sous-session : la première commande est `/pilotage:chantier ouvrir <id>` ; le **bandeau** du chantier s'affiche.
+3. Dans la sous-session : la première commande est `/pilotage:chantier ouvrir <id>` ; le modèle lance `lier-session` avec `--session-id` (l'identifiant de la ligne « Identifiant de cette session » de la consigne) ; `equipe/<prénom>/sessions.json` contient cet identifiant ; le **bandeau** du chantier s'affiche.
 4. Vérifier les **états en direct** dans le panneau (en travail, en attente, arrêté, prêt) pendant que des agents travaillent, et que la fiche `equipe/<prénom>/chantiers/<id>.md` est tenue à jour.
 
 Résultat : (à remplir)
@@ -121,7 +121,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 
 **Sous-sessions**
 - Le flux de la carte `start_session` : « Nouvelle session / Faire ici », puis le second appel avec le `proposal_id` et un prompt commençant par `/pilotage:chantier ouvrir <id>`.
-- La sous-session reçoit bien l'identifiant de session pour `lier-session` (sinon repli sur le nom).
+- `$.session.id()` rend bien, dans la sous-session, le même identifiant que celui que le panneau compare à `sessions.json` (la consigne le donne au modèle, qui le passe à `lier-session --session-id`).
 
 **Suivi des appels d'agents (hooks `tool.call`)**
 - Les hooks ne bloquent jamais un appel d'outil, même si le suivi échoue ; comportement du moteur si un hook `tool.call` rejette.
