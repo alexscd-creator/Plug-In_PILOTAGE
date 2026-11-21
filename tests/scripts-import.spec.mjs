@@ -13,7 +13,7 @@ function copieSansModele() {
   mkdirSync(join(d, 'scripts'))
   mkdirSync(join(d, 'scripts', 'lib'))
   copyFileSync(join(racine, 'scripts', 'lib', 'ecriture.mjs'), join(d, 'scripts', 'lib', 'ecriture.mjs'))
-  for (const f of ['check-projet.mjs', 'ecrire-projet.mjs']) copyFileSync(join(racine, 'scripts', f), join(d, 'scripts', f))
+  for (const f of ['check-projet.mjs', 'ecrire-projet.mjs', 'pilotage-chantier.mjs']) copyFileSync(join(racine, 'scripts', f), join(d, 'scripts', f))
   return d
 }
 
@@ -32,4 +32,12 @@ test('check-projet : modèle introuvable, message français et code 1, pas de tr
   assert.equal(r.status, 1, r.stderr + r.stdout)
   assert.match(r.stdout + r.stderr, /modèle/i)
   assert.doesNotMatch(r.stdout + r.stderr, /\n\s+at /)
+})
+
+test('pilotage-chantier : modèle introuvable, message français et code 4, pas de trace', () => {
+  const d = copieSansModele()
+  const r = spawnSync('node', [join(d, 'scripts', 'pilotage-chantier.mjs'), d, 'creer', '{}', '--membre', 'a'], { encoding: 'utf8' })
+  assert.equal(r.status, 4, r.stderr)
+  assert.match(r.stderr, /modèle/i)
+  assert.doesNotMatch(r.stderr, /\n\s+at /)
 })
