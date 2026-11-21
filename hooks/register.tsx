@@ -4,7 +4,7 @@ import type { Register } from 'claude-code'
 import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
-import { agentDeSousType, appelEnFond, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
+import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
@@ -372,7 +372,7 @@ async function suivreDebut($: any, e: { subagent_type?: unknown; description?: u
   const maintenant = await horloge($)
   const { apres } = await majLive($, l => debutAppel(l, cle, agent, quoi, maintenant))
   const cible = await cibleDe($, ctx)
-  const enAttente = apres.attentes.length > 0
+  const enAttente = attenteEnCours(apres, maintenant)
   ecrire($, ctx, cible, { chantierEtat: enAttente ? 'attente' : 'en-travail', agents: [{ id: agent, etat: 'en-travail', quoi }] })
   return { ctx, agent, cible }
 }
@@ -388,12 +388,35 @@ async function suivreFin($: any, s: Suivi, cle: string, issue: 'ok' | 'erreur'):
 }
 
 type SuiviQuestion = { ctx: ContexteAgents; cible: Cible | null }
+/**
+ * Fin d'un appel dont le début n'a pas rendu de suivi (étape expirée ou en échec, peut-être déjà appliquée) : l'appel est retiré
+ * quand même (clé inconnue : rien ne change). Aucune écriture de fiche. Ne lève jamais.
+ */
+async function nettoyerAppel($: any, cle: string, issue: 'ok' | 'erreur'): Promise<void> {
+  try {
+    const maintenant = await horloge($)
+    await majLive($, l => finAppel(l, cle, maintenant, issue))
+  } catch {
+    // Le suivi ne casse jamais rien.
+  }
+}
+
+/** Idem pour une question dont le début n'a pas rendu de suivi. */
+async function nettoyerQuestion($: any, cle: string): Promise<void> {
+  try {
+    await majLive($, l => finAttente(l, cle))
+  } catch {
+    // Le suivi ne casse jamais rien.
+  }
+}
+
 /** Une question est posée à la personne : le chantier est « en attente » jusqu'à la réponse. */
 async function questionDebut($: any, cle: string): Promise<SuiviQuestion | null> {
   if (cle === '') return null // sans identifiant d'appel on ne pourrait jamais clore l'attente : aucun signe inventé
   const ctx = await contexteAgents($)
   if (!ctx) return null
-  await majLive($, l => debutAttente(l, cle))
+  const maintenant = await horloge($)
+  await majLive($, l => debutAttente(l, cle, maintenant))
   const cible = await cibleDe($, ctx)
   ecrire($, ctx, cible, { chantierEtat: 'attente', agents: [] })
   return { ctx, cible }
@@ -401,8 +424,9 @@ async function questionDebut($: any, cle: string): Promise<SuiviQuestion | null>
 
 /** La question a reçu sa réponse (ou a échoué) : le chantier reprend, s'il ne reste aucune autre question. */
 async function questionFin($: any, s: SuiviQuestion, cle: string): Promise<void> {
+  const maintenant = await horloge($)
   const { avant, apres } = await majLive($, l => finAttente(l, cle))
-  if (avant.attentes.includes(cle) && apres.attentes.length === 0) ecrire($, s.ctx, s.cible, { chantierEtat: 'en-travail', agents: [] })
+  if (avant.attentes.some(a => a.cle === cle) && !attenteEnCours(apres, maintenant)) ecrire($, s.ctx, s.cible, { chantierEtat: 'en-travail', agents: [] })
 }
 
 export const register: Register = on => {
@@ -465,9 +489,10 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
     let cle = ''
     let debut: Promise<Suivi | null> = Promise.resolve(null)
+    let echec = false // le début a échoué ou expiré, peut-être après avoir écrit l'appel dans l'atome
     try {
       cle = cleDAppel(e)
-      if (cle !== '') debut = suivreDebut($, e, cle, appelEnFond(e)).catch(() => null)
+      if (cle !== '') debut = suivreDebut($, e, cle, appelEnFond(e)).catch(() => { echec = true; return null })
     } catch {
       debut = Promise.resolve(null)
     }
@@ -482,7 +507,7 @@ export const register: Register = on => {
       return r
     } finally {
       try {
-        void debut.then(suivi => (suivi ? suivreFin($, suivi, cle, issue) : undefined)).catch(() => undefined)
+        void debut.then(suivi => (suivi ? suivreFin($, suivi, cle, issue) : echec ? nettoyerAppel($, cle, issue) : undefined)).catch(() => undefined)
       } catch {
         // Le suivi ne casse jamais l'outil.
       }
@@ -493,9 +518,10 @@ export const register: Register = on => {
   on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
     let cle = ''
     let debut: Promise<SuiviQuestion | null> = Promise.resolve(null)
+    let echec = false
     try {
       cle = cleDAppel(e)
-      if (cle !== '') debut = questionDebut($, cle).catch(() => null)
+      if (cle !== '') debut = questionDebut($, cle).catch(() => { echec = true; return null })
     } catch {
       debut = Promise.resolve(null)
     }
@@ -503,7 +529,7 @@ export const register: Register = on => {
       return await next(e)
     } finally {
       try {
-        void debut.then(suivi => (suivi ? questionFin($, suivi, cle) : undefined)).catch(() => undefined)
+        void debut.then(suivi => (suivi ? questionFin($, suivi, cle) : echec ? nettoyerQuestion($, cle) : undefined)).catch(() => undefined)
       } catch {
         // Le suivi ne casse jamais l'outil.
       }

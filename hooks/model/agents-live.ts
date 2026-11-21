@@ -9,11 +9,19 @@ import type { Chantier, EtatChantier } from './chantier.ts'
 export type AppelLive = { cle: string; agent: string; quoi: string; depuis: number }
 /** Issue du dernier appel d'un agent dont plus aucun appel ne dure. */
 export type FinLive = { agent: string; etat: 'pret' | 'bloque'; quoi: string; depuis: number }
-export type Live = { appels: AppelLive[]; derniers: FinLive[]; /** Identifiants des appels de question en cours. */ attentes: string[] }
+/** Question en cours : identifiant de l'appel et début (ms). */
+export type AttenteLive = { cle: string; depuis: number }
+export type Live = { appels: AppelLive[]; derniers: FinLive[]; /** Appels de question en cours. */ attentes: AttenteLive[] }
 export type SourceEtat = 'live' | 'fiche' | 'aucune'
 export type EtatAgent = { agent: string; etat: EtatChantier; quoi: string; depuis: number | null; source: SourceEtat }
 
 export const LIVE_VIDE: Live = { appels: [], derniers: [], attentes: [] }
+
+/**
+ * Au-delà, un appel (ou une question) encore « en cours » dans l'état live est tenu pour périmé : sa fin n'a jamais été vue
+ * (étape de suivi perdue, processus tué). L'agent est alors montré « prêt » et la question n'est plus une attente.
+ */
+export const PEREMPTION_APPEL_MS = 30 * 60 * 1000
 
 const ID_RE = /^[a-z0-9-]+$/
 const MAX_ID = 60
@@ -101,16 +109,24 @@ export function finAppel(live: Live, cle: string, maintenant: number, issue: 'ok
 }
 
 /** Une question à la personne est posée (appel en cours). Clé vide ou déjà vue : rien ne change. */
-export function debutAttente(live: Live, cle: string): Live {
+export function debutAttente(live: Live, cle: string, maintenant: number): Live {
   const l = liste(live)
-  if (typeof cle !== 'string' || cle === '' || l.attentes.includes(cle) || l.attentes.length >= MAX_APPELS) return l
-  return { ...l, attentes: [...l.attentes, cle] }
+  if (typeof cle !== 'string' || cle === '' || !Number.isFinite(maintenant)) return l
+  if (l.attentes.some(a => a.cle === cle) || l.attentes.length >= MAX_APPELS) return l
+  return { ...l, attentes: [...l.attentes, { cle, depuis: maintenant }] }
 }
 
 /** La question a reçu sa réponse (ou a échoué). Clé inconnue : rien ne change. */
 export function finAttente(live: Live, cle: string): Live {
   const l = liste(live)
-  return l.attentes.includes(cle) ? { ...l, attentes: l.attentes.filter(k => k !== cle) } : l
+  return l.attentes.some(a => a.cle === cle) ? { ...l, attentes: l.attentes.filter(a => a.cle !== cle) } : l
+}
+
+const perime = (depuis: number, maintenant: number): boolean => Number.isFinite(maintenant) && maintenant - depuis > PEREMPTION_APPEL_MS
+
+/** Une question est-elle en cours (de moins de 30 minutes) ? Ne lève jamais. */
+export function attenteEnCours(live: Live, maintenant: number): boolean {
+  return liste(live).attentes.some(a => !perime(a.depuis, maintenant))
 }
 
 const date = (c: Chantier): number => {
@@ -130,8 +146,11 @@ export function fusionnerEtats(agentsProjet: { id: string }[], live: Live, chant
   return agentsProjet.map(({ id }): EtatAgent => {
     const appels = l.appels.filter(a => a.agent === id)
     if (appels.length > 0) {
-      const dernier = appels.reduce((a, b) => (b.depuis >= a.depuis ? b : a))
-      return { agent: id, etat: 'en-travail', quoi: dernier.quoi, depuis: Math.min(...appels.map(a => a.depuis)), source: 'live' }
+      const vifs = appels.filter(a => !perime(a.depuis, maintenant))
+      const choisis = vifs.length > 0 ? vifs : appels
+      const dernier = choisis.reduce((a, b) => (b.depuis >= a.depuis ? b : a))
+      // Appel périmé (jamais vu finir depuis plus de 30 minutes) : l'agent est montré prêt, pas en travail pour toujours.
+      return { agent: id, etat: vifs.length > 0 ? 'en-travail' : 'pret', quoi: dernier.quoi, depuis: Math.min(...choisis.map(a => a.depuis)), source: 'live' }
     }
     let meilleure: { c: Chantier; etat: EtatChantier; quoi: string } | null = null
     for (const c of fiches) {

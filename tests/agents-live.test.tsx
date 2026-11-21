@@ -21,10 +21,10 @@ const lie = (sessions: Record<string, string> = { s1: 'lobby' }): Fichiers => ({
   [`${D}/sessions.json`]: JSON.stringify(sessions),
 })
 
-type Pannes = { lecture: boolean; etat: boolean }
+type Pannes = { lecture: boolean; etat: boolean; /** Après la prochaine écriture de agentsLive, la lecture suivante ne répond jamais (une seule fois). */ figerApresEcriture: boolean }
 /** Monde simulé : disque et état qui peuvent se figer (`pannes`), écritures comptées, session s1, horloge arrêtée, appel d'outil tenu par une porte. */
 function monde(on: Function, fichiers: Fichiers, options: { ecriture?: (p: string) => boolean } = {}) {
-  const pannes: Pannes = { lecture: false, etat: false }
+  const pannes: Pannes = { lecture: false, etat: false, figerApresEcriture: false }
   on('env.get', () => ({ value: HOME }))
   on('fs.read', (_: unknown, e: { path: string }) => (pannes.lecture ? new Promise(() => undefined) : { value: fichiers[sl(e.path)] ?? '' }))
   on('fs.list', (_: unknown, e: { path: string }) => {
@@ -52,11 +52,22 @@ function monde(on: Function, fichiers: Fichiers, options: { ecriture?: (p: strin
   on('ui.open', () => ({ value: { isPlaced: true } }))
   const etat: Record<string, unknown> = {}
   const enveloppes: Record<string, { shape?: string; value: unknown }> = {}
-  on('state.get', (_: unknown, e: { key: string }) => ({ value: { value: enveloppes[e.key], version: 1 } }))
+  let figerLecture = false
+  on('state.get', (_: unknown, e: { key: string }) => {
+    if (figerLecture && e.key === 'agentsLive') {
+      figerLecture = false
+      return new Promise(() => undefined)
+    }
+    return { value: { value: enveloppes[e.key], version: 1 } }
+  })
   on('state.set', (_: unknown, e: { key: string; value: { shape?: string; value: unknown } }) => {
     if (pannes.etat && e.key === 'agentsLive') return new Promise(() => undefined)
     enveloppes[e.key] = e.value
     etat[e.key] = e.value.value
+    if (pannes.figerApresEcriture && e.key === 'agentsLive') {
+      pannes.figerApresEcriture = false
+      figerLecture = true
+    }
     return { value: { isSet: true, version: 2 } }
   })
   const horloge = mock.clock(on, { now: T0 })
@@ -75,7 +86,7 @@ const lire = (f: Fichiers, chemin = FICHE) => {
   return r.chantier
 }
 const live = (etat: Record<string, unknown>) => (etat.agentsLive ?? { appels: [], derniers: [], attentes: [] }) as {
-  appels: { agent: string; quoi: string }[]; derniers: { agent: string; etat: string }[]; attentes: string[]
+  appels: { agent: string; quoi: string }[]; derniers: { agent: string; etat: string }[]; attentes: { cle: string; depuis: number }[]
 }
 
 test('appel Agent : l’agent travaille pendant l’appel (atome), puis « prêt » ; le hook passe toujours par next et rend son résultat', async ($, on) => {
@@ -428,4 +439,36 @@ test('appel en arrière-plan : « en travail » écrit au début, jamais « prê
   expect(lire(f).agents).toEqual([{ id: 'a1', etat: 'en-travail', quoi: 'Écrire le lobby' }])
   expect(live(m.etat).derniers).toEqual([])
   expect(live(m.etat).appels).toEqual([])
+})
+
+test('début d’appel dont l’étape expire après avoir écrit : la fin retire quand même l’appel (la file ne le laisse pas traîner)', async ($, on) => {
+  const f = lie()
+  const m = monde(on, f)
+  await demarrer($)
+  m.pannes.figerApresEcriture = true
+  const a = $.tool.call(agent('a1'))
+  await m.horloge.settle()
+  expect(live(m.etat).appels.map(x => x.agent)).toEqual(['a1'])
+  m.portes[0]!.ouvrir({ result: 'fini' })
+  await a
+  await m.horloge.advance(2000)
+  await m.horloge.advance(2000)
+  await m.horloge.settle()
+  expect(live(m.etat).appels).toEqual([])
+})
+
+test('début de question dont l’étape expire après avoir écrit : la fin retire quand même l’attente', async ($, on) => {
+  const f = lie()
+  const m = monde(on, f)
+  await demarrer($)
+  m.pannes.figerApresEcriture = true
+  const q = $.tool.call({ tool: 'AskUserQuestion', questions: [] } as never)
+  await m.horloge.settle()
+  expect(live(m.etat).attentes.length).toBe(1)
+  m.portes[0]!.ouvrir({ result: 'A' })
+  await q
+  await m.horloge.advance(2000)
+  await m.horloge.advance(2000)
+  await m.horloge.settle()
+  expect(live(m.etat).attentes).toEqual([])
 })

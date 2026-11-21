@@ -9,8 +9,8 @@ export type AgentsLive = {
   appels: { cle: string; agent: string; quoi: string; depuis: number }[]
   /** Issue du dernier appel d'un agent dont plus aucun appel ne dure. */
   derniers: { agent: string; etat: 'pret' | 'bloque'; quoi: string; depuis: number }[]
-  /** Appels de question à la personne en cours. */
-  attentes: string[]
+  /** Appels de question à la personne en cours (identifiant et début en ms). */
+  attentes: { cle: string; depuis: number }[]
 }
 
 declare module 'claude-code' {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { agentDeSousType, appelEnFond, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE, nombreAppels } from '../hooks/model/agents-live.ts'
+import { agentDeSousType, appelEnFond, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, attenteEnCours, fusionnerEtats, LIVE_VIDE, nombreAppels, PEREMPTION_APPEL_MS } from '../hooks/model/agents-live.ts'
 import type { Live } from '../hooks/model/agents-live.ts'
 import type { Chantier } from '../hooks/model/chantier.ts'
 
@@ -90,15 +90,15 @@ test('agentDeSousType : préfixe de plugin retiré, agent hors projet ignoré', 
 })
 
 test('attentes : compte des questions en cours, jamais négatif', () => {
-  let l = debutAttente(LIVE_VIDE, 'q1')
-  l = debutAttente(l, 'q2')
-  assert.deepEqual(l.attentes, ['q1', 'q2'])
-  assert.equal(debutAttente(l, 'q1'), l)
+  let l = debutAttente(LIVE_VIDE, 'q1', T0)
+  l = debutAttente(l, 'q2', T0 + 1)
+  assert.deepEqual(l.attentes, [{ cle: 'q1', depuis: T0 }, { cle: 'q2', depuis: T0 + 1 }])
+  assert.equal(debutAttente(l, 'q1', T0 + 2), l)
   l = finAttente(l, 'q1')
-  assert.deepEqual(l.attentes, ['q2'])
+  assert.deepEqual(l.attentes.map(a => a.cle), ['q2'])
   assert.equal(finAttente(l, 'inconnue'), l)
   assert.deepEqual(finAttente(l, 'q2').attentes, [])
-  assert.equal(debutAttente(LIVE_VIDE, ''), LIVE_VIDE)
+  assert.equal(debutAttente(LIVE_VIDE, '', T0), LIVE_VIDE)
 })
 
 test('fusionnerEtats : un état par agent du projet, dans l’ordre du projet, « arrêté » sans aucun signe', () => {
@@ -149,7 +149,7 @@ test('fusionnerEtats : règle des 15 minutes (en travail ou en attente anciens =
 })
 
 test('fusionnerEtats : « attente » ne vient que des fiches (le live n’en pose pas pour un agent)', () => {
-  const l = debutAttente(LIVE_VIDE, 'q')
+  const l = debutAttente(LIVE_VIDE, 'q', T0)
   assert.equal(fusionnerEtats(AGENTS, l, [], T0)[0]!.etat, 'arrete')
   const f = c('x', { agents: [{ id: 'a1', etat: 'attente', quoi: 'Demande un choix' }] })
   const e = fusionnerEtats(AGENTS, l, [f], T0)[0]!
@@ -207,4 +207,31 @@ test('appelEnFond : run_in_background ou isolation distante', () => {
   assert.equal(appelEnFond({ run_in_background: true }), true)
   assert.equal(appelEnFond({ isolation: 'remote' }), true)
   for (const e of [undefined, null, {}, { run_in_background: false }, { run_in_background: 'true' }, { isolation: 'worktree' }, 'x']) assert.equal(appelEnFond(e), false)
+})
+
+test('péremption : un appel vieux de plus de 30 minutes ne montre plus « en travail » mais « prêt » (live, texte gardé)', () => {
+  assert.equal(PEREMPTION_APPEL_MS, 30 * MIN)
+  const l = debutAppel(LIVE_VIDE, 'k', 'a1', 'Longue tâche', T0 - 31 * MIN)
+  const e = fusionnerEtats(AGENTS, l, [], T0)[0]!
+  assert.deepEqual(e, { agent: 'a1', etat: 'pret', quoi: 'Longue tâche', depuis: T0 - 31 * MIN, source: 'live' })
+  const frais = debutAppel(LIVE_VIDE, 'k', 'a1', 'Longue tâche', T0 - 29 * MIN)
+  assert.equal(fusionnerEtats(AGENTS, frais, [], T0)[0]!.etat, 'en-travail')
+  assert.equal(fusionnerEtats(AGENTS, frais, [], T0 - 29 * MIN + PEREMPTION_APPEL_MS)[0]!.etat, 'en-travail', 'pile 30 minutes : encore en travail')
+})
+
+test('péremption : un appel périmé et un appel frais du même agent = en travail ; date de maintenant illisible = rien n’est périmé', () => {
+  let l = debutAppel(LIVE_VIDE, 'vieux', 'a1', 'Vieux', T0 - 40 * MIN)
+  l = debutAppel(l, 'neuf', 'a1', 'Neuf', T0 - MIN)
+  const e = fusionnerEtats(AGENTS, l, [], T0)[0]!
+  assert.deepEqual([e.etat, e.quoi, e.depuis], ['en-travail', 'Neuf', T0 - MIN])
+  assert.equal(fusionnerEtats(AGENTS, debutAppel(LIVE_VIDE, 'k', 'a1', 'x', T0 - 99 * MIN), [], NaN)[0]!.etat, 'en-travail')
+})
+
+test('péremption : une attente de plus de 30 minutes n’est plus une attente', () => {
+  const vieille = debutAttente(LIVE_VIDE, 'q', T0 - 31 * MIN)
+  assert.equal(attenteEnCours(vieille, T0), false)
+  assert.equal(attenteEnCours(debutAttente(LIVE_VIDE, 'q', T0 - 29 * MIN), T0), true)
+  assert.equal(attenteEnCours(LIVE_VIDE, T0), false)
+  assert.equal(attenteEnCours(debutAttente(debutAttente(LIVE_VIDE, 'a', T0 - 40 * MIN), 'b', T0 - MIN), T0), true)
+  assert.equal(attenteEnCours(undefined as never, T0), false)
 })
