@@ -3,6 +3,16 @@ export type Page = 'apercu' | 'plan' | 'phases' | 'chantiers' | 'agents' | 'idee
 /** Thème choisi : le mod ne peut pas lire le mode de l'application, « systeme » prend le sombre. */
 export type ChoixTheme = 'systeme' | 'clair' | 'sombre'
 
+/** Suivi des agents en direct (le contrat doit se suffire : même forme que `Live` de hooks/model/agents-live.ts). */
+export type AgentsLive = {
+  /** Appels de l'outil Agent en cours : clé de l'appel, agent du projet, ce qu'il fait, début (ms). */
+  appels: { cle: string; agent: string; quoi: string; depuis: number }[]
+  /** Issue du dernier appel d'un agent dont plus aucun appel ne dure. */
+  derniers: { agent: string; etat: 'pret' | 'bloque'; quoi: string; depuis: number }[]
+  /** Appels de question à la personne en cours. */
+  attentes: string[]
+}
+
 declare module 'claude-code' {
   interface PluginState {
     pilotage: {
@@ -26,6 +36,10 @@ declare module 'claude-code' {
       theme: Shaped<ChoixTheme>
       /** Ce qui s'est passé quand un bouton a voulu envoyer une commande (vide : tout est parti). */
       retourCommande: Shaped<string>
+      /** Appels d'agents en cours et issues récentes, questions en attente de réponse (voir model/agents-live.ts). */
+      agentsLive: Shaped<AgentsLive>
+      /** Dernière erreur d'écriture de l'état des agents dans une fiche ('' : la dernière écriture a réussi). Affichée nulle part pour l'instant. */
+      erreurEcriture: Shaped<string>
     }
   }
 }

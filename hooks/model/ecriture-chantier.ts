@@ -82,34 +82,27 @@ export async function majFiche(fs: FsEcriture, cible: Cible, maj: MajFiche, agen
 }
 
 // ---- Écrivain limité : au plus une écriture par chantier et par `delai`, les mises à jour rapprochées sont fusionnées ----
+// Les moyens d'écrire (horloge, minuteur, disque) arrivent avec chaque mise à jour (`Moyens`, bâtis sur `$` par l'appelant) :
+// c'est la dernière mise à jour d'un chantier qui fournit les moyens de son écriture différée.
 
 type Lot = { cible: Cible; maj: MajFiche; agentsProjet: string[] }
 type Minuteur = { cancel: () => void }
-type EtatCle = { occupe: boolean; dernier: number | null; lot: Lot | null; minuteur: Minuteur | null }
-export type OptionsEcrivain = {
-  /** Délai minimal entre deux écritures d'un même chantier (ms). */
-  delai: number
+export type Moyens = {
   maintenant: () => Promise<number>
   apres: (ms: number, fn: () => void) => Minuteur
   ecrire: (lot: Lot) => Promise<Resultat>
   /** Dit où en est la dernière écriture : '' si elle a réussi, sinon l'erreur en une ligne. */
   surEtat: (erreur: string) => void
 }
+type EtatCle = { occupe: boolean; dernier: number | null; lot: Lot | null; minuteur: Minuteur | null; moyens: Moyens | null }
 
-export function creerEcrivain(o: OptionsEcrivain) {
+export function creerEcrivain(o: { /** Délai minimal entre deux écritures d'un même chantier (ms). */ delai: number }) {
   const cles = new Map<string, EtatCle>()
   const enCours = new Set<Promise<unknown>>()
   const etat = (cle: string): EtatCle => {
     let e = cles.get(cle)
-    if (!e) cles.set(cle, (e = { occupe: false, dernier: null, lot: null, minuteur: null }))
+    if (!e) cles.set(cle, (e = { occupe: false, dernier: null, lot: null, minuteur: null, moyens: null }))
     return e
-  }
-  const signaler = (erreur: string): void => {
-    try {
-      o.surEtat(erreur)
-    } catch {
-      // Un compte rendu qui échoue ne casse rien.
-    }
   }
   const suivre = <T,>(p: Promise<T>): Promise<T> => {
     enCours.add(p)
@@ -123,13 +116,20 @@ export function creerEcrivain(o: OptionsEcrivain) {
     if (e.occupe) return
     e.occupe = true
     let relance = false
+    const signaler = (erreur: string): void => {
+      try {
+        e.moyens?.surEtat(erreur)
+      } catch {
+        // Un compte rendu qui échoue ne casse rien.
+      }
+    }
     try {
-      if (e.lot === null) return
-      const maintenant = await o.maintenant()
+      if (e.lot === null || e.moyens === null) return
+      const maintenant = await e.moyens.maintenant()
       const reste = e.dernier === null ? 0 : e.dernier + o.delai - maintenant
       if (reste > 0) {
         try {
-          e.minuteur = o.apres(reste, () => {
+          e.minuteur = e.moyens.apres(reste, () => {
             e.minuteur = null
             e.occupe = false
             suivre(declencher(cle)).catch(() => undefined)
@@ -141,11 +141,12 @@ export function creerEcrivain(o: OptionsEcrivain) {
         }
       }
       const lot = e.lot
+      const moyens = e.moyens
       e.lot = null
-      if (lot === null) return
+      if (lot === null || moyens === null) return
       e.dernier = maintenant
       try {
-        const r = await o.ecrire(lot)
+        const r = await moyens.ecrire(lot)
         signaler(r.ok ? '' : r.erreur)
       } catch (err) {
         signaler(`L’écriture de la fiche a échoué (${premiereLigne(err)}).`)
@@ -163,11 +164,12 @@ export function creerEcrivain(o: OptionsEcrivain) {
 
   return {
     /** Ajoute une mise à jour (le dernier état de chaque agent l'emporte) et écrit tout de suite ou à l'échéance. Ne lève jamais. */
-    async soumettre(cle: string, cible: Cible, maj: MajFiche, agentsProjet: string[]): Promise<void> {
+    async soumettre(cle: string, cible: Cible, maj: MajFiche, agentsProjet: string[], moyens: Moyens): Promise<void> {
       try {
         const e = etat(cle)
         const agents = new Map((e.lot?.maj.agents ?? []).map(a => [a.id, a]))
         for (const a of maj.agents) agents.set(a.id, a)
+        e.moyens = moyens
         e.lot = {
           cible,
           agentsProjet,

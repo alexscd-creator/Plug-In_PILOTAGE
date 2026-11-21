@@ -4,13 +4,18 @@ import type { Register } from 'claude-code'
 import type { ChoixTheme, Page } from '../types'
 import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
+import { agentDeSousType, debutAppel, debutAttente, finAppel, finAttente, LIVE_VIDE } from './model/agents-live.ts'
+import type { Live } from './model/agents-live.ts'
 import { chantierDeSession } from './model/chantiers.ts'
+import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
+import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
 import { lireProjetComplet, lireSessions } from './model/lecture.ts'
 import type { LienSession } from './model/lecture.ts'
 import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
+import { memeMembre, parseProjet } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
 import { pageAvenir } from './ui/avenir'
@@ -51,6 +56,14 @@ const theme = atom({ plugin: 'pilotage', key: 'theme' } as const, 'systeme' as C
 // Ce qui s'est passé quand un bouton a voulu envoyer une commande (voir model/retour-commande.ts) ; vide : tout est parti.
 const retour = atom({ plugin: 'pilotage', key: 'retourCommande' } as const, '', { shape: 'retour-1' })
 
+// Agents suivis en direct (appels de l'outil Agent en cours, issue du dernier appel, questions en attente) : état de session, jamais sur disque.
+const agentsLive = atom({ plugin: 'pilotage', key: 'agentsLive' } as const, LIVE_VIDE as Live, { shape: 'agents-live-1' })
+// Dernière erreur d'écriture de l'état d'un agent dans une fiche ('' : tout va bien). Affichée nulle part pour l'instant.
+const erreurEcriture = atom({ plugin: 'pilotage', key: 'erreurEcriture' } as const, '', { shape: 'erreur-ecriture-1' })
+
+// Abandonne les écritures de fiche en attente (changement ou perte de projet) ; posé par `register`.
+let purgerEcritures: () => void = () => undefined
+
 const adapter = ($: any): FsLike => ({
   read: async p => String((await $.fs.read(p)) ?? ''),
   list: async p => ((await $.fs.list(p)) as { name: string }[]).map(x => x.name),
@@ -59,9 +72,24 @@ const adapter = ($: any): FsLike => ({
 /** Plus de projet valide ici : le plugin redevient inactif. */
 async function remettreAZero($: any, auto?: Minuterie): Promise<void> {
   auto?.arreter()
+  await viderAgents($)
   await update($, actif, () => false)
   await update($, projetTrouve, () => '')
   await update($, membre, () => '')
+}
+
+/** Plus aucun agent suivi, plus aucune écriture de fiche en attente. Ne lève jamais. */
+async function viderAgents($: any): Promise<void> {
+  try {
+    purgerEcritures()
+  } catch {
+    // Rien de plus à faire.
+  }
+  try {
+    await majLive($, () => LIVE_VIDE)
+  } catch {
+    // L'état refuse : les suivis restent, ils finiront avec leurs appels.
+  }
 }
 
 /** Délai du rafraîchissement automatique du panneau. */
@@ -127,6 +155,9 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
     const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
     const prenom = await lirePrenomConfig(home, async (p: string) => String((await $.fs.read(p)) ?? ''))
     await update($, erreursMarqueur, () => [])
+    // Autre projet que celui déjà ouvert : les agents suivis ne sont plus les siens. Même projet (/pilotage relancé) : ils restent.
+    const ancien = await read($, projetTrouve)
+    if (ancien !== '' && ancien !== trouve.racine) await viderAgents($)
     await update($, projetTrouve, () => trouve.racine)
     await update($, membre, () => membreCourant(trouve.projet, prenom) ?? '')
     await update($, actif, () => true)
@@ -195,6 +226,136 @@ async function envoyer($: any, texte: string, surface?: string): Promise<void> {
   }
 }
 
+// ---- Suivi des agents en direct (fonctions de module : le moteur n'accepte `$` que dans les fonctions déclarées en haut du fichier) ----
+
+// Une écriture au plus toutes les 2 s par chantier ; les mises à jour rapprochées sont fusionnées.
+const ecrivain = creerEcrivain({ delai: 2000 })
+purgerEcritures = () => ecrivain.oublier()
+
+// Les écritures de l'atome `agentsLive` se font une par une (lecture puis écriture) : deux appels simultanés ne s'écrasent pas.
+let verrouLive: Promise<unknown> = Promise.resolve()
+function enFile<T>(f: () => Promise<T>): Promise<T> {
+  const p = verrouLive.then(f, f)
+  verrouLive = p.then(() => undefined, () => undefined)
+  return p
+}
+/** Applique `f` à l'état live ; rend l'état d'avant et celui d'après. */
+function majLive($: any, f: (l: Live) => Live): Promise<{ avant: Live; apres: Live }> {
+  return enFile(async () => {
+    const avant = await read($, agentsLive)
+    await update($, agentsLive, f)
+    return { avant, apres: await read($, agentsLive) }
+  })
+}
+
+const horloge = async ($: any): Promise<number> => {
+  try {
+    const n = Number(await $.clock.now())
+    return Number.isFinite(n) ? n : Date.now()
+  } catch {
+    return Date.now()
+  }
+}
+
+/** Les moyens d'écrire une fiche, bâtis sur `$` : disque, horloge, minuteur, et compte rendu dans `erreurEcriture`. */
+function moyensEcriture($: any): Moyens {
+  return {
+    maintenant: () => horloge($),
+    apres: (ms, fn) => $.clock.after(ms, fn),
+    ecrire: async lot =>
+      majFiche(
+        {
+          read: async p => String((await $.fs.read(p)) ?? ''),
+          write: async (p, t) => void (await $.fs.write(p, t)),
+          list: async p => ((await $.fs.list(p)) as { name: string }[]).map(x => x.name),
+        },
+        lot.cible, lot.maj, lot.agentsProjet, new Date(await horloge($)).toISOString(),
+      ),
+    surEtat: erreur => { update($, erreurEcriture, () => erreur).catch(() => undefined) },
+  }
+}
+
+type ContexteAgents = { racine: string; moi: string; equipe: string[]; agents: string[] }
+/** Projet ouvert, son équipe, ses agents et le membre courant ; null sans projet valide ou si rien ne se lit. Ne lève jamais. */
+async function contexteAgents($: any): Promise<ContexteAgents | null> {
+  try {
+    if (!(await read($, actif))) return null
+    const racine = await read($, projetTrouve)
+    if (racine === '') return null
+    const r = parseProjet(String((await $.fs.read(`${racine}/.pilotage/projet.json`)) ?? ''))
+    if (!r.ok) return null
+    return { racine, moi: await read($, membre), equipe: r.projet.equipe, agents: r.projet.agents.map(a => a.id) }
+  } catch {
+    return null
+  }
+}
+
+/** Chantier de la session s'il est à ce membre (session liée par son sessions.json) ; null sinon : on n'écrit jamais chez l'associé. */
+async function cibleDe($: any, ctx: ContexteAgents): Promise<Cible | null> {
+  try {
+    if (ctx.moi === '') return null
+    const id = String((await $.session.id().catch(() => '')) ?? '')
+    if (id === '') return null
+    const lien = (await lireSessions(adapter($), ctx.racine, ctx.equipe)).get(id)
+    return lien && memeMembre(lien.auteur, ctx.moi) ? { racine: ctx.racine, membre: ctx.moi, chantier: lien.chantier } : null
+  } catch {
+    return null
+  }
+}
+
+/** Écriture limitée dans la fiche, sans attendre : l'outil n'est jamais retardé. Ne lève jamais. */
+function ecrire($: any, ctx: ContexteAgents, cible: Cible | null, maj: MajFiche): void {
+  if (!cible) return
+  try {
+    ecrivain.soumettre(`${cible.racine}|${cible.membre}|${cible.chantier}`, cible, maj, ctx.agents, moyensEcriture($)).catch(() => undefined)
+  } catch {
+    // Une écriture qui ne part pas n'arrête rien.
+  }
+}
+
+type Suivi = { ctx: ContexteAgents; agent: string; cible: Cible | null }
+/** Début d'un appel d'agent du projet : atome, puis « en travail » dans la fiche. Null si l'appel n'est pas à suivre. */
+async function suivreDebut($: any, e: { subagent_type?: unknown; description?: unknown }, cle: string): Promise<Suivi | null> {
+  const ctx = await contexteAgents($)
+  if (!ctx) return null
+  const agent = agentDeSousType(e.subagent_type, ctx.agents.map(id => ({ id })))
+  if (!agent) return null
+  const maintenant = await horloge($)
+  const quoi = String(e.description ?? '')
+  const { apres } = await majLive($, l => debutAppel(l, cle, agent, quoi, maintenant))
+  const cible = await cibleDe($, ctx)
+  const enAttente = apres.attentes.length > 0
+  ecrire($, ctx, cible, { chantierEtat: enAttente ? 'attente' : 'en-travail', agents: [{ id: agent, etat: 'en-travail', quoi }] })
+  return { ctx, agent, cible }
+}
+
+/** Fin d'un appel : atome, puis « prêt » ou « bloqué » dans la fiche quand plus aucun appel du même agent ne dure. */
+async function suivreFin($: any, s: Suivi, cle: string, issue: 'ok' | 'erreur'): Promise<void> {
+  const maintenant = await horloge($)
+  const { avant, apres } = await majLive($, l => finAppel(l, cle, maintenant, issue))
+  if (!avant.appels.some(a => a.cle === cle)) return // suivi remis à zéro entre-temps (autre projet)
+  const fin = apres.derniers.find(d => d.agent === s.agent)
+  if (!fin) return // un autre appel de cet agent dure encore
+  ecrire($, s.ctx, s.cible ?? (await cibleDe($, s.ctx)), { agents: [{ id: s.agent, etat: fin.etat, quoi: fin.quoi }] })
+}
+
+type SuiviQuestion = { ctx: ContexteAgents; cible: Cible | null }
+/** Une question est posée à la personne : le chantier est « en attente » jusqu'à la réponse. */
+async function questionDebut($: any, cle: string): Promise<SuiviQuestion | null> {
+  const ctx = await contexteAgents($)
+  if (!ctx) return null
+  await majLive($, l => debutAttente(l, cle))
+  const cible = await cibleDe($, ctx)
+  ecrire($, ctx, cible, { chantierEtat: 'attente', agents: [] })
+  return { ctx, cible }
+}
+
+/** La question a reçu sa réponse (ou a échoué) : le chantier reprend, s'il ne reste aucune autre question. */
+async function questionFin($: any, s: SuiviQuestion, cle: string): Promise<void> {
+  const { avant, apres } = await majLive($, l => finAttente(l, cle))
+  if (avant.attentes.includes(cle) && apres.attentes.length === 0) ecrire($, s.ctx, s.cible, { chantierEtat: 'en-travail', agents: [] })
+}
+
 export const register: Register = on => {
   let dossierSession = ''
   const auto = creerMinuterie(PERIODE_AUTO_MS)
@@ -246,6 +407,50 @@ export const register: Register = on => {
       // Un hook ne doit jamais lever.
     }
     return next(e)
+  })
+
+  // Un appel de l'outil Agent dure tant que l'agent travaille : début = « en travail », fin = « prêt » (ok) ou « bloqué » (erreur).
+  // Ces hooks passent TOUJOURS par next et ne lèvent jamais : un suivi ou une écriture qui échoue n'arrête pas l'appel de l'outil.
+  on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
+    const cle = String(e.tool_use_id ?? '')
+    let suivi: Suivi | null = null
+    try {
+      suivi = await suivreDebut($, e, cle)
+    } catch {
+      suivi = null
+    }
+    let issue: 'ok' | 'erreur' = 'erreur'
+    try {
+      const r = await next(e)
+      issue = r.deny === undefined && r.isError !== true ? 'ok' : 'erreur'
+      return r
+    } finally {
+      try {
+        if (suivi) await suivreFin($, suivi, cle, issue)
+      } catch {
+        // Le suivi ne casse jamais l'outil.
+      }
+    }
+  })
+
+  // La session attend une réponse de la personne tant que l'appel de l'outil de question dure : seul signe fiable du moteur.
+  on('tool.call', { tool: 'AskUserQuestion' }, async ($, e, next) => {
+    const cle = String(e.tool_use_id ?? '')
+    let suivi: SuiviQuestion | null = null
+    try {
+      suivi = await questionDebut($, cle)
+    } catch {
+      suivi = null
+    }
+    try {
+      return await next(e)
+    } finally {
+      try {
+        if (suivi) await questionFin($, suivi, cle)
+      } catch {
+        // Le suivi ne casse jamais l'outil.
+      }
+    }
   })
 
   // Le panneau : cadre centré, barre du haut, navigation et page courante. LIT seulement : jamais d'écriture disque.

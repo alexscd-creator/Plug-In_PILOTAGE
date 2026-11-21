@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import { parseChantier, serializeChantier } from '../hooks/model/chantier.ts'
 import type { Chantier } from '../hooks/model/chantier.ts'
 import { creerEcrivain, majFiche } from '../hooks/model/ecriture-chantier.ts'
-import type { Cible, FsEcriture, MajFiche } from '../hooks/model/ecriture-chantier.ts'
+import type { Cible, FsEcriture, MajFiche, Moyens } from '../hooks/model/ecriture-chantier.ts'
 
 const RACINE = 'C:/Projet'
 const D = `${RACINE}/.pilotage/equipe/lea`
@@ -167,8 +167,8 @@ function banc(opts: { ecrire?: (l: { cible: Cible; maj: MajFiche }) => Promise<{
   const lots: { cible: Cible; maj: MajFiche }[] = []
   const minuteurs: { ms: number; fn: () => void; annule: boolean }[] = []
   const erreurs: string[] = []
-  const e = creerEcrivain({
-    delai: 2000,
+  const brut = creerEcrivain({ delai: 2000 })
+  const moyens: Moyens = {
     maintenant: async () => t,
     apres: (ms, fn) => {
       const m = { ms, fn, annule: false }
@@ -180,7 +180,8 @@ function banc(opts: { ecrire?: (l: { cible: Cible; maj: MajFiche }) => Promise<{
       return opts.ecrire ? opts.ecrire(l) : { ok: true }
     },
     surEtat: m => { erreurs.push(m) },
-  })
+  }
+  const e = { ...brut, soumettre: (cle: string, c: Cible, m: MajFiche, a: string[]) => brut.soumettre(cle, c, m, a, moyens), oublier: brut.oublier, repos: brut.repos }
   const tirer = async () => {
     const m = minuteurs.find(x => !x.annule)!
     m.annule = true
@@ -262,12 +263,13 @@ test('écrivain : oublier() annule les minuteurs et abandonne ce qui attendait',
 test('écrivain : sans minuteur disponible, la mise à jour part quand même (jamais perdue ni levée)', async () => {
   let t = 5
   const lots: unknown[] = []
-  const e = creerEcrivain({
-    delai: 2000, maintenant: async () => t, apres: () => { throw new Error('pas d’horloge') },
+  const e = creerEcrivain({ delai: 2000 })
+  const moyens: Moyens = {
+    maintenant: async () => t, apres: () => { throw new Error('pas d’horloge') },
     ecrire: async l => { lots.push(l); return { ok: true } }, surEtat: () => undefined,
-  })
-  await e.soumettre('c', cible(), { agents: [ag('a1', 'en-travail')] }, AGENTS)
+  }
+  await e.soumettre('c', cible(), { agents: [ag('a1', 'en-travail')] }, AGENTS, moyens)
   t += 10
-  await e.soumettre('c', cible(), { agents: [ag('a1', 'pret')] }, AGENTS)
+  await e.soumettre('c', cible(), { agents: [ag('a1', 'pret')] }, AGENTS, moyens)
   assert.equal(lots.length, 2)
 })
