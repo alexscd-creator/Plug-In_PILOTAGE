@@ -116,10 +116,10 @@ test('specsProjet : un agent à identifiant invalide est écarté, description =
   assert.ok(s[0]!.prompt.includes('fiche'))
 })
 
-test('lireFiches : lit .pilotage/agents/<id>.md, ignore les absents et illisibles sans lever', async () => {
+test('lireFiches : lit .pilotage/agents/<id>.md listées dans le dossier, ignore les absents et illisibles sans lever', async () => {
   const fs: FsLike = {
     read: async p => { if (p.endsWith('/dev.md')) return 'contenu dev'; throw new Error('absent') },
-    list: async () => [],
+    list: async p => (p.endsWith('/.pilotage') ? ['agents'] : ['dev.md', 'art-1.md']),
   }
   assert.deepEqual(await lireFiches(fs, 'C:/Projet', projet), { dev: 'contenu dev' })
   assert.deepEqual(await lireFiches(fs, '', projet), {})

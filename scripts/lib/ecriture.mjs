@@ -2,8 +2,8 @@
 // identifiants et noms de dossier sûrs, écriture transactionnelle (tout ce qu'un lancement a fait est défait en cas d'échec).
 // Codes de sortie communs : 0 ok ; 1 entrée invalide (rien n'est écrit) ; 3 existe déjà ; 4 écriture impossible (rien n'est resté) ;
 //   5 dossier introuvable ou qui n'est pas un dossier ; 64 usage incorrect.
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 export const ID = /^[a-z0-9-]+$/
 export const RESERVES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/
@@ -46,12 +46,49 @@ export function erreursNom(quoi, nom) {
   return e
 }
 
+// --- liens et jonctions -----------------------------------------------------------------------------------------------
+export const MESSAGE_LIEN = 'Chemin non sûr (lien hors du projet) : rien n\'est écrit. Un dossier ou un fichier de .pilotage est un lien (ou une jonction) qui mène ailleurs : le remplacer par un vrai dossier.'
+/** Levée quand un chemin d'écriture passe par un lien qui mène hors du projet : le script s'arrête (code 1) et défait tout. */
+export class CheminNonSur extends Error {
+  constructor() { super(MESSAGE_LIEN) }
+}
+const DISQUE = { realpathSync: p => realpathSync.native(p), lstatSync }
+const sous = (p, racine) => {
+  const a = process.platform === 'win32' ? p.toLowerCase() : p
+  const b = process.platform === 'win32' ? racine.toLowerCase() : racine
+  return a === b || a.startsWith(b.endsWith(sep) ? b : b + sep)
+}
+/**
+ * Chaque morceau EXISTANT du chemin `cible`, de la racine du projet (exclue) jusqu'à la cible, doit se résoudre (realpath : liens et
+ * jonctions suivis) sous le chemin réel de la racine. Un lien cassé, une cible hors de la racine : refusés. Lève CheminNonSur.
+ * `fs` : realpathSync et lstatSync (remplaçables pour les tests).
+ */
+export function verifierChemin(racine, cible, fs = DISQUE) {
+  const reelle = fs.realpathSync(racine)
+  const rel = relative(racine, cible)
+  if (rel === '' ) return
+  if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel)) throw new CheminNonSur()
+  let c = racine
+  for (const morceau of rel.split(sep).filter(Boolean)) {
+    c = join(c, morceau)
+    try { fs.lstatSync(c) } catch { return } // n'existe pas encore : rien à suivre plus loin
+    let r
+    try { r = fs.realpathSync(c) } catch { throw new CheminNonSur() } // lien cassé : on ne sait pas où il mène
+    if (!sous(r, reelle)) throw new CheminNonSur()
+  }
+}
+
 /** Écriture transactionnelle : chaque opération enregistre son défaire ; `annuler()` les rejoue à l'envers (sans jamais lever). */
 export class Transaction {
   #defaire = []
   #n = 0
+  #racine = null
+  /** Toute écriture de cette transaction devra rester sous `racine` (voir verifierChemin), liens et jonctions compris. */
+  proteger(racine) { this.#racine = racine; return this }
+  #verifier(f) { if (this.#racine !== null) verifierChemin(this.#racine, f) }
   /** Crée le dossier et ses parents manquants ; seuls ceux créés ici seront retirés. */
   dossierSur(d) {
+    this.#verifier(d)
     if (existsSync(d)) return
     this.dossierSur(join(d, '..'))
     mkdirSync(d)
@@ -59,12 +96,14 @@ export class Transaction {
   }
   /** Crée un fichier neuf (jamais d'écrasement : lève s'il existe, et le fichier existant n'est pas touché). */
   ecrire(f, texte) {
+    this.#verifier(f)
     this.dossierSur(join(f, '..'))
     writeFileSync(f, texte, { flag: 'wx' })
     this.#defaire.push(() => rmSync(f, { force: true }))
   }
   /** Remplace (ou crée) un fichier de façon atomique : fichier temporaire à côté, puis renommage. */
   remplacer(f, texte) {
+    this.#verifier(f)
     let avant = null
     try { avant = readFileSync(f) } catch (e) { if (e?.code !== 'ENOENT') throw e }
     this.dossierSur(join(f, '..'))
@@ -80,6 +119,7 @@ export class Transaction {
   }
   /** Supprime un fichier (son contenu est gardé en mémoire pour pouvoir le remettre). */
   supprimer(f) {
+    this.#verifier(f)
     const avant = readFileSync(f)
     unlinkSync(f)
     this.#defaire.push(() => writeFileSync(f, avant))

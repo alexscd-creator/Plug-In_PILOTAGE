@@ -4,6 +4,7 @@
 import type { FsLike } from './activation.ts'
 import { DOSSIER_NOTE, MAX_FICHIER_NOTE, parseNote, TYPES_NOTE } from './notes.ts'
 import type { Note } from './notes.ts'
+import { avisLiens } from './liens.ts'
 import { estCopieDeConflit } from './plan.ts'
 import { memeMembre } from './projet.ts'
 
@@ -42,12 +43,15 @@ export async function lireNotes(fs: FsLike, racine: string, equipe: string[]): P
     if (dossiers === null) return sortie
     for (const d of dossiers.filter(n => !estCopieDeConflit(n)).sort()) {
       const auteur = membres.find(m => memeMembre(m, d)) ?? d
+      // Le dossier du membre d'abord : un sous-dossier absent de sa liste (absent, ou lien retiré par l'adaptateur) n'est jamais parcouru.
+      const parent = await liste(fs, `${dossier}/${d}`)
+      if (parent === null) continue
       for (const type of TYPES_NOTE) {
         const sous = DOSSIER_NOTE[type]
+        if (!parent.includes(sous)) continue
         const noms = await liste(fs, `${dossier}/${d}/${sous}`)
         if (noms === null) {
-          const parent = await liste(fs, `${dossier}/${d}`)
-          if (parent?.includes(sous)) sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
+          sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
           continue
         }
         let fiches = noms.filter(n => /\.md$/i.test(n) && !estCopieDeConflit(n)).sort()
@@ -80,6 +84,7 @@ export async function lireNotes(fs: FsLike, racine: string, equipe: string[]): P
       }
     }
     sortie.notes.sort(plusRecentes)
+    sortie.erreurs.push(...avisLiens(fs, racine))
   } catch {
     sortie.erreurs.push('Les notes n’ont pas pu être lues.')
   }

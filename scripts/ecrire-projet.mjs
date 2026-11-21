@@ -6,7 +6,7 @@
 // Les garanties communes (transaction, noms sûrs, dossier valide, import du modèle) viennent de scripts/lib/ecriture.mjs.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug, verifierChemin } from './lib/ecriture.mjs'
 
 const [dossierArg, reponsesArg] = process.argv.slice(2)
 if (!dossierArg || !reponsesArg) {
@@ -18,6 +18,7 @@ const [{ parseProjet, serializeProjet }, { genererPlan }] = await importerModele
 try {
   principal()
 } catch (e) {
+  if (e instanceof CheminNonSur) echec(e.message, 1)
   echec(`Erreur inattendue : ${e instanceof Error ? e.message : 'inconnue'}. Rien n'est écrit ou ce qui l'était a été retiré.`, 4)
 }
 
@@ -53,7 +54,8 @@ slugs.forEach((sl, i) => { if (sl !== '' && slugs.indexOf(sl) !== i) erreurs.pus
 if (erreurs.length) echec(erreurs)
 
 const fichiers = []
-const tx = new Transaction() // tout ce que ce lancement crée : retiré en cas d'échec
+const tx = new Transaction().proteger(dossier) // tout ce que ce lancement crée : retiré en cas d'échec ; jamais au travers d'un lien hors du projet
+verifierChemin(dossier, pilotage)
 function ecrire(rel, texte) {
   tx.ecrire(join(pilotage, ...rel.split('/')), texte)
   fichiers.push('.pilotage/' + rel)
@@ -74,6 +76,7 @@ try {
   }
 } catch (e) {
   tx.annuler()
+  if (e instanceof CheminNonSur) echec(e.message, 1)
   echec(`Écriture impossible (${e instanceof Error ? e.message : 'erreur inconnue'}) : rien n'est resté.`, 4)
 }
 console.log(`projet écrit : ${fichiers.join(', ')}`)

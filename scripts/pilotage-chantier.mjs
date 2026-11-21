@@ -12,7 +12,7 @@
 //   5 dossier introuvable, qui n'est pas un dossier, ou sans projet ; 64 usage incorrect.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug, verifierChemin } from './lib/ecriture.mjs'
 
 const USAGE = 'usage : node scripts/pilotage-chantier.mjs <dossier> <creer|maj|lier-session|archiver|tache|porte> <json | fichier.json> [--membre <prénom>] [--force-report] [--confirme] [--session-id <id>]'
 const ACTIONS = ['creer', 'maj', 'lier-session', 'archiver', 'tache', 'porte']
@@ -165,6 +165,9 @@ function principal() {
   const pilotage = join(dossier, '.pilotage')
   const membre = action === 'tache' && options.membre === '' ? null : nomMembre(projet)
   const racine = membre ? join(pilotage, 'equipe', membre.sl) : ''
+  // Liens et jonctions : rien ne s'écrit (ni ne se lit pour être réécrit) au travers d'un lien qui mène hors du projet.
+  tx.proteger(dossier)
+  verifierChemin(dossier, racine || join(pilotage, 'plan.md'))
   const rel = f => f.slice(dossier.length + 1).replaceAll('\\', '/')
   switch (action) {
     case 'creer': return creer(donnees, projet, membre, racine, rel)
@@ -384,5 +387,6 @@ try {
   principal()
 } catch (e) {
   tx.annuler()
+  if (e instanceof CheminNonSur) echec(e.message, 1)
   echec(`Écriture impossible (${e instanceof Error ? e.message.split(String.fromCharCode(10))[0] : 'erreur inconnue'}) : tout est remis comme avant.`, 4)
 }

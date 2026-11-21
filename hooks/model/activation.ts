@@ -4,11 +4,16 @@ import { estCopieDeConflit } from './plan.ts'
 import { memeMembre, parseProjet } from './projet.ts'
 import type { Projet } from './projet.ts'
 
-export type FsLike = { read(p: string): Promise<string>; list(p: string): Promise<string[]> }
+/**
+ * Le disque vu du modèle. `list` ne rend jamais une entrée lien (symbolique ou jonction) : l'adaptateur la retire et ajoute son chemin à
+ * `liens` (facultatif), pour que la lecture le dise ; un lien n'est donc jamais lu ni parcouru.
+ */
+export type FsLike = { read(p: string): Promise<string>; list(p: string): Promise<string[]>; liens?: string[] }
 
 export type Trouve = { racine: string; projet: Projet } | { racine: string; erreurs: string[] }
 
 const MARQUEUR = 'projet.json'
+const LIEN = 'Le dossier .pilotage ou son fichier projet.json est un lien (il peut mener hors du projet) : Pilotage ne le lit pas. Le remplacer par un vrai dossier et un vrai fichier.'
 
 /** Barres obliques, sans barre finale ; la racine du disque devient `C:` (Windows) ou `` (POSIX). */
 const BS = String.fromCharCode(92)
@@ -31,9 +36,15 @@ export async function trouverProjet(fs: FsLike, dossier: string): Promise<Trouve
   if (typeof dossier !== 'string' || dossier.trim() === '') return null
   for (const d of ancetres(dossier)) {
     try {
+      const avant = fs.liens?.length ?? 0
       const noms = await fs.list(`${d}/.pilotage`)
+      const lien = (chemin: string): boolean => (fs.liens ?? []).slice(avant).some(l => normaliser(l) === chemin)
+      if (lien(`${d}/.pilotage/${MARQUEUR}`)) return { racine: d, erreurs: [LIEN] }
       // Seul le nom exact compte : « projet (1).json » est une copie de conflit.
       if (!noms.some(n => n === MARQUEUR && !estCopieDeConflit(n))) continue
+      // `.pilotage` lui-même ne doit pas être un lien : son dossier parent le dit.
+      await fs.list(d === '' ? '/' : d).catch(() => [])
+      if (lien(`${d}/.pilotage`)) return { racine: d, erreurs: [LIEN] }
       const r = parseProjet(await fs.read(`${d}/.pilotage/${MARQUEUR}`))
       return r.ok ? { racine: d, projet: r.projet } : { racine: d, erreurs: r.erreurs }
     } catch {

@@ -8,6 +8,7 @@ import { lirePortes } from './phases.ts'
 import type { Portes } from './phases.ts'
 import { estCopieDeConflit, parsePlan } from './plan.ts'
 import type { Tache } from './plan.ts'
+import { avisLiens } from './liens.ts'
 import { memeMembre, parseProjet } from './projet.ts'
 import type { Projet } from './projet.ts'
 
@@ -98,7 +99,8 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
     sortie.fichesSkills = f.skills
     const c = await lireChantiersDetail(fs, dossier, r.projet.equipe)
     sortie.chantiers = c.chantiers
-    sortie.erreursChantiers = c.erreurs
+    // Les liens sautés pendant toute la lecture (fiches, dossiers, plan, portes...) : dits une fois, jamais lus.
+    sortie.erreursChantiers = [...c.erreurs, ...avisLiens(fs, racine)]
     return sortie
   } catch {
     // Dernier filet : une anomalie imprévue ne doit jamais faire tomber le panneau.
@@ -141,12 +143,14 @@ async function lireChantiersDetail(fs: FsLike, dossier: string, equipe: string[]
     if (membres === null) return sortie
     for (const d of membres.filter(n => !estCopieDeConflit(n)).sort()) {
       const auteur = equipe.find(m => memeMembre(m, d)) ?? d
+      // Le dossier du membre d'abord : un sous-dossier absent de sa liste (absent, ou lien retiré par l'adaptateur) n'est jamais parcouru.
+      const parent = await liste(fs, `${dossier}/equipe/${d}`)
+      if (parent === null) continue
       for (const sous of ['chantiers', 'archive'] as const) {
+        if (!parent.includes(sous)) continue
         const noms = await liste(fs, `${dossier}/equipe/${d}/${sous}`)
         if (noms === null) {
-          // Un dossier simplement absent n'est pas une erreur ; on ne le distingue pas d'une panne de liste, sauf si le parent le contient.
-          const parent = await liste(fs, `${dossier}/equipe/${d}`)
-          if (parent?.includes(sous)) sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
+          sortie.erreurs.push(`Le dossier ${sous} de ${auteur} (.pilotage/equipe/${d}/${sous}) n’a pas pu être lu.`)
           continue
         }
         let fiches = noms.filter(n => /\.md$/i.test(n) && !estCopieDeConflit(n)).sort()
@@ -213,6 +217,7 @@ export async function lireSessions(fs: FsLike, racine: string, equipe: string[] 
     for (const d of membres.filter(n => !estCopieDeConflit(n)).sort()) {
       try {
         const auteur = equipe.find(m => memeMembre(m, d)) ?? d
+        if (!((await liste(fs, `${dossier}/${d}`)) ?? []).includes('sessions.json')) continue // absent, ou lien : jamais lu
         const texte = await fs.read(`${dossier}/${d}/sessions.json`)
         if (texte.length > MAX_FICHE) continue
         const v: unknown = JSON.parse(texte)

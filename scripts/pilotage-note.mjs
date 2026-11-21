@@ -9,7 +9,7 @@
 //   5 dossier introuvable, qui n'est pas un dossier, ou sans projet ; 64 usage incorrect.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug, verifierChemin } from './lib/ecriture.mjs'
 
 const USAGE = 'usage : node scripts/pilotage-note.mjs <dossier> <idee|feedback|retirer> <json | fichier.json | id> --membre <prénom> [--type idee|feedback]'
 const ACTIONS = ['idee', 'feedback', 'retirer']
@@ -97,6 +97,9 @@ function principal() {
   const projet = chargerProjet(dossier)
   const membre = nomMembre(projet)
   const racine = join(dossier, '.pilotage', 'equipe', membre.sl)
+  // Liens et jonctions : rien ne s'écrit au travers d'un lien qui mène hors du projet.
+  tx.proteger(dossier)
+  verifierChemin(dossier, racine)
   const rel = f => f.slice(dossier.length + 1).replaceAll('\\', '/')
   return action === 'retirer' ? retirer(membre, racine, rel) : creer(action, donnees, projet, membre, racine, rel)
 }
@@ -148,5 +151,6 @@ try {
   principal()
 } catch (e) {
   tx.annuler()
+  if (e instanceof CheminNonSur) echec(e.message, 1)
   echec(`Écriture impossible (${e instanceof Error ? e.message.split(String.fromCharCode(10))[0] : 'erreur inconnue'}) : tout est remis comme avant.`, 4)
 }

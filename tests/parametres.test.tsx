@@ -383,3 +383,35 @@ test('Charger mon workflow : pas de bouton en lecture seule', async ($, on) => {
   expect(await ui.find({ key: 'workflow-charger' })).toBeFalsy()
   await ui.unmount()
 })
+
+test('liens : un .pilotage qui est un lien (fs.stat) : la modification est refusée, rien n’est écrit, l’erreur le dit', async ($, on) => {
+  const b = banc(on, SITE)
+  on('fs.stat', (_: unknown, e: { path: string }) => {
+    const p = sl(e.path)
+    if (p === 'C:/Projet') return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: false, realPath: 'C:/Projet' } }
+    if (p === D) return { value: { kind: 'dir', size: 0, mtimeMs: 0, isLink: true, realPath: 'C:/Users/Jo/.claude' } }
+    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+  })
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  const avant = b.fichiers[PROJET_JSON]
+  await ui.press({ key: 'reglage-paiement-en-ligne' })
+  expect(b.ecrits).toEqual([])
+  expect(b.fichiers[PROJET_JSON]).toBe(avant)
+  expect(await dans(ui, 'parametres-erreurs')).toContain('Chemin non sûr')
+  await ui.unmount()
+})
+
+test('liens : sans lien (fs.stat répond, tout est sous le projet), la modification s’écrit comme avant', async ($, on) => {
+  const b = banc(on, SITE)
+  on('fs.stat', (_: unknown, e: { path: string }) => {
+    const p = sl(e.path)
+    if (p in b.fichiers || p === 'C:/Projet' || p === D) return { value: { kind: 'file', size: 1, mtimeMs: 1, isLink: false, realPath: p.replaceAll('/', String.fromCharCode(92)) } }
+    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+  })
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  await ui.press({ key: 'reglage-paiement-en-ligne' })
+  expect(b.projet().reglages['paiement-en-ligne']).toBe(true)
+  await ui.unmount()
+})

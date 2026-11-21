@@ -10,6 +10,8 @@ import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.
 import { chantierDeSession } from './model/chantiers.ts'
 import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
+import { ecritureSure, MESSAGE_LIEN_PANNEAU } from './model/liens.ts'
+import type { StatLien } from './model/liens.ts'
 import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
@@ -87,10 +89,31 @@ const erreurEcriture = atom({ plugin: 'pilotage', key: 'erreurEcriture' } as con
 // Abandonne les écritures de fiche en attente (changement ou perte de projet) ; posé par `register`.
 let purgerEcritures: () => void = () => undefined
 
-const adapter = ($: any): FsLike => ({
-  read: async p => String((await $.fs.read(p)) ?? ''),
-  list: async p => ((await $.fs.list(p)) as { name: string }[]).map(x => x.name),
-})
+type EntreeListe = { name: string; isLink?: boolean }
+/** Noms d'un dossier, sans les liens (symboliques ou jonctions), dont le chemin va dans `liens` : un lien n'est jamais lu ni parcouru. */
+const listeSansLiens = async ($: any, p: string, liens: string[]): Promise<string[]> => {
+  const base = String(p).replaceAll(String.fromCharCode(92), '/').replace(/\/+$/, '')
+  return ((await $.fs.list(p)) as EntreeListe[]).filter(x => (x.isLink === true ? (liens.push(`${base}/${x.name}`), false) : true)).map(x => x.name)
+}
+const adapter = ($: any): FsLike => {
+  const liens: string[] = []
+  return { liens, read: async p => String((await $.fs.read(p)) ?? ''), list: p => listeSansLiens($, p, liens) }
+}
+
+/** `$.fs.stat(p, { resolve: true })` réduit à ce que le contrôle des liens lit ; null si le chemin n'existe pas ou ne se contrôle pas. */
+const statLien = ($: any): StatLien => async p => {
+  try {
+    const s = await $.fs.stat(p, { resolve: true })
+    return s && typeof s === 'object' ? { isLink: s.isLink === true, ...(typeof s.realPath === 'string' ? { realPath: s.realPath } : {}) } : null
+  } catch {
+    return null
+  }
+}
+/** Écrit un fichier du projet depuis le panneau, jamais au travers d'un lien (voir model/liens.ts) : sinon lève, rien n'est écrit. */
+async function ecrireDansProjet($: any, racine: string, p: string, texte: string): Promise<void> {
+  if (!(await ecritureSure(statLien($), racine, p))) throw new Error(MESSAGE_LIEN_PANNEAU)
+  await $.fs.write(p, texte)
+}
 
 /** Plus de projet valide ici : le plugin redevient inactif. */
 async function remettreAZero($: any, auto?: Minuterie): Promise<void> {
@@ -261,10 +284,15 @@ const suiviEcritures = creerSuivi()
 const TOAST_DESACTIVE = 'Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.'
 
 async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Patch, moi: string): Promise<void> {
-  const r = await ecrireProjet(
-    { read: async p => String((await $.fs.read(p)) ?? ''), write: async (p, t) => void (await $.fs.write(p, t)) },
-    racine, affiche, patch, { moi, suivi: suiviEcritures },
-  )
+  // Ni projet.json ni ses copies ne s'écrivent au travers d'un lien (contrôlé d'abord : rien n'est écrit, pas même la copie).
+  const fichier = `${racine}/.pilotage/projet.json`
+  const surs = await Promise.all([fichier, `${fichier}.bak`, `${fichier}.bak2`].map(p => ecritureSure(statLien($), racine, p)))
+  const r = surs.every(Boolean)
+    ? await ecrireProjet(
+        { read: async p => String((await $.fs.read(p)) ?? ''), write: (p, t) => ecrireDansProjet($, racine, p, t) },
+        racine, affiche, patch, { moi, suivi: suiviEcritures },
+      )
+    : { ok: false as const, erreurs: [MESSAGE_LIEN_PANNEAU] }
   await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
   direReglage($, !r.ok ? 'Modification refusée : voir le panneau.' : patch.type === 'agentActiver' && !patch.actif ? TOAST_DESACTIVE : 'Réglage enregistré.')
   if (r.ok) synchroniserAgents($).catch(() => undefined)
@@ -426,8 +454,9 @@ function moyensEcriture($: any): Moyens {
       majFiche(
         {
           read: async p => String((await $.fs.read(p)) ?? ''),
-          write: async (p, t) => void (await $.fs.write(p, t)),
-          list: async p => ((await $.fs.list(p)) as { name: string }[]).map(x => x.name),
+          // Jamais au travers d'un lien (la fiche, son .bak ou un dossier au-dessus) ; un dossier lien n'est même pas listé.
+          write: (p, t) => ecrireDansProjet($, lot.cible.racine, p, t),
+          list: p => listeSansLiens($, p, []),
         },
         lot.cible, lot.maj, lot.agentsProjet, new Date(await horloge($)).toISOString(),
       ),

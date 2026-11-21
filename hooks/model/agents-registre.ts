@@ -121,8 +121,16 @@ export async function lireFiches(fs: FsLike, racine: string, projet: Projet): Pr
   const sortie: Record<string, string> = {}
   if (typeof racine !== 'string' || racine.trim() === '') return sortie
   const base = racine.replaceAll(String.fromCharCode(92), '/').replace(/\/+$/, '')
+  // Seules les fiches que la liste du dossier montre (jamais un lien : l'adaptateur les retire) ; `agents` lui-même ne doit pas être un lien.
+  let presentes: string[]
+  try {
+    if (!(await fs.list(`${base}/.pilotage`)).includes('agents')) return sortie
+    presentes = await fs.list(`${base}/.pilotage/agents`)
+  } catch {
+    return sortie
+  }
   for (const a of projet.agents) {
-    if (!idValide(a.id)) continue
+    if (!idValide(a.id) || !presentes.includes(`${a.id}.md`)) continue
     try {
       const t = await fs.read(`${base}/.pilotage/agents/${a.id}.md`)
       if (typeof t === 'string' && t.length <= MAX_LECTURE) sortie[a.id] = t

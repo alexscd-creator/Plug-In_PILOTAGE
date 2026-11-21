@@ -172,6 +172,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 - Les chemins copiés sont relatifs au projet.
 
 **Écriture des scripts**
+- Liens : un lien (ou une jonction) sous `.pilotage` qui reste DANS le projet est accepté par les scripts ; le panneau, lui, refuse d'écrire au travers de tout lien. Le contrôle du panneau dépend de `$.fs.stat({ resolve: true })` : si le moteur ne répond pas, l'écriture se fait comme avant (contrôle impossible). Un lien « dur » (hard link) n'est pas détectable.
 - Une collision d'identifiant de note ne réessaie pas (code 4) ; l'échec d'un `rmSync` pendant un retour en arrière est avalé ; un fichier créé puis dont l'écriture échoue n'est pas enregistré dans la liste à nettoyer ; EACCES est dit « introuvable ».
 - Une course entre le contrôle et l'écriture de `projet.json` donne le code 4 au lieu de 3 (sans écrasement).
 - Un chemin Windows finissant par `\` entre guillemets peut être mal lu.
