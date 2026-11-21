@@ -41,7 +41,7 @@ test('preparerProjet copie les réponses sans lier les tableaux au preset', () =
 test('jeu-roblox : pôles, phases et agents attendus', () => {
   const p = charger().find(x => x.id === 'jeu-roblox')!
   const titres = p.poles.map(x => x.titre)
-  for (const t of ['Stratégie', 'Technique', 'Création', 'Qualité']) assert.ok(titres.includes(t), t)
+  for (const t of ['Gameplay', 'Code', 'Graphisme', 'Qualité']) assert.ok(titres.includes(t), t)
   assert.deepEqual(p.phases.map(x => x.titre), ['Analyse', 'Idées', 'Game design', 'Développement', 'Test', 'Sortie'])
   assert.deepEqual(p.phases.map(x => x.id), ['analyse', 'idees', 'gamedesign', 'developpement', 'test', 'sortie'])
   assert.ok(p.phases.every(x => x.taches.length > 0))

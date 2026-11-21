@@ -4,9 +4,9 @@
   "vocabulaire": { "type": "Projet", "nomDuProjet": "Nom du projet", "leProjet": "le projet", "unProjet": "un projet", "objectif": "Objectif du projet", "fini": "Ce que « fini » veut dire" },
   "reglagesDef": [],
   "poles": [
-    { "id": "strategie", "titre": "Stratégie" },
-    { "id": "realisation", "titre": "Réalisation" },
-    { "id": "qualite", "titre": "Qualité" }
+    { "id": "strategie", "titre": "Stratégie", "couleur": "violet" },
+    { "id": "realisation", "titre": "Réalisation", "couleur": "bleu" },
+    { "id": "qualite", "titre": "Qualité", "couleur": "sarcelle" }
   ],
   "phases": [
     { "id": "cadrage", "titre": "Cadrage", "taches": ["Définir le but et ce que « fini » veut dire", "Lister les contraintes et les risques"] },

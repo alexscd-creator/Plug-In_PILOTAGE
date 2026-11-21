@@ -1,7 +1,7 @@
 // Presets de projet et workflow idéal : logique pure, sans fs ni process (les hooks tournent hors Node).
 // Les fichiers `presets/*.json` sont lus ailleurs ; ici on ne reçoit que leur texte déjà lu.
 
-import { parseProjet } from './projet.ts'
+import { parseProjet, DEFAUT_VOCABULAIRE } from './projet.ts'
 import type { Pole, PhaseDef, AgentDef, Workflow, Projet, Vocabulaire, ReglageDef } from './projet.ts'
 
 export type Preset = {
@@ -52,7 +52,7 @@ export function preparerProjet(
 
 /** Libellé d'interface qui suit le type de projet (ex. « Nom du site » ou « Nom de l'application »). */
 export function libelle(p: Projet, cle: keyof Vocabulaire): string {
-  return p.vocabulaire[cle]
+  return p.vocabulaire?.[cle] ?? DEFAUT_VOCABULAIRE[cle] ?? ''
 }
 
 /** Workflow proposé par le preset, ou celui de « autre » si l'identifiant est inconnu. */

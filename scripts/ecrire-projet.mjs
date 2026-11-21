@@ -5,8 +5,6 @@
 //   5 dossier introuvable ou qui n'est pas un dossier (rien n'est créé) ; 64 usage incorrect.
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { parseProjet, serializeProjet } from '../hooks/model/projet.ts'
-import { genererPlan } from '../hooks/model/plan.ts'
 
 const [dossierArg, reponsesArg] = process.argv.slice(2)
 if (!dossierArg || !reponsesArg) {
@@ -15,6 +13,13 @@ if (!dossierArg || !reponsesArg) {
 }
 const echec = (messages, code = 1) => { console.error([].concat(messages).join('\n')); process.exit(code) }
 
+let parseProjet, serializeProjet, genererPlan
+try {
+  ;({ parseProjet, serializeProjet } = await import('../hooks/model/projet.ts'))
+  ;({ genererPlan } = await import('../hooks/model/plan.ts'))
+} catch (e) {
+  echec(`Le modèle du plugin est introuvable ou illisible (${e instanceof Error ? e.message.split(String.fromCharCode(10))[0] : 'erreur inconnue'}) : réinstaller le plugin. Rien n'est écrit.`, 4)
+}
 try {
   principal()
 } catch (e) {

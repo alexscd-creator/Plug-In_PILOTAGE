@@ -1,7 +1,9 @@
 // Modèle du projet (`projet.json`) : logique pure, sans fs ni process (les hooks tournent hors Node).
 // Les pôles, phases et agents viennent des données : rien n'est codé en dur pour un type de projet précis.
 
-export type Pole = { id: string; titre: string }
+/** Teintes de pôle de la maquette (palette `color/pole/<teinte>`). */
+export const TEINTES_POLE = ['violet', 'bleu', 'sarcelle', 'vert', 'orange', 'rose'] as const
+export type Pole = { id: string; titre: string; couleur?: string }
 export type PhaseDef = { id: string; titre: string; taches: string[] }
 export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string }
 export type Workflow = { outils: { role: string; outil: string }[] }
@@ -33,11 +35,16 @@ export const DEFAUT_VOCABULAIRE: Vocabulaire = {
 const CLES_VOCABULAIRE = ['type', 'nomDuProjet', 'leProjet', 'unProjet', 'objectif', 'fini'] as const
 const GENRES = ['texte', 'choix', 'oui-non'] as const
 const ID_REGLAGE = /^[a-z0-9-]+$/
+const MAX_ID_REGLAGE = 60
+const MAX_VALEUR = 500
+const MAX_TITRE = 200
 
 export type ResultatProjet = { ok: true; projet: Projet } | { ok: false; erreurs: string[] }
 
 const estObjet = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const texteNonVide = (v: unknown): v is string => typeof v === 'string' && v.trim() !== ''
+/** Signale un texte trop long (le début seul est cité dans l'erreur). */
+const trop = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > max
 
 const norme = (s: string): string =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim()
@@ -94,8 +101,10 @@ function lireReglagesDef(v: unknown, erreurs: string[]): ReglageDef[] {
     let ok = true
     const faux = (m: string) => { erreurs.push(`${n} : ${m}`); ok = false }
     if (!texteNonVide(o.id)) faux("l'identifiant est manquant.")
+    else if (o.id.length > MAX_ID_REGLAGE) faux(`l'identifiant « ${o.id.slice(0, 30)}... » dépasse ${MAX_ID_REGLAGE} caractères.`)
     else if (!ID_REGLAGE.test(o.id)) faux(`l'identifiant « ${o.id.slice(0, 30)} » doit s'écrire en minuscules, chiffres et tirets seulement.`)
     if (!texteNonVide(o.libelle)) faux('le libellé est manquant.')
+    else if (trop(o.libelle, MAX_TITRE)) faux(`le libellé dépasse ${MAX_TITRE} caractères.`)
     const genre = GENRES.find(g => g === o.genre)
     if (!genre) faux(`le genre doit être « texte », « choix » ou « oui-non » (trouvé : ${JSON.stringify(o.genre) ?? 'absent'}).`)
     let options: string[] | undefined
@@ -127,9 +136,10 @@ function lireReglages(v: unknown, defs: ReglageDef[], erreurs: string[]): Record
   if (!estObjet(v)) { erreurs.push('Les valeurs de réglages (reglages) doivent former un objet.'); return {} }
   const sortie: Record<string, string | boolean> = {}
   for (const def of defs) {
-    if (!(def.id in v)) continue
+    if (!Object.hasOwn(v, def.id)) continue
     const x = v[def.id]
-    if (def.genre === 'oui-non' && typeof x !== 'boolean') erreurs.push(`Réglage « ${def.id} » : la valeur doit être oui ou non (vrai ou faux).`)
+    if (trop(x, MAX_VALEUR)) erreurs.push(`Réglage « ${def.id} » : la valeur dépasse ${MAX_VALEUR} caractères.`)
+    else if (def.genre === 'oui-non' && typeof x !== 'boolean') erreurs.push(`Réglage « ${def.id} » : la valeur doit être oui ou non (vrai ou faux).`)
     else if (def.genre === 'texte' && typeof x !== 'string') erreurs.push(`Réglage « ${def.id} » : la valeur doit être un texte.`)
     else if (def.genre === 'choix' && !(typeof x === 'string' && def.options?.includes(x))) erreurs.push(`Réglage « ${def.id} » : la valeur doit être une des options (${(def.options ?? []).join(', ')}).`)
     else sortie[def.id] = x as string | boolean
@@ -153,6 +163,7 @@ export function parseProjet(texte: string): ResultatProjet {
   const champ = (cle: 'nom' | 'but' | 'fini' | 'preset'): string => {
     const v = brut[cle]
     if (!texteNonVide(v)) { erreurs.push(`Le champ « ${cle} » doit être un texte non vide.`); return '' }
+    if (cle === 'nom' && v.length > MAX_TITRE) { erreurs.push(`Le champ « nom » dépasse ${MAX_TITRE} caractères.`); return '' }
     return v
   }
   const nom = champ('nom'), but = champ('but'), fini = champ('fini'), preset = champ('preset')
@@ -168,13 +179,28 @@ export function parseProjet(texte: string): ResultatProjet {
   const poles: Pole[] = listeObjets(brut.poles, 'Les pôles', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Pôle ${i + 1} : l'identifiant est manquant.`)
     if (!texteNonVide(o.titre)) erreurs.push(`Pôle ${i + 1} : le titre est manquant.`)
-    return { id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '' }
+    else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Pôle ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
+    let couleur: string | undefined
+    if (o.couleur !== undefined) {
+      if (typeof o.couleur === 'string' && (TEINTES_POLE as readonly string[]).includes(o.couleur)) couleur = o.couleur
+      else erreurs.push(`Pôle ${i + 1} : la couleur doit être une de ${TEINTES_POLE.join(', ')}.`)
+    }
+    return { id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '', ...(couleur ? { couleur } : {}) }
   })
+  {
+    const vues = new Set<string>()
+    for (const p of poles) {
+      if (!p.couleur) continue
+      if (vues.has(p.couleur)) erreurs.push(`Pôles : la teinte « ${p.couleur} » est donnée à deux pôles.`)
+      vues.add(p.couleur)
+    }
+  }
   doublons(poles.map(p => p.id).filter(Boolean), 'Pôles', erreurs)
 
   const phases: PhaseDef[] = listeObjets(brut.phases, 'Les phases', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Phase ${i + 1} : l'identifiant est manquant.`)
     if (!texteNonVide(o.titre)) erreurs.push(`Phase ${i + 1} : le titre est manquant.`)
+    else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Phase ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
     const taches = listeTextes(o.taches, `Phase ${i + 1} : les tâches`, erreurs)
     return { id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '', taches }
   })
@@ -184,6 +210,7 @@ export function parseProjet(texte: string): ResultatProjet {
   const agents: AgentDef[] = listeObjets(brut.agents, 'Les agents', erreurs).map((o, i) => {
     if (!texteNonVide(o.id)) erreurs.push(`Agent ${i + 1} : l'identifiant est manquant.`)
     if (!texteNonVide(o.titre)) erreurs.push(`Agent ${i + 1} : le titre est manquant.`)
+    else if (trop(o.titre, MAX_TITRE)) erreurs.push(`Agent ${i + 1} : le titre dépasse ${MAX_TITRE} caractères.`)
     if (!texteNonVide(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle est manquant.`)
     else if (!idsPoles.has(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle « ${o.pole} » n'existe pas.`)
     if (typeof o.pourquoi !== 'string') erreurs.push(`Agent ${i + 1} : « pourquoi » doit être un texte.`)
@@ -214,7 +241,7 @@ export function parseProjet(texte: string): ResultatProjet {
 export function serializeProjet(p: Projet): string {
   const o = {
     version: p.version, nom: p.nom, but: p.but, fini: p.fini, preset: p.preset, equipe: p.equipe,
-    poles: p.poles.map(x => ({ id: x.id, titre: x.titre })),
+    poles: p.poles.map(x => ({ id: x.id, titre: x.titre, ...(x.couleur ? { couleur: x.couleur } : {}) })),
     phases: p.phases.map(x => ({ id: x.id, titre: x.titre, taches: x.taches })),
     agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi })),
     workflow: { outils: p.workflow.outils.map(x => ({ role: x.role, outil: x.outil })) },
@@ -223,7 +250,7 @@ export function serializeProjet(p: Projet): string {
       id: d.id, libelle: d.libelle, genre: d.genre,
       ...(d.options ? { options: [...d.options] } : {}), ...(d.defaut !== undefined ? { defaut: d.defaut } : {}), ...(d.aide !== undefined ? { aide: d.aide } : {}),
     })),
-    reglages: Object.fromEntries((p.reglagesDef ?? []).filter(d => p.reglages && d.id in p.reglages).map(d => [d.id, p.reglages[d.id]])),
+    reglages: Object.fromEntries((p.reglagesDef ?? []).filter(d => p.reglages && Object.hasOwn(p.reglages, d.id)).map(d => [d.id, p.reglages[d.id]])),
   }
   return JSON.stringify(o, null, 2) + '\n'
 }

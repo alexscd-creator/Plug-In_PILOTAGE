@@ -25,7 +25,7 @@ test('jeu-roblox, application, autre : vocabulaire', () => {
   assert.equal(charger('jeu-roblox').vocabulaire.type, 'Jeu Roblox')
   assert.equal(charger('jeu-roblox').vocabulaire.nomDuProjet, 'Nom du jeu')
   assert.equal(charger('application').vocabulaire.type, 'Application')
-  assert.equal(charger('application').vocabulaire.nomDuProjet, "Nom de l'application")
+  assert.equal(charger('application').vocabulaire.nomDuProjet, 'Nom de l’application')
   assert.deepEqual(charger('autre').vocabulaire, {
     type: 'Projet', nomDuProjet: 'Nom du projet', leProjet: 'le projet', unProjet: 'un projet',
     objectif: 'Objectif du projet', fini: 'Ce que « fini » veut dire',

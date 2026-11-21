@@ -8,10 +8,10 @@
     { "id": "paiement-en-ligne", "libelle": "Paiement en ligne", "genre": "oui-non", "defaut": false, "aide": "Activer si le site encaisse des paiements." }
   ],
   "poles": [
-    { "id": "strategie", "titre": "Stratégie" },
-    { "id": "technique", "titre": "Technique" },
-    { "id": "creation", "titre": "Création" },
-    { "id": "qualite", "titre": "Qualité" }
+    { "id": "strategie", "titre": "Stratégie", "couleur": "violet" },
+    { "id": "technique", "titre": "Technique", "couleur": "bleu" },
+    { "id": "creation", "titre": "Création", "couleur": "rose" },
+    { "id": "qualite", "titre": "Qualité", "couleur": "sarcelle" }
   ],
   "phases": [
     { "id": "cadrage", "titre": "Cadrage", "taches": ["Définir le public et l'objectif du site", "Lister les pages et les contenus"] },
