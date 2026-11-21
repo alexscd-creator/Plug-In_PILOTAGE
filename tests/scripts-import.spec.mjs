@@ -11,6 +11,8 @@ const racine = fileURLToPath(new URL('..', import.meta.url))
 function copieSansModele() {
   const d = mkdtempSync(join(tmpdir(), 'sansmodele-'))
   mkdirSync(join(d, 'scripts'))
+  mkdirSync(join(d, 'scripts', 'lib'))
+  copyFileSync(join(racine, 'scripts', 'lib', 'ecriture.mjs'), join(d, 'scripts', 'lib', 'ecriture.mjs'))
   for (const f of ['check-projet.mjs', 'ecrire-projet.mjs']) copyFileSync(join(racine, 'scripts', f), join(d, 'scripts', f))
   return d
 }
