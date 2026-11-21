@@ -379,3 +379,61 @@ test('porte : mode inconnu, code 1 ; membre manquant, code 64', () => {
   assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'zzz' }, ...M).status, 1)
   assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'valider' }).status, 64)
 })
+
+// --- édition en place du plan et des portes (rien d'autre n'est perdu) ---------------------------------------------
+
+test('tache : commentaire, titre, texte libre et section inconnue du plan restent intacts, seule la marque change', () => {
+  const d = projet()
+  const avant = '<!-- note equipe -->\n# Plan\nTexte libre\n\n## Dév (dev)\n\n- [ ] dev-1 | Coder\n- [ ] dev-2 | Tester\n\n## Divers (zzz)\n\n- [ ] zzz-1 | Autre\n\n## Prod (prod)\n'
+  writeFileSync(plan(d), avant)
+  const r = lancer(d, 'tache', { id: 'dev-1', statut: 'termine' })
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(lire(plan(d)), avant.replace('- [ ] dev-1', '- [x] dev-1'))
+  assert.ok(!tout(d).some(x => /\.tmp-/.test(x)))
+})
+
+test('tache : un plan en CRLF reste en CRLF', () => {
+  const d = projet()
+  const avant = '# Plan\r\n\r\n## Dév (dev)\r\n- [ ] dev-1 | Coder\r\n- [ ] dev-2 | Tester\r\n'
+  writeFileSync(plan(d), avant)
+  assert.equal(lancer(d, 'tache', { id: 'dev-2', statut: 'en cours' }).status, 0)
+  assert.equal(lire(plan(d)), avant.replace('- [ ] dev-2', '- [~] dev-2'))
+})
+
+test('tache : identifiant en double ou inconnu : code 1, plan intact', () => {
+  const d = projet()
+  const avant = '## Dév (dev)\n- [ ] dev-1 | Coder\n- [ ] dev-1 | Encore\n'
+  writeFileSync(plan(d), avant)
+  const r = lancer(d, 'tache', { id: 'dev-1', statut: 'termine' })
+  assert.equal(r.status, 1); assert.match(r.stderr, /plusieurs/); sansTrace(r)
+  assert.equal(lancer(d, 'tache', { id: 'zzz', statut: 'termine' }).status, 1)
+  assert.equal(lire(plan(d)), avant)
+})
+
+test('porte : les lignes écrites à la main dans portes.md sont conservées', () => {
+  const d = projet()
+  const f = join(d, '.pilotage', 'equipe', 'lea-dupont', 'portes.md')
+  writeFileSync(f, '# mes notes\r\nporte: autre\r\nn importe quoi\r\n')
+  assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'valider' }, ...M).status, 0)
+  assert.equal(lire(f), '# mes notes\r\nporte: autre\r\nn importe quoi\r\nporte: prod\r\n')
+})
+
+test('porte : repondre puis valider/forcer, et l’inverse, ne laissent jamais d’entrées contradictoires', () => {
+  const d = projet()
+  const f = join(d, '.pilotage', 'equipe', 'lea-dupont', 'portes.md')
+  assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'repondre', note: 'non' }, ...M, '--confirme').status, 0)
+  assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'valider' }, ...M).status, 0)
+  let p = lirePortes(lire(f)); assert.deepEqual(p.valides, ['prod']); assert.deepEqual(p.refus, [])
+  assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'repondre', note: 'finalement non' }, ...M, '--confirme').status, 0)
+  p = lirePortes(lire(f)); assert.deepEqual(p.valides, []); assert.deepEqual(p.forces, []); assert.equal(p.refus.length, 1)
+  assert.equal(lancer(d, 'porte', { phase: 'prod', mode: 'forcer' }, ...M, '--confirme').status, 0)
+  p = lirePortes(lire(f)); assert.deepEqual(p.forces, ['prod']); assert.deepEqual(p.refus, [])
+})
+
+test('porte : valider deux fois n’ajoute rien ; une autre phase garde ses entrées', () => {
+  const d = projet()
+  const f = join(d, '.pilotage', 'equipe', 'lea-dupont', 'portes.md')
+  lancer(d, 'porte', { phase: 'prod', mode: 'valider' }, ...M)
+  lancer(d, 'porte', { phase: 'prod', mode: 'valider' }, ...M)
+  assert.equal(lire(f), 'porte: prod\n')
+})

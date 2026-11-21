@@ -5,7 +5,7 @@
 //   maj           {id, etat?, agent?, tache?, fichier?, passation?}   met la fiche à jour (`maj` = maintenant) ; `termine` seulement par `archiver`
 //   lier-session  {id, sessionId?, nom?}   `equipe/<prénom>/sessions.json` : { "<id de session>": "<id du chantier>" } ; `nom` : nom de la sous-session dans la fiche
 //   archiver      {id, passation}  fiche déplacée dans `archive/`, état `termine` ; refusé tant que des tâches « a faire » ou « en cours » restent, sauf `--force-report` (elles passent à `reporte`)
-//   tache         {id, statut}     statut d'une tâche du plan partagé `.pilotage/plan.md` (un seul éditeur à la fois ; les conflits sont réglés par Git) ; --membre facultatif
+//   tache         {id, statut}     statut d'une tâche du plan partagé `.pilotage/plan.md`, modifié EN PLACE (seule la marque de la ligne change, le reste du fichier est conservé) ; --membre facultatif
 //   porte         {phase, mode: valider|forcer|repondre, note?}   `equipe/<prénom>/portes.md` ; `forcer` et `repondre` exigent `--confirme` ; `valider` et `forcer` exigent qu'aucune tâche de la phase soit ouverte
 // Hors `tache`, rien n'est écrit en dehors de `.pilotage/equipe/<prénom>/` (le prénom est celui de `--membre`, vérifié contre l'équipe de projet.json).
 // Codes : 0 ok ; 1 entrée invalide (rien n'est écrit) ; 3 existe déjà ou déjà lié (rien n'est écrit) ; 4 écriture impossible (tout est remis comme avant) ;
@@ -20,6 +20,8 @@ const MAX_JSON = 64 * 1024
 const MAX_TEXTE = 200, MAX_PASSATION = 4000, MAX_TACHES = 100, MAX_AGENTS = 20, MAX_FICHIERS = 200
 const ETATS = ['en-travail', 'attente', 'arrete', 'pret', 'bloque', 'termine']
 const STATUTS = ['a faire', 'en cours', 'termine', 'reporte', 'abandonne']
+const TACHE_RE = /^(\s*[-*]\s+\[.?\]\s+)(.*)$/ // même grammaire de ligne de tâche que plan.ts
+const MARQUES = { 'a faire': ' ', 'en cours': '~', termine: 'x', reporte: '>', abandonne: '-' }
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/
 
 // --- arguments ------------------------------------------------------------------------------------------------------
@@ -43,7 +45,7 @@ if (action !== 'tache' && options.membre === '') usage('--membre <prénom> est o
 
 const [chantierModele, planModele, phasesModele, projetModele] = await importerModele(['chantier', 'plan', 'phases', 'projet'], 4)
 const { parseChantier, serializeChantier, validerChantier } = chantierModele
-const { parsePlan, serializePlan, portePossible } = planModele
+const { parsePlan, portePossible } = planModele
 const { lirePortes, serializePortes } = phasesModele
 const { parseProjet, memeMembre } = projetModele
 
@@ -316,12 +318,20 @@ function tache(d, projet, pilotage, rel) {
   statutValide(d.statut, 'Le statut')
   const f = join(pilotage, 'plan.md')
   if (!existsSync(f)) echec('Le plan (.pilotage/plan.md) est introuvable : rien n\'est écrit.')
-  const taches = parsePlan(readFileSync(f, 'utf8'))
-  const t = taches.find(x => x.id === d.id)
-  if (!t) echec(`La tâche « ${court(d.id)} » n'existe pas dans le plan.`)
-  t.statut = d.statut
-  const sortie = serializePlan(taches, projet.phases)
-  if (parsePlan(sortie).length !== taches.length) echec('Le plan ne se relirait pas à l\'identique : rien n\'est écrit.')
+  // Édition en place : seule la marque de la ligne de cette tâche change, tout le reste du fichier est conservé tel quel.
+  const ancien = readFileSync(f, 'utf8')
+  const morceaux = ancien.split(/(\r?\n)/) // lignes et fins de ligne alternées : on les remet telles quelles
+  const idLigne = l => { const m = TACHE_RE.exec(l); return m ? m[2].split('|')[0].trim() : null }
+  const trouvees = []
+  for (let i = 0; i < morceaux.length; i += 2) if (idLigne(morceaux[i]) === d.id) trouvees.push(i)
+  if (trouvees.length === 0) echec(`La tâche « ${court(d.id)} » n'existe pas dans le plan.`)
+  if (trouvees.length > 1) echec(`L'identifiant « ${court(d.id)} » apparaît sur plusieurs lignes du plan : le corriger à la main (un identifiant par tâche), rien n'est écrit.`)
+  morceaux[trouvees[0]] = morceaux[trouvees[0]].replace(TACHE_RE, (_, debut, reste) => debut.replace(/\[.?\]/,`[${MARQUES[d.statut]}]`) + reste)
+  const sortie = morceaux.join('')
+  // Garde-fou : relu, le plan est identique à l'ancien, sauf le statut de cette seule tâche.
+  const avant = parsePlan(ancien), apres = parsePlan(sortie)
+  const attendu = avant.map(t => (t.id === d.id ? { ...t, statut: d.statut } : t))
+  if (JSON.stringify(apres) !== JSON.stringify(attendu)) throw new Error('le plan ne se relirait pas comme prévu')
   tx.remplacer(f, sortie)
   console.log(`tâche ${d.id} : ${d.statut} (${rel(f)})`)
 }
@@ -340,11 +350,23 @@ function porte(d, projet, membre, pilotage, racine, rel) {
   }
   const note = d.note === undefined ? '' : texte(d.note, 'La note', { vide: true })
   const f = join(racine, 'portes.md')
-  const portes = lirePortes(existsSync(f) ? readFileSync(f, 'utf8') : '')
-  if (d.mode === 'valider') { if (!portes.valides.includes(phase)) portes.valides.push(phase) }
-  else if (d.mode === 'forcer') { if (!portes.forces.includes(phase)) portes.forces.push(phase) }
-  else portes.refus = [...portes.refus.filter(r => r.phase !== phase), { phase, note }]
-  tx.remplacer(f, serializePortes(portes))
+  // Édition en place : seules les entrées de cette phase changent, les autres lignes (notes à la main comprises) restent telles quelles.
+  const ancien = existsSync(f) ? readFileSync(f, 'utf8') : ''
+  const eol = ancien.includes('\r\n') ? '\r\n' : '\n'
+  const lignes = ancien === '' ? [] : ancien.split(/\r?\n/)
+  if (lignes.at(-1) === '') lignes.pop()
+  const cle = l => { const i = l.indexOf(':'); if (i <= 0) return null; const r = l.slice(i + 1); const b = r.indexOf('|'); return { cle: l.slice(0, i).trim(), phase: (b < 0 ? r : r.slice(0, b)).trim() } }
+  const cle0 = { valider: 'porte', forcer: 'force', repondre: 'refus' }[d.mode]
+  // Une entrée contraire à la nouvelle est retirée ; une entrée identique est gardée en place (sauf un refus, remplacé par le nouveau).
+  const contraires = d.mode === 'repondre' ? ['porte', 'force', 'refus'] : ['refus']
+  const gardees = lignes.filter(l => { const k = cle(l); return !(k && k.phase === phase && contraires.includes(k.cle)) })
+  const dejaLa = d.mode !== 'repondre' && gardees.some(l => { const k = cle(l); return k && k.phase === phase && k.cle === cle0 })
+  const entree = serializePortes({ valides: d.mode === 'valider' ? [phase] : [], forces: d.mode === 'forcer' ? [phase] : [], refus: d.mode === 'repondre' ? [{ phase, note }] : [] }).trimEnd()
+  if (!dejaLa) gardees.push(entree)
+  const sortie = gardees.join(eol) + eol
+  const relue = lirePortes(sortie)
+  if (!(d.mode === 'valider' ? relue.valides : d.mode === 'forcer' ? relue.forces : relue.refus.map(r => r.phase)).includes(phase)) throw new Error('la porte ne se relirait pas comme prévu')
+  if (sortie !== ancien) tx.remplacer(f, sortie)
   console.log(`porte « ${phase} » : ${d.mode} (${rel(f)})`)
 }
 
