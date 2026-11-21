@@ -33,7 +33,7 @@ export function dossierExistant(arg) {
   return dossier
 }
 
-/** Prénom en nom de dossier : minuscules sans accent, a-z 0-9 et tirets ('' si rien ne reste). */
+/** Titre en identifiant (chantier) : minuscules sans accent, a-z 0-9 et tirets ('' si rien ne reste). Le dossier d'un membre suit, lui, `dossierMembre` (hooks/model/projet.ts). */
 export const slug = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 /** Texte sur une seule ligne. */
 export const ligne = s => String(s).replace(/\s*[\r\n]+\s*/g, ' ').trim()

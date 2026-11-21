@@ -55,12 +55,30 @@ const texteNonVide = (v: unknown): v is string => typeof v === 'string' && v.tri
 /** Signale un texte trop long (le début seul est cité dans l'erreur). */
 const trop = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > max
 
-const norme = (s: string): string =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[’']/g, ' ').replace(/\s+/g, ' ').trim()
+// --- LA règle des prénoms (dossier d'un membre et comparaison), partagée par les scripts (qui l'importent) et par le panneau ---
+/** Lettres que NFD ne décompose pas, ramenées à des lettres a-z (minuscules : `plier` passe en minuscules avant). */
+const LETTRES: Record<string, string> = { ø: 'o', ł: 'l', æ: 'ae', œ: 'oe', ß: 'ss', đ: 'd', ð: 'd', þ: 'th', ı: 'i' }
+/** Minuscules sans accent, lettres non décomposables remplacées (Ø → o, Ł → l, Æ → ae, Œ → oe, ß → ss, Đ/Ð → d, Þ → th, ı → i). */
+export const plier = (s: string): string =>
+  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[øłæœßđðþı]/g, c => LETTRES[c] ?? c)
+/** Le dossier d'un membre (`.pilotage/equipe/<dossier>`) : `plier`, puis a-z, 0-9 et tirets seulement ('' si rien ne reste). */
+export const dossierMembre = (prenom: string): string => plier(prenom).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+/** Vrai si des lettres du prénom se perdraient dans son nom de dossier (écriture non latine, par exemple). */
+export const prenomPerdDesLettres = (prenom: string): boolean => /[^\x00-\x7f]/.test(plier(prenom).replace(/[^\p{L}\p{N}]/gu, ''))
+const cleMembre = (s: string): string => plier(s).replace(/[^a-z]+/g, ' ').trim()
 
-/** Deux écritures d'un prénom (« Léa », « lea », « Jean-Luc », « jean luc ») désignent le même membre. */
-export const memeMembre = (a: string, b: string): boolean =>
-  norme(a).replace(/[-_0-9\s]+/g, ' ').trim() === norme(b).replace(/[-_0-9\s]+/g, ' ').trim()
+/**
+ * Deux écritures d'un prénom (« Léa », « lea », « Jean-Luc », « jean luc », « Ølaf », « olaf ») désignent le même membre : même règle
+ * que `dossierMembre`, donc un prénom et son dossier se reconnaissent toujours. Sans aucune lettre a-z (écriture non latine), on compare
+ * les textes pliés tels quels.
+ */
+export const memeMembre = (a: string, b: string): boolean => {
+  const ka = cleMembre(a), kb = cleMembre(b)
+  return ka !== '' || kb !== '' ? ka === kb : plier(a).replace(/\s+/g, ' ').trim() === plier(b).replace(/\s+/g, ' ').trim()
+}
+/** Le dossier d'un membre parmi ceux de `equipe/` : son nom exact (`dossierMembre`) d'abord, sinon le premier que `memeMembre` reconnaît. */
+export const dossierDe = (prenom: string, dossiers: string[]): string | undefined =>
+  dossiers.find(d => d === dossierMembre(prenom)) ?? dossiers.find(d => memeMembre(prenom, d))
 
 function listeTextes(v: unknown, chemin: string, erreurs: string[]): string[] {
   if (!Array.isArray(v)) { erreurs.push(`${chemin} doit être une liste.`); return [] }

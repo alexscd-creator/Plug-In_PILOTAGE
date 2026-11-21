@@ -9,7 +9,7 @@
 import { parseChantier, serializeChantier, validerChantier } from './chantier.ts'
 import type { Chantier, EtatChantier } from './chantier.ts'
 import { estCopieDeConflit } from './plan.ts'
-import { memeMembre } from './projet.ts'
+import { dossierDe } from './projet.ts'
 
 export type FsEcriture = {
   read(p: string): Promise<string>
@@ -47,7 +47,7 @@ export async function majFiche(fs: FsEcriture, cible: Cible, maj: MajFiche, agen
 
     const equipe = `${normaliser(cible.racine)}/.pilotage/equipe`
     const dossiers = await fs.list(equipe)
-    const dossier = [...dossiers].sort().find(d => nomSur(d) && !estCopieDeConflit(d) && memeMembre(cible.membre, d))
+    const dossier = dossierDe(cible.membre, [...dossiers].sort().filter(d => nomSur(d) && !estCopieDeConflit(d)))
     if (dossier === undefined) return refus('Le dossier du membre est introuvable : on n’écrit que chez soi, rien n’est écrit.')
     const chemin = `${equipe}/${dossier}/chantiers/${cible.chantier}.md`
     // Fiche relue puis réécrite : la mise à jour se calcule sur un texte donné (`appliquer`), refaite une fois si la fiche

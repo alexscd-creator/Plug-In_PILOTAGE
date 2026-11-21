@@ -30,7 +30,7 @@ Dans tous les cas, charger le skill `chantier-pilotage` et le suivre, dans la co
 
 Première commande d'une sous-session, ou reprise d'un chantier existant.
 
-1. Lire la fiche `.pilotage/equipe/<prénom>/chantiers/<id>.md` (prénom en minuscules, sans accent, tirets). Introuvable : lister les fiches du membre et s'arrêter. Il ne faut jamais en créer une autre en silence.
+1. Lire la fiche `.pilotage/equipe/<prénom>/chantiers/<id>.md` (prénom en minuscules, sans accent, tirets ; Ø, Ł, Æ, Œ, ß deviennent o, l, ae, oe, ss). Introuvable : lister les fiches du membre et s'arrêter. Il ne faut jamais en créer une autre en silence.
 2. **Lier la session.** La section « Projet Pilotage » de tes consignes donne la ligne « Identifiant de cette session : <identifiant> ». Lancer l'action `lier-session` avec `{"id": "<id>"}` et l'option `--session-id <identifiant>` (exactement celui de cette ligne ; ne jamais en inventer ni en recopier un autre). C'est ce lien (`sessions.json`) qui affiche le bandeau du chantier et tient à jour les états des agents dans la fiche. Seulement si cette ligne est absente : lancer `lier-session` avec `{"id": "<id>", "nom": "<nom de la session>"}`, et le chantier est alors retrouvé par le nom de sous-session (sans bandeau ni états en direct).
 3. Lancer l'action `maj` avec `{"id": "<id>", "etat": "en-travail"}`.
 4. Résumer la fiche en cinq lignes (où en est le chantier, fini, reste, bloque, prochain pas), puis travailler avec les agents de la fiche. Au fil du travail, tenir la fiche à jour avec `maj` (tâche terminée, fichier touché, agent, état) : une action de suivi à la fois, et rapporter le message du script.

@@ -9,7 +9,7 @@
 //   5 dossier introuvable, qui n'est pas un dossier, ou sans projet ; 64 usage incorrect.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug, verifierChemin } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, verifierChemin } from './lib/ecriture.mjs'
 
 const USAGE = 'usage : node scripts/pilotage-note.mjs <dossier> <idee|feedback|retirer> <json | fichier.json | id> --membre <prénom> [--type idee|feedback]'
 const ACTIONS = ['idee', 'feedback', 'retirer']
@@ -37,7 +37,7 @@ if (options.type !== '' && action !== 'retirer') usage('--type ne sert qu’à �
 
 const [notesModele, projetModele] = await importerModele(['notes', 'projet'], 4)
 const { DOSSIER_NOTE, MAX_FICHIER_NOTE, MAX_TEXTE_NOTE, MAX_TITRE_NOTE, idNote, parseNote, serializeNote, validerNote } = notesModele
-const { parseProjet, memeMembre } = projetModele
+const { parseProjet, memeMembre, dossierMembre } = projetModele
 
 const tx = new Transaction()
 
@@ -77,7 +77,7 @@ function chargerProjet(dossier) {
 function nomMembre(projet) {
   const m = projet.equipe.find(x => memeMembre(x, options.membre))
   if (!m) echec(`« ${court(options.membre)} » ne fait pas partie de l'équipe (${projet.equipe.join(', ')}) : rien n'est écrit.`)
-  const sl = slug(m)
+  const sl = dossierMembre(m) // même règle que le panneau (hooks/model/projet.ts)
   const e = sl === '' ? ['Le prénom ne donne aucun nom de dossier valide.'] : erreursNom('Le dossier du membre', sl)
   if (e.length) echec(e)
   return { prenom: m, sl }

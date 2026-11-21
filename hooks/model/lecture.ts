@@ -9,7 +9,7 @@ import type { Portes } from './phases.ts'
 import { estCopieDeConflit, parsePlan } from './plan.ts'
 import type { Tache } from './plan.ts'
 import { avisLiens } from './liens.ts'
-import { memeMembre, parseProjet } from './projet.ts'
+import { dossierDe, memeMembre, parseProjet } from './projet.ts'
 import type { Projet } from './projet.ts'
 
 export type LectureProjet = {
@@ -84,7 +84,7 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
       else dossiers = l.filter(n => !estCopieDeConflit(n)).sort()
     }
     for (const m of membres) {
-      const d = dossiers.find(n => memeMembre(m, n))
+      const d = dossierDe(m, dossiers)
       if (d === undefined) continue
       const fichiers = await liste(fs, `${dossier}/equipe/${d}`)
       if (fichiers === null || !fichiers.includes('portes.md')) continue

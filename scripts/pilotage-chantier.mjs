@@ -49,7 +49,7 @@ const [chantierModele, planModele, phasesModele, projetModele] = await importerM
 const { parseChantier, serializeChantier, validerChantier } = chantierModele
 const { parsePlan, portePossible } = planModele
 const { lirePortes, serializePortes } = phasesModele
-const { parseProjet, memeMembre } = projetModele
+const { parseProjet, memeMembre, dossierMembre } = projetModele
 
 const tx = new Transaction()
 
@@ -92,7 +92,7 @@ function chargerProjet(dossier) {
 function nomMembre(projet) {
   const m = projet.equipe.find(x => memeMembre(x, options.membre))
   if (!m) echec(`« ${court(options.membre)} » ne fait pas partie de l'équipe (${projet.equipe.join(', ')}) : rien n'est écrit.`)
-  const sl = slug(m)
+  const sl = dossierMembre(m) // même règle que le panneau (hooks/model/projet.ts)
   const e = sl === '' ? ['Le prénom ne donne aucun nom de dossier valide.'] : erreursNom('Le dossier du membre', sl)
   if (e.length) echec(e)
   return { prenom: m, sl }

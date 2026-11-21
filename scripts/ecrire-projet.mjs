@@ -6,7 +6,7 @@
 // Les garanties communes (transaction, noms sûrs, dossier valide, import du modèle) viennent de scripts/lib/ecriture.mjs.
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, slug, verifierChemin } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, verifierChemin } from './lib/ecriture.mjs'
 
 const [dossierArg, reponsesArg] = process.argv.slice(2)
 if (!dossierArg || !reponsesArg) {
@@ -14,7 +14,7 @@ if (!dossierArg || !reponsesArg) {
   process.exit(64)
 }
 
-const [{ parseProjet, serializeProjet }, { genererPlan }] = await importerModele(['projet', 'plan'], 4)
+const [{ parseProjet, serializeProjet, dossierMembre, prenomPerdDesLettres }, { genererPlan }] = await importerModele(['projet', 'plan'], 4)
 try {
   principal()
 } catch (e) {
@@ -47,7 +47,9 @@ for (const [genre, liste] of [['pôle', projet.poles], ['phase', projet.phases],
   for (const x of liste) if (!ID.test(x.id)) erreurs.push(`L'identifiant du ${genre} « ${x.id.slice(0, 20)} » doit s'écrire en minuscules, chiffres et tirets seulement.`)
     else erreurs.push(...erreursNom(`L'identifiant du ${genre}`, x.id))
 
-const slugs = projet.equipe.map(slug)
+// Le dossier de chaque membre : la règle du panneau (hooks/model/projet.ts), pour que scripts et lecture trouvent le même dossier.
+const slugs = projet.equipe.map(dossierMembre)
+projet.equipe.forEach(p => { if (prenomPerdDesLettres(p)) erreurs.push(`Le prénom « ${p.slice(0, 20)} » contient des lettres qui ne passent pas dans un nom de dossier (a-z, chiffres, tirets) : l'écrire en lettres latines.`) })
 slugs.forEach((sl, i) => { if (sl !== '') erreurs.push(...erreursNom(`Le dossier du prénom « ${projet.equipe[i].slice(0, 20)} »`, sl)) })
 slugs.forEach((sl, i) => { if (sl === '') erreurs.push(`Le prénom « ${projet.equipe[i]} » ne donne aucun nom de dossier valide.`) })
 slugs.forEach((sl, i) => { if (sl !== '' && slugs.indexOf(sl) !== i) erreurs.push(`Les prénoms « ${projet.equipe[slugs.indexOf(sl)]} » et « ${projet.equipe[i]} » donnent le même dossier.`) })
