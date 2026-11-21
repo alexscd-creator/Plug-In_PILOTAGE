@@ -250,3 +250,31 @@ test('phases : titre de phase très long, sans largeur fixe', async ($, on) => {
     await ui.unmount()
   }
 })
+
+test('phases : équipe d’un seul membre, la porte validée se dit « Validée », jamais « à deux »', async ($, on) => {
+  const solo = dossierPages({ ...PROJET_PAGES, equipe: ['Léa'] }, PLAN)
+  banc(on, { ...solo, 'C:/Projet/.pilotage/equipe/lea/portes.md': 'porte: p1' + NL })
+  await demarrer($)
+  for (const surface of TOUTES) {
+    const ui = await monter($, surface)
+    const p1 = await dans(ui, 'etape-cadre-p1')
+    expect(p1).toContain('Terminée')
+    expect(p1).toContain('Validée')
+    expect(p1).not.toContain('à deux')
+    await ui.press({ key: 'etape-p1' })
+    expect(await texte(ui, 'Porte : validée')).toBeTruthy()
+    expect(await texte(ui, /à deux/)).toBeFalsy()
+    await ui.unmount()
+  }
+})
+
+test('phases : un prénom de config qui n’est pas dans l’équipe = porte inconnue, aucune phase dite franchie', async ($, on) => {
+  const d = MIXTE(base())
+  banc(on, { ...d, [CONFIG_LEA]: '{"prenom":"zoe"}' })
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await texte(ui, 'Porte : état inconnu — indiquez votre prénom')).toBeTruthy()
+  expect(await dans(ui, 'frise')).not.toContain('Validée')
+  expect(await dans(ui, 'frise')).not.toContain('Forcée')
+  await ui.unmount()
+})

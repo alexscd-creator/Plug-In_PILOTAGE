@@ -2,8 +2,8 @@
 import type { Portes } from '../model/phases.ts'
 import type { Tache } from '../model/plan.ts'
 import type { Projet } from '../model/projet.ts'
-import { avancementGlobal, detailPhase, resumerPhases } from '../model/synthese.ts'
-import type { DetailPhase, PorteVue } from '../model/synthese.ts'
+import { detailPhase, frisePhases } from '../model/synthese.ts'
+import type { DetailPhase, EtapeFrise, FranchieVue, PorteVue } from '../model/synthese.ts'
 import { pluriel } from './apercu'
 import { barreProgression, boutonCopier, carte, iconeEl, titreSection } from './kit'
 import type { Ctx } from './kit'
@@ -21,10 +21,11 @@ export type DonneesPhases = {
 }
 
 /** Type de porte franchie, dit tel quel : une phase sautée n'est jamais « validée à deux ». */
-const FRANCHIE = { 'a-deux': 'Validée à deux', forcee: 'Forcée', sautee: 'Passée (porte plus loin)' } as const
+const FRANCHIE: Record<FranchieVue, string> = { 'a-deux': 'Validée à deux', validee: 'Validée', forcee: 'Forcée', sautee: 'Passée (porte plus loin)' }
 
 const LIGNE_PORTE: Record<PorteVue, string> = {
   'a-deux': 'Porte : validée à deux',
+  validee: 'Porte : validée',
   forcee: 'Porte : forcée',
   passee: 'Porte : passée (porte plus loin)',
   'en-attente': 'Porte : en attente de l’associé',
@@ -33,7 +34,7 @@ const LIGNE_PORTE: Record<PorteVue, string> = {
   inconnu: 'Porte : état inconnu — indiquez votre prénom',
 }
 
-function chipPorte(c: Ctx, franchie: keyof typeof FRANCHIE) {
+function chipPorte(c: Ctx, franchie: FranchieVue) {
   const { Box, Text } = c.ui
   const t = franchie === 'forcee' ? c.j.etats.attente : { fg: c.j.accent, soft: c.j.accentSoft }
   return (
@@ -45,11 +46,9 @@ function chipPorte(c: Ctx, franchie: keyof typeof FRANCHIE) {
 }
 
 /** Une étape de la frise : rang, titre, état, et la porte franchie pour une phase terminée. */
-function etape(c: Ctx, d: DonneesPhases, i: number, choisie: boolean) {
+function etape(c: Ctx, d: DonneesPhases, et: EtapeFrise, i: number, choisie: boolean) {
   const { Box, Text, Button } = c.ui
-  const et = resumerPhases(d.projet, d.taches, d.moi, d.portes).historique[i]!
   const id = et.phase.id
-  const pct = avancementGlobal(d.taches.filter(t => t.phase === id)).pourcent
   const t = c.j.etats[ETATS_PHASE[et.etat].etat]
   return (
     <Box
@@ -63,11 +62,11 @@ function etape(c: Ctx, d: DonneesPhases, i: number, choisie: boolean) {
         <Box flexDirection="row" alignItems="center" gap="xs">
           {iconeEl(c, t.icone, 16, t.fg)}
           <Button key={`etape-${id}`} label={`Phase ${i + 1} : ${et.phase.titre}`} onPress={() => d.choisir(id)}>
-            <Text weight="semibold" color={c.j.texte}>{`${i + 1} · ${et.phase.titre}`}</Text>
+            <Text weight="semibold" color={c.j.texte}>{` ${i + 1} · ${et.phase.titre} `}</Text>
           </Button>
         </Box>
         {chipEtatPhase(c, et.etat)}
-        {et.etat === 'en-cours' ? <Text size="caption" color={c.j.texteDim}>{`${pct} %`}</Text> : null}
+        {et.etat === 'en-cours' ? <Text size="caption" color={c.j.texteDim}>{`${et.pourcent} %`}</Text> : null}
         {et.franchie ? chipPorte(c, et.franchie) : null}
       </Box>
     </Box>
@@ -76,6 +75,7 @@ function etape(c: Ctx, d: DonneesPhases, i: number, choisie: boolean) {
 
 function frise(c: Ctx, d: DonneesPhases, choisie: string) {
   const { Box, Text } = c.ui
+  const etapes = frisePhases(d.projet, d.taches, d.moi, d.portes)
   return (
     <Box key="frise-bloc" flexDirection="column" gap="sm">
       <Box
@@ -84,7 +84,7 @@ function frise(c: Ctx, d: DonneesPhases, choisie: string) {
         gap="md"
         {...(c.mobile ? { overflowX: 'scroll' as const } : { flexWrap: 'wrap' as const })}
       >
-        {d.projet.phases.map((p, i) => etape(c, d, i, p.id === choisie))}
+        {etapes.map((et, i) => etape(c, d, et, i, et.phase.id === choisie))}
       </Box>
       {c.mobile ? <Text key="aide-frise" size="caption" color={c.j.texteDim}>Faites glisser la frise pour voir toutes les phases.</Text> : null}
     </Box>

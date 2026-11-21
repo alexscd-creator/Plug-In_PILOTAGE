@@ -11,7 +11,7 @@ import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
-import { estPageAvenir, pageAvenir } from './ui/avenir'
+import { pageAvenir } from './ui/avenir'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
@@ -20,7 +20,7 @@ import { pagePhases } from './ui/phases'
 import { pagePlan } from './ui/plan'
 import { jetons, modeDeTheme } from './ui/theme'
 import type { Mode } from './ui/theme'
-import { carteAVenir, carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
+import { carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
 
 const PANE = 'pilotage'
 
@@ -310,9 +310,8 @@ export const register: Register = on => {
                   projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, ouverte, copier: copierLeChemin,
                   choisir: sur($, async (id: string) => { await update($, phaseOuverte, () => id) }),
                 })
-              : estPageAvenir(courante)
-                ? pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })
-                : [carteAVenir(ctx, titre)]),
+              // Les autres pages (Chantiers, Agents, Idées, Paramètres) sont des cartes « Bientôt ».
+              : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

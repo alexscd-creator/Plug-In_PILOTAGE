@@ -13,8 +13,6 @@ const PAGES_AVENIR: Partial<Record<Page, { titre: string; phrase: string }>> = {
   parametres: { titre: 'Paramètres', phrase: 'Thème, workflow, agents, pôles et réglages du type de projet.' },
 }
 
-export const estPageAvenir = (p: Page): boolean => p in PAGES_AVENIR
-
 export type DonneesAvenir = { projet: Projet; copier: (texte: string, surface?: string) => Promise<void> }
 
 function carteBientot(c: Ctx, page: Page) {
@@ -58,6 +56,7 @@ function carteAgent(c: Ctx, d: DonneesAvenir, a: AgentDef) {
 
 export function pageAvenir(c: Ctx, page: Page, d: DonneesAvenir) {
   const { Text } = c.ui
+  if (!PAGES_AVENIR[page]) return []
   const carteTete = carteBientot(c, page)
   if (page !== 'agents') return [carteTete]
   if (d.projet.agents.length === 0) return [carteTete, <Text key="aucun-agent" color={c.j.texteDim}>Aucun agent défini pour ce projet.</Text>]

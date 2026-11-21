@@ -116,3 +116,28 @@ test('detailPhase : identifiant vide ou inconnu = phase actuelle ; tout franchi 
 test('detailPhase : membre inconnu = porte « inconnu »', () => {
   assert.equal(detailPhase(projet, [], 'p1', '', {})!.porte, 'inconnu')
 })
+
+test('detailPhase : équipe d’un seul membre, une porte validée seul est « validee », jamais « a-deux »', () => {
+  const solo = { ...projet, equipe: ['Lea'] }
+  const d = detailPhase(solo, [], 'p1', 'Lea', { Lea: v('p1') })!
+  assert.equal(d.etat, 'terminee')
+  assert.equal(d.porte, 'validee')
+})
+test('detailPhase : équipe d’un seul membre, porte forcée reste « forcee »', () => {
+  const solo = { ...projet, equipe: ['Lea'] }
+  assert.equal(detailPhase(solo, [], 'p1', 'Lea', { Lea: { valides: [], forces: ['p1'], refus: [] } })!.porte, 'forcee')
+})
+test('detailPhase : équipe de deux, validée par un seul = en attente de l’associé (pas « a-deux »)', () => {
+  const d = detailPhase(projet, [], 'p1', 'Lea', { Lea: v('p1'), Sam: v() })!
+  assert.equal(d.porte, 'en-attente')
+  assert.equal(d.etat, 'en-cours')
+})
+test('detailPhase : un membre qui n’est pas dans l’équipe = porte « inconnu », rien de franchi', () => {
+  const tout = { Lea: v('p1', 'p2'), Sam: v('p1', 'p2'), Zoe: v('p1', 'p2') }
+  for (const moi of ['Zoe', '']) {
+    const d = detailPhase(projet, [], 'p1', moi, tout)!
+    assert.equal(d.porte, 'inconnu', moi)
+    assert.equal(d.franchie, null, moi)
+    assert.equal(d.etat, 'en-cours', moi)
+  }
+})
