@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import type { Tache } from '../hooks/model/plan.ts'
 import type { Projet } from '../hooks/model/projet.ts'
 import { DEFAUT_VOCABULAIRE } from '../hooks/model/projet.ts'
-import { avancementGlobal, avancementPole, bandeauPorte, resumerPhases } from '../hooks/model/synthese.ts'
+import { avancementGlobal, avancementPole, bandeauPorte, detailPhase, resumerPhases } from '../hooks/model/synthese.ts'
 
 const projet: Projet = {
   version: 1, nom: 'D', but: 'b', fini: 'f', preset: 'p', equipe: ['Lea', 'Sam'], workflow: { outils: [] }, vocabulaire: { ...DEFAUT_VOCABULAIRE }, reglagesDef: [], reglages: {},
@@ -78,4 +78,41 @@ test('resumerPhases : membre inconnu ou vide = aucune porte à son nom, donc pha
     assert.equal(r.actuelle?.id, 'p1', moi)
     assert.equal(r.indice, 1)
   }
+})
+
+const f = (id: string, phase: string, statut: Tache['statut'], fichier?: string): Tache => ({ id, phase, titre: id, statut, ...(fichier ? { fichier } : {}) })
+const v = (...ids: string[]) => ({ valides: ids, forces: [] as string[], refus: [] as { phase: string; note: string }[] })
+
+test('detailPhase : phase terminée à deux, tâches fermées comprises, fichiers distincts, reportées et abandonnées', () => {
+  const l = [f('1', 'p1', 'termine', 'a.md'), f('2', 'p1', 'reporte', 'a.md'), f('3', 'p1', 'abandonne', 'b.md'), f('4', 'p1', 'reporte'), f('5', 'p2', 'a faire', 'c.md')]
+  const d = detailPhase(projet, l, 'p1', 'Lea', { Lea: v('p1'), Sam: v('p1') })!
+  assert.equal(d.phase.id, 'p1')
+  assert.equal(d.indice, 1)
+  assert.equal(d.etat, 'terminee')
+  assert.equal(d.franchie, 'a-deux')
+  assert.equal(d.porte, 'a-deux')
+  assert.deepEqual(d.taches.map(x => x.id), ['1', '2', '3', '4'])
+  assert.deepEqual(d.fichiers, ['a.md', 'b.md'])
+  assert.deepEqual({ r: d.reportees, a: d.abandonnees }, { r: 2, a: 1 })
+  assert.deepEqual(d.avancement, { total: 3, faites: 1, pourcent: 33 })
+})
+test('detailPhase : forcée, passée (porte plus loin), en attente, à valider', () => {
+  const forcee = { valides: [], forces: ['p1'], refus: [] }
+  assert.equal(detailPhase(projet, [], 'p1', 'Lea', { Lea: forcee, Sam: v() })!.porte, 'forcee')
+  assert.equal(detailPhase(projet, [], 'p1', 'Lea', { Lea: v('p2'), Sam: v('p2') })!.porte, 'passee')
+  assert.equal(detailPhase(projet, [], 'p1', 'Lea', { Lea: v('p1'), Sam: v() })!.porte, 'en-attente')
+  assert.equal(detailPhase(projet, [], 'p2', 'Lea', { Lea: v('p1'), Sam: v('p1') })!.porte, 'a-valider')
+  const refus = { valides: [], forces: [], refus: [{ phase: 'p1', note: 'x' }] }
+  assert.equal(detailPhase(projet, [], 'p1', 'Lea', { Lea: v('p1'), Sam: refus })!.porte, 'refusee')
+})
+test('detailPhase : identifiant vide ou inconnu = phase actuelle ; tout franchi = dernière ; sans phase = null', () => {
+  const p = { Lea: v('p1'), Sam: v('p1') }
+  assert.equal(detailPhase(projet, [], '', 'Lea', p)!.phase.id, 'p2')
+  assert.equal(detailPhase(projet, [], 'zzz', 'Lea', p)!.phase.id, 'p2')
+  const tout = { Lea: v('p1', 'p2', 'p3'), Sam: v('p1', 'p2', 'p3') }
+  assert.equal(detailPhase(projet, [], '', 'Lea', tout)!.phase.id, 'p3')
+  assert.equal(detailPhase({ ...projet, phases: [] }, [], '', 'Lea', {}), null)
+})
+test('detailPhase : membre inconnu = porte « inconnu »', () => {
+  assert.equal(detailPhase(projet, [], 'p1', '', {})!.porte, 'inconnu')
 })

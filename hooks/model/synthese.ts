@@ -1,6 +1,6 @@
 // Synthèses du panneau (vue d'ensemble, plan) : logique pure, sans fs ni process (les hooks tournent hors Node).
-import { historique } from './phases.ts'
-import type { Portes } from './phases.ts'
+import { etatPorte, historique } from './phases.ts'
+import type { EtapeHistorique, Portes } from './phases.ts'
 import { portePossible } from './plan.ts'
 import type { Tache } from './plan.ts'
 import type { AgentDef, PhaseDef, Projet } from './projet.ts'
@@ -39,4 +39,50 @@ export function avancementPole(projet: Projet, taches: Tache[], poleId: string):
 export function bandeauPorte(taches: Tache[], phaseId: string): { bloquee: boolean; ouvertes: Tache[] } {
   const r = portePossible(taches, phaseId)
   return { bloquee: !r.ok, ouvertes: r.ouvertes }
+}
+
+/** Porte d'une phase telle que la page Phases la dit : `inconnu` quand le membre courant n'est pas connu. */
+export type PorteVue = 'a-deux' | 'forcee' | 'passee' | 'en-attente' | 'refusee' | 'a-valider' | 'inconnu'
+
+export type DetailPhase = {
+  phase: PhaseDef
+  /** Rang (à partir de 1) dans les phases du projet. */
+  indice: number
+  etat: EtapeHistorique['etat']
+  franchie: EtapeHistorique['franchie']
+  porte: PorteVue
+  /** Toutes les tâches de la phase, fermées comprises. */
+  taches: Tache[]
+  /** Chemins distincts des tâches, dans l'ordre du plan. */
+  fichiers: string[]
+  reportees: number
+  abandonnees: number
+  avancement: Avancement
+}
+
+/**
+ * Détail d'une phase pour la page Phases. Un identifiant vide ou inconnu désigne la phase actuelle (ou la dernière
+ * quand tout est franchi). Null sans phase.
+ */
+export function detailPhase(projet: Projet, taches: Tache[], phaseId: string, moi: string, portes: Record<string, Portes>): DetailPhase | null {
+  const r = resumerPhases(projet, taches, moi, portes)
+  if (r.sur === 0) return null
+  const voulu = projet.phases.findIndex(p => p.id === phaseId)
+  const i = voulu >= 0 ? voulu : r.actuelle ? r.indice - 1 : r.sur - 1
+  const h = r.historique[i]!
+  const ici = taches.filter(t => t.phase === h.phase.id)
+  let porte: PorteVue
+  if (moi === '') porte = 'inconnu'
+  else if (h.franchie) porte = { 'a-deux': 'a-deux', forcee: 'forcee', sautee: 'passee' }[h.franchie] as PorteVue
+  else {
+    const e = etatPorte(moi, h.phase.id, projet.phases, portes)
+    porte = e === 'a-valider' ? 'a-valider' : e === 'refusee-par-l-autre' ? 'refusee' : e === 'validee-a-deux' ? 'a-deux' : e === 'forcee-sans-l-autre' ? 'forcee' : 'en-attente'
+  }
+  return {
+    phase: h.phase, indice: i + 1, etat: h.etat, franchie: h.franchie, porte, taches: ici,
+    fichiers: [...new Set(ici.flatMap(t => (t.fichier ? [t.fichier] : [])))],
+    reportees: ici.filter(t => t.statut === 'reporte').length,
+    abandonnees: ici.filter(t => t.statut === 'abandonne').length,
+    avancement: avancementGlobal(ici),
+  }
 }
