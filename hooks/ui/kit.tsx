@@ -172,19 +172,19 @@ export function barreProgression(c: Ctx, label: string, valeur: number, teinte?:
 
 /**
  * Bouton « Copier le chemin ». Sur mobile (ou panneau étroit) : icône seule, le nom accessible reste « Copier le
- * chemin ». `copier` reçoit le chemin et la surface de l'appui.
+ * chemin » (ou `label`). `copier` reçoit le texte et la surface de l'appui.
  */
-export function boutonCopier(c: Ctx, cle: string, chemin: string, copier: (texte: string, surface?: string) => Promise<void>) {
+export function boutonCopier(c: Ctx, cle: string, chemin: string, copier: (texte: string, surface?: string) => Promise<void>, label = 'Copier le chemin') {
   const { Button, Text } = c.ui
   const onPress = (p: { surface?: string } | undefined) => copier(chemin, p?.surface)
   if (c.mobile) {
     return (
-      <Button key={`copier-${cle}`} label="Copier le chemin" variant="secondary" onPress={onPress as never}>
+      <Button key={`copier-${cle}`} label={label} variant="secondary" onPress={onPress as never}>
         <Text color={c.j.texteSec}>{GLYPHES.copier}</Text>
       </Button>
     )
   }
-  return <Button key={`copier-${cle}`} label="Copier le chemin" variant="secondary" onPress={onPress as never} />
+  return <Button key={`copier-${cle}`} label={label} variant="secondary" onPress={onPress as never} />
 }
 
 export type NiveauBanniere = 'info' | 'avertissement' | 'erreur'

@@ -15,6 +15,7 @@ import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
 import type { NomIcone } from './ui/icones'
+import { pagePhases } from './ui/phases'
 import { pagePlan } from './ui/plan'
 import { jetons, modeDeTheme } from './ui/theme'
 import type { Mode } from './ui/theme'
@@ -34,6 +35,8 @@ const erreursMarqueur = atom({ plugin: 'pilotage', key: 'erreursMarqueur' } as c
 })
 // Page affichée dans le panneau (état de session).
 const page = atom({ plugin: 'pilotage', key: 'page' } as const, 'apercu' as Page, { shape: 'page-1' })
+// Phase ouverte dans la page Phases ('' : la phase en cours).
+const phaseOuverte = atom({ plugin: 'pilotage', key: 'phaseOuverte' } as const, '', { shape: 'phase-ouverte-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
 // Thème du panneau : le mod ne peut pas lire le mode de l'application, « systeme » prend donc le sombre.
@@ -280,6 +283,7 @@ export const register: Register = on => {
       if (!lecture.projet) return lecture.erreurs.length > 0 ? erreurs(lecture.erreurs) : await vide()
 
       const courante = await read($, page)
+      const ouverte = await read($, phaseOuverte)
       const aller = sur($, async (p: Page) => { await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
@@ -300,7 +304,12 @@ export const register: Register = on => {
             })
           : courante === 'plan'
             ? pagePlan(ctx, { projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, copier: copierLeChemin })
-            : [carteAVenir(ctx, titre)]),
+            : courante === 'phases'
+              ? pagePhases(ctx, {
+                  projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, ouverte, copier: copierLeChemin,
+                  choisir: sur($, async (id: string) => { await update($, phaseOuverte, () => id) }),
+                })
+              : [carteAVenir(ctx, titre)]),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

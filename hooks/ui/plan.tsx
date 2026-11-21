@@ -47,7 +47,7 @@ function legende(c: Ctx) {
 }
 
 /** Ligne de tâche : large (statut, titre et chemin, responsable, copier) ou compacte sur mobile (empilée). */
-function ligneTache(c: Ctx, t: Tache, copier: DonneesPlan['copier']) {
+export function ligneTache(c: Ctx, t: Tache, copier: DonneesPlan['copier']) {
   const { Box, Text } = c.ui
   const { j } = c
   const titre = (
@@ -87,13 +87,13 @@ function ligneTache(c: Ctx, t: Tache, copier: DonneesPlan['copier']) {
   )
 }
 
-const ETATS_PHASE = {
+export const ETATS_PHASE = {
   terminee: { libelle: 'Terminée', etat: 'termine' },
   'en-cours': { libelle: 'En cours', etat: 'travail' },
   'a-venir': { libelle: 'À venir', etat: 'arrete' },
 } as const
 
-function chipEtatPhase(c: Ctx, etat: keyof typeof ETATS_PHASE) {
+export function chipEtatPhase(c: Ctx, etat: keyof typeof ETATS_PHASE) {
   const { Box, Text } = c.ui
   const t = c.j.etats[ETATS_PHASE[etat].etat]
   return (

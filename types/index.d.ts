@@ -16,6 +16,8 @@ declare module 'claude-code' {
       erreursMarqueur: Shaped<string[]>
       /** Page affichée dans le panneau. */
       page: Shaped<Page>
+      /** Phase ouverte dans la page Phases ('' : la phase en cours). */
+      phaseOuverte: Shaped<string>
       /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
       tick: Shaped<number>
       /** Thème du panneau. */
