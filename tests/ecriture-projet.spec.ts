@@ -376,3 +376,50 @@ test('ecrire : appuis rapides avec le même affichage périmé : les suivants pa
   await ecrire(e.fs, RACINE, p0, patchDom)
   assert.equal((await ecrire(e.fs, RACINE, p0, { type: 'reglage', id: 'paiement', valeur: true })).ok, false, 'sans suivi, comme avant')
 })
+
+// ---- Task 21 : rattacher / retirer un skill d'un seul agent ----
+test('skillRattacher : ajoute le skill à ce seul agent, à la suite, sans toucher au reste', () => {
+  const p = base()
+  const n = ok(p, { type: 'skillRattacher', agent: 'a2', skill: 'luau' })
+  assert.deepEqual(n.agents[1]!.skills, ['luau'])
+  assert.deepEqual(n.agents[0]!.skills, ['luau'], 'l’autre agent ne bouge pas')
+  const m = ok(n, { type: 'skillRattacher', agent: 'a1', skill: 'secu-web' })
+  assert.deepEqual(m.agents[0]!.skills, ['luau', 'secu-web'])
+  assert.deepEqual(m.agents[0]!.outils, ['Write'])
+})
+
+test('skillRattacher : doublon, agent inconnu, plafond de 20, nom trop long ou vide sont refusés', () => {
+  const p = base()
+  refus(p, { type: 'skillRattacher', agent: 'a1', skill: 'luau' }, /déjà/)
+  refus(p, { type: 'skillRattacher', agent: 'zz', skill: 'luau' }, /n'existe pas/)
+  const plein = ok(p, { type: 'agentSkills', id: 'a2', skills: Array.from({ length: 20 }, (_, i) => `s${i}`) })
+  refus(plein, { type: 'skillRattacher', agent: 'a2', skill: 'un-de-plus' }, /20/)
+  refus(p, { type: 'skillRattacher', agent: 'a2', skill: 'x'.repeat(61) }, /60/)
+  refus(p, { type: 'skillRattacher', agent: 'a2', skill: '' })
+  refus(p, { type: 'skillRattacher', agent: 'a2', skill: 42 as never })
+  refus(p, { type: 'skillRattacher', agent: 42 as never, skill: 'x' })
+})
+
+test('skillRattacher : un identifiant de skill qui n’est pas a-z0-9- est refusé (jamais un chemin)', () => {
+  const p = base()
+  for (const s of ['../x', 'A B', 'x/y', 'x' + String.fromCharCode(92) + 'y', 'x.md', 'é'])
+    refus(p, { type: 'skillRattacher', agent: 'a2', skill: s }, /minuscules/)
+})
+
+test('skillRetirer : retire le skill du seul agent visé ; un skill absent ou un agent inconnu est refusé', () => {
+  const p = ok(base(), { type: 'skillRattacher', agent: 'a2', skill: 'luau' })
+  const n = ok(p, { type: 'skillRetirer', agent: 'a1', skill: 'luau' })
+  assert.deepEqual(n.agents[0]!.skills, [])
+  assert.deepEqual(n.agents[1]!.skills, ['luau'], 'l’autre agent garde son skill')
+  refus(n, { type: 'skillRetirer', agent: 'a1', skill: 'luau' }, /n'a pas/)
+  refus(p, { type: 'skillRetirer', agent: 'zz', skill: 'luau' }, /n'existe pas/)
+  refus(p, { type: 'skillRetirer', agent: 'a1', skill: 7 as never })
+})
+
+test('skillRattacher / skillRetirer ne modifient jamais leur entrée', () => {
+  const p = base()
+  const avant = serializeProjet(p)
+  ok(p, { type: 'skillRattacher', agent: 'a2', skill: 'x' })
+  ok(p, { type: 'skillRetirer', agent: 'a1', skill: 'luau' })
+  assert.equal(serializeProjet(p), avant)
+})

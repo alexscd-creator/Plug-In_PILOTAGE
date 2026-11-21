@@ -18,6 +18,8 @@ export type Patch =
   | { type: 'agentActiver'; id: string; actif: boolean }
   | { type: 'agentRole'; id: string; titre: string; pourquoi: string }
   | { type: 'agentSkills'; id: string; skills: string[] }
+  | { type: 'skillRattacher'; agent: string; skill: string }
+  | { type: 'skillRetirer'; agent: string; skill: string }
   | { type: 'poleRenommer'; id: string; titre: string }
   | { type: 'poleCouleur'; id: string; couleur: string }
   | { type: 'poleAjouter'; id: string; titre: string; couleur?: string }
@@ -26,7 +28,9 @@ export type Patch =
 export type Retour = { ok: true } | { ok: false; erreurs: string[] }
 const echec = (...erreurs: string[]): { ok: false; erreurs: string[] } => ({ ok: false, erreurs })
 const ID_POLE = /^[a-z0-9-]+$/
+const ID_SKILL = /^[a-z0-9-]+$/
 const MAX_ID = 60
+const MAX_SKILLS = 20
 
 /** Applique le patch à une copie puis revalide le résultat entier : aucune règle n'est dupliquée ici. */
 export function modifierProjet(projet: Projet, patch: Patch): ResultatProjet {
@@ -89,6 +93,24 @@ function appliquer(n: Projet, patch: Patch): string | null {
       if (!a) return `L'agent « ${String(patch.id).slice(0, 30)} » n'existe pas.`
       if (!Array.isArray(patch.skills)) return 'Les skills doivent former une liste.'
       a.skills = [...patch.skills]
+      return null
+    }
+    case 'skillRattacher': {
+      const a = n.agents.find(x => x.id === patch.agent)
+      if (!a) return `L'agent « ${String(patch.agent).slice(0, 30)} » n'existe pas.`
+      if (typeof patch.skill !== 'string' || patch.skill === '') return 'Indiquez le skill à rattacher.'
+      if (patch.skill.length > MAX_ID) return `Le nom du skill dépasse ${MAX_ID} caractères.`
+      if (!ID_SKILL.test(patch.skill)) return "Le nom du skill doit s'écrire en minuscules, chiffres et tirets seulement."
+      if (a.skills.includes(patch.skill)) return `Le skill « ${patch.skill} » est déjà rattaché à ${a.titre}.`
+      if (a.skills.length >= MAX_SKILLS) return `${a.titre} a déjà ${MAX_SKILLS} skills (le maximum) : retirez-en un d'abord.`
+      a.skills.push(patch.skill)
+      return null
+    }
+    case 'skillRetirer': {
+      const a = n.agents.find(x => x.id === patch.agent)
+      if (!a) return `L'agent « ${String(patch.agent).slice(0, 30)} » n'existe pas.`
+      if (typeof patch.skill !== 'string' || !a.skills.includes(patch.skill)) return `${a.titre} n'a pas ce skill : rien ne change.`
+      a.skills = a.skills.filter(x => x !== patch.skill)
       return null
     }
     case 'poleRenommer': {
