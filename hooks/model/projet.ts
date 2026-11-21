@@ -6,7 +6,9 @@ export const TEINTES_POLE = ['violet', 'bleu', 'sarcelle', 'vert', 'orange', 'ro
 export type Pole = { id: string; titre: string; couleur?: string }
 export type PhaseDef = { id: string; titre: string; taches: string[] }
 /** `outils` : outils que l'agent demande en plus de la lecture seule (le moteur n'en accorde jamais de Bash ni de publication, voir agents-registre.ts). */
-export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string; outils?: string[] }
+export type AgentDef = { id: string; titre: string; pole: string; skills: string[]; pourquoi: string; outils?: string[]
+  /** Faux : l'agent est désactivé (non enregistré, grisé). Absent : actif. */
+  actif?: boolean }
 export type Workflow = { outils: { role: string; outil: string }[] }
 /** Libellés affichés dans l'interface : ils suivent le type de projet (« Nom du site », « Nom de l'application »...). */
 export type Vocabulaire = { type: string; nomDuProjet: string; leProjet: string; unProjet: string; objectif: string; fini: string }
@@ -226,10 +228,12 @@ export function parseProjet(texte: string): ResultatProjet {
     if (skills.length > MAX_SKILLS) erreurs.push(`Agent ${i + 1} : au plus ${MAX_SKILLS} skills (trouvé : ${skills.length}).`)
     skills.forEach((s, k) => { if (trop(s, MAX_SKILL)) erreurs.push(`Agent ${i + 1} : le skill ${k + 1} dépasse ${MAX_SKILL} caractères.`) })
     const outils = o.outils === undefined ? [] : listeTextes(o.outils, `Agent ${i + 1} : les outils`, erreurs)
+    if (o.actif !== undefined && typeof o.actif !== 'boolean') erreurs.push(`Agent ${i + 1} : « actif » doit être vrai ou faux.`)
     return {
       id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '',
       pole: texteNonVide(o.pole) ? o.pole : '', skills, pourquoi: typeof o.pourquoi === 'string' ? o.pourquoi : '',
       ...(outils.length > 0 ? { outils } : {}),
+      ...(o.actif === false ? { actif: false } : {}),
     }
   })
   doublons(agents.map(a => a.id).filter(Boolean), 'Agents', erreurs)
@@ -259,7 +263,7 @@ export function serializeProjet(p: Projet): string {
     version: p.version, nom: p.nom, but: p.but, fini: p.fini, preset: p.preset, equipe: p.equipe,
     poles: p.poles.map(x => ({ id: x.id, titre: x.titre, ...(x.couleur ? { couleur: x.couleur } : {}) })),
     phases: p.phases.map(x => ({ id: x.id, titre: x.titre, taches: x.taches })),
-    agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi, ...(x.outils?.length ? { outils: x.outils } : {}) })),
+    agents: p.agents.map(x => ({ id: x.id, titre: x.titre, pole: x.pole, skills: x.skills, pourquoi: x.pourquoi, ...(x.outils?.length ? { outils: x.outils } : {}), ...(x.actif === false ? { actif: false } : {}) })),
     workflow: { outils: p.workflow.outils.map(x => ({ role: x.role, outil: x.outil })) },
     vocabulaire: CLES_VOCABULAIRE.reduce((acc, k) => ({ ...acc, [k]: (p.vocabulaire ?? DEFAUT_VOCABULAIRE)[k] }), {} as Vocabulaire),
     reglagesDef: (p.reglagesDef ?? []).map(d => ({

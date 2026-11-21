@@ -107,6 +107,7 @@ export function specAgent(projet: Projet, agent: AgentDef, contenuFiche: string 
 export function specsProjet(projet: Projet, fiches: Record<string, string>): SpecAgent[] {
   const sortie: SpecAgent[] = []
   for (const a of projet.agents) {
+    if (a.actif === false) continue // agent désactivé dans Paramètres : jamais enregistré
     const s = specAgent(projet, a, fiches[a.id])
     if (s) sortie.push(s)
   }

@@ -195,3 +195,8 @@ test('registre : jamais d’exception, un agent en échec n’empêche pas les a
   const enrSync = ((): Promise<void> => { throw new Error('sync') }) as unknown as (s: SpecAgent) => Promise<void>
   await assert.doesNotReject(r.synchroniser(enrSync, [spec('c')]))
 })
+
+test('specsProjet : un agent désactivé (actif: false) n’est pas enregistré ; actif: true ou absent, si', () => {
+  const p = { ...projet, agents: [{ ...dev, actif: false }, { ...projet.agents[1]!, actif: true }, { ...dev, id: 'dev-2' }] }
+  assert.deepEqual(specsProjet(p, {}).map(s => s.name), ['art-1', 'dev-2'])
+})

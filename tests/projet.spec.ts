@@ -198,3 +198,14 @@ test('plafonds : pourquoi 500, skill 60, 20 skills, rôle/outil de workflow 120,
   assert.ok(erreurs(wf(Array.from({ length: 31 }, () => ({ role: 'r', outil: 'o' })))).some(e => e.includes('30')))
   assert.equal(parseProjet(JSON.stringify(a({ pourquoi: 'p'.repeat(500), skills: ['s'.repeat(60)] }))).ok, true)
 })
+
+test('agent : « actif » facultatif ; faux est gardé et réécrit, vrai ou absent ne s’écrit pas, un autre type est refusé', () => {
+  const brut = (actif: unknown) => JSON.stringify({ ...JSON.parse(serializeProjet(valide())), agents: [{ id: 'a', titre: 'A', pole: valide().poles[0]!.id, skills: [], pourquoi: '', ...(actif === undefined ? {} : { actif }) }] })
+  const faux = parseProjet(brut(false))
+  assert.ok(faux.ok && faux.projet.agents[0]!.actif === false)
+  assert.ok(faux.ok && serializeProjet(faux.projet).includes('"actif": false'))
+  const vrai = parseProjet(brut(true))
+  assert.ok(vrai.ok && vrai.projet.agents[0]!.actif === undefined && !serializeProjet(vrai.projet).includes('actif'))
+  const mauvais = parseProjet(brut('non'))
+  assert.ok(!mauvais.ok && mauvais.erreurs.join(' ').includes('actif'))
+})
