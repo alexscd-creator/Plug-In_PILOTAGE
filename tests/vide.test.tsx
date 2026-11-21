@@ -16,7 +16,7 @@ test('démarrage vide : « Aucun projet ici » et le bouton, sur chaque surface'
     expect(await ui.find({ type: 'Text', text: 'Aucun projet ici' })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: /quelques questions, une à la fois/ })).toBeTruthy()
     expect((await ui.find({ key: 'demarrer' }))?.props.label).toBe('Démarrer un projet')
-    expect(await ui.find({ type: 'Text', text: /\/demarrer/ })).toBeTruthy()
+    expect(await ui.find({ type: 'Text', text: /\/pilotage:demarrer/ })).toBeTruthy()
     expect(await ui.find({ key: 'navigation' })).toBeFalsy()
     await ui.unmount()
   }
@@ -28,7 +28,7 @@ test('« Démarrer un projet » : la commande part dans la conversation, rien d�
   on('command.run', (_: unknown, e: { command: string; args: string }) => { envoyes.push('/' + e.command + e.args); return { text: '' } })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'demarrer' })
-  expect(envoyes).toEqual(['/demarrer'])
+  expect(envoyes).toEqual(['/pilotage:demarrer'])
   expect(await ui.find({ type: 'Text', text: /zone de saisie|copiée|Collez/ })).toBeFalsy()
   await ui.unmount()
 })
@@ -39,7 +39,7 @@ test('envoi impossible : la commande est préparée dans la zone de saisie', asy
   on('prompt.fill', (_: unknown, e: { text: string }) => { remplis.push(e.text); return { isFilled: true } })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'demarrer' })
-  expect(remplis).toEqual(['/demarrer'])
+  expect(remplis).toEqual(['/pilotage:demarrer'])
   expect(await ui.find({ type: 'Text', text: /prête dans la zone de saisie/ })).toBeTruthy()
   await ui.unmount()
 })
@@ -52,7 +52,7 @@ test('ni envoi ni remplissage : la commande est copiée sur la surface de l’ap
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     await ui.press({ key: 'demarrer' })
-    expect(copies.at(-1)).toEqual({ text: '/demarrer', surface })
+    expect(copies.at(-1)).toEqual({ text: '/pilotage:demarrer', surface })
     expect(await ui.find({ type: 'Text', text: /Commande copiée/ })).toBeTruthy()
     await ui.unmount()
   }

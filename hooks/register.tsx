@@ -191,7 +191,7 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
       await update($, erreursMarqueur, () => [])
       return {
         ouvert: false,
-        texte: "Aucun projet Pilotage ici (pas de fichier .pilotage/projet.json dans ce dossier ni dans ses parents). Tapez /demarrer pour en créer un.",
+        texte: "Aucun projet Pilotage ici (pas de fichier .pilotage/projet.json dans ce dossier ni dans ses parents). Tapez /pilotage:demarrer pour en créer un.",
       }
     }
     if ('erreurs' in trouve) {
@@ -332,7 +332,8 @@ async function copierChemin($: any, texte: string, surface?: string): Promise<vo
 async function lancer($: any, texte: string): Promise<boolean> {
   const m = /^\/(\S+)\s*(.*)$/s.exec(texte.trim())
   if (!m) return false
-  for (const nom of [m[1]!, `pilotage:${m[1]}`]) {
+  // Déjà préfixé (`/pilotage:demarrer`) : ce nom seul, jamais le nom court (une commande de même nom d'un autre plugin).
+  for (const nom of m[1]!.includes(':') ? [m[1]!] : [m[1]!, `pilotage:${m[1]}`]) {
     if (await $.command.run({ command: nom, args: m[2] ?? '' }).then(() => true).catch(() => false)) return true
   }
   return false

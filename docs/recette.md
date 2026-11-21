@@ -12,12 +12,12 @@ Préparation : un dossier vide `essai-a` (sans `.pilotage`), un autre dossier `e
 
 Résultat : (à remplir)
 
-## B. `/projet` puis `/demarrer`
+## B. `/projet` puis `/pilotage:demarrer`
 
-1. `/projet` puis `/demarrer` dans `essai-a`.
+1. `/projet` puis `/pilotage:demarrer` dans `essai-a`.
 2. Vérifier l'ordre : le **type de projet** est demandé en premier ; le libellé du **nom** suit le type (autre type, autre libellé) ; viennent les **réglages du type**, l'équipe, le **workflow proposé** (ajustable), les **pôles**, les **phases**, les **agents**.
 3. Un récapitulatif est montré et une **confirmation** est demandée ; sans oui, rien n'est écrit.
-4. Après le oui : `.pilotage/projet.json`, `plan.md`, `agents/<id>.md` et `equipe/<prénom>/portes.md` existent ; le script a dit ce qu'il a écrit. Relancer `/demarrer` : refus d'écraser.
+4. Après le oui : `.pilotage/projet.json`, `plan.md`, `agents/<id>.md` et `equipe/<prénom>/portes.md` existent ; le script a dit ce qu'il a écrit. Relancer `/pilotage:demarrer` : refus d'écraser.
 5. Lancer `node scripts/check-projet.mjs essai-a` : `projet ok`.
 
 Résultat : (à remplir)
@@ -38,9 +38,9 @@ Résultat : (à remplir)
 
 ## E. Valider une phase avec une tâche ouverte
 
-1. Dans `essai-a`, `/phase porte <phase>` alors qu'une tâche est « a faire » ou « en cours ».
+1. Dans `essai-a`, `/pilotage:phase porte <phase>` alors qu'une tâche est « a faire » ou « en cours ».
 2. Vérifier : refus, avec la liste des tâches ouvertes.
-3. Choisir pour chacune terminer, reporter ou abandonner ; refaire `/phase porte <phase>` : confirmation demandée, puis la porte est validée et le panneau l'affiche.
+3. Choisir pour chacune terminer, reporter ou abandonner ; refaire `/pilotage:phase porte <phase>` : confirmation demandée, puis la porte est validée et le panneau l'affiche.
 
 Résultat : (à remplir)
 
@@ -51,18 +51,18 @@ Résultat : (à remplir)
 
 Résultat : (à remplir)
 
-## G. `/chantier`
+## G. `/pilotage:chantier`
 
-1. `/chantier <nom>`. Vérifier le contrôle d'impact (chef de chantier), le récapitulatif, la demande « Créer ce chantier ? » (sans oui, rien n'est écrit).
+1. `/pilotage:chantier <nom>`. Vérifier le contrôle d'impact (l'agent `pilotage:chef-de-chantier`, ce préfixe se voit dans la conversation, et non celui de l'ancien plugin), le récapitulatif, la demande « Créer ce chantier ? » (sans oui, rien n'est écrit).
 2. Après le oui : la carte **« Nouvelle session / Faire ici »** apparaît ; choisir « Nouvelle session ».
-3. Dans la sous-session : la première commande est `/chantier ouvrir <id>` ; le **bandeau** du chantier s'affiche.
+3. Dans la sous-session : la première commande est `/pilotage:chantier ouvrir <id>` ; le **bandeau** du chantier s'affiche.
 4. Vérifier les **états en direct** dans le panneau (en travail, en attente, arrêté, prêt) pendant que des agents travaillent, et que la fiche `equipe/<prénom>/chantiers/<id>.md` est tenue à jour.
 
 Résultat : (à remplir)
 
 ## H. Clore le chantier
 
-1. `/chantier clore <id>` : tâches ouvertes à régler, passation montrée, confirmation « Archiver ... ? ».
+1. `/pilotage:chantier clore <id>` : tâches ouvertes à régler, passation montrée, confirmation « Archiver ... ? ».
 2. Vérifier : la fiche est dans `equipe/<prénom>/archive/` avec sa passation et l'état « termine » ; le panneau la liste parmi les archives. L'archivage de la sous-session est proposé, pas exécuté.
 
 Résultat : (à remplir)

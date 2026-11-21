@@ -80,10 +80,10 @@ test('chantiers : sans fiche, état vide honnête et pied de la maquette (le dé
   for (const surface of TOUTES) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await texte(ui, 'Chantiers en cours')).toBeTruthy()
-    expect(await texte(ui, 'Aucun chantier pour l’instant. Lancer un chantier : /chantier <nom> dans la conversation')).toBeTruthy()
+    expect(await texte(ui, 'Aucun chantier pour l’instant. Lancer un chantier : /pilotage:chantier <nom> dans la conversation')).toBeTruthy()
     expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeFalsy()
     expect(await texte(ui, /Rafraîchi automatiquement/)).toBeFalsy()
-    expect(await texte(ui, 'Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.')).toBeTruthy()
+    expect(await texte(ui, 'Pour lancer un chantier : tapez /pilotage:chantier suivi de son nom dans la conversation.')).toBeTruthy()
     await ui.unmount()
   }
 })

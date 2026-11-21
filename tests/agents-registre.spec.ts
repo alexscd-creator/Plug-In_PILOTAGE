@@ -200,3 +200,8 @@ test('specsProjet : un agent désactivé (actif: false) n’est pas enregistré 
   const p = { ...projet, agents: [{ ...dev, actif: false }, { ...projet.agents[1]!, actif: true }, { ...dev, id: 'dev-2' }] }
   assert.deepEqual(specsProjet(p, {}).map(s => s.name), ['art-1', 'dev-2'])
 })
+
+test('un agent du projet qui porte le nom d’un agent du plugin (chef-de-chantier) n’est jamais enregistré : il remplacerait celui du plugin', () => {
+  const p = { ...projet, agents: [dev, { id: 'chef-de-chantier', titre: 'Chef de chantier', pole: 'code', skills: [], pourquoi: '' }] }
+  assert.deepEqual(specsProjet(p, {}).map(s => s.name), ['dev'])
+})

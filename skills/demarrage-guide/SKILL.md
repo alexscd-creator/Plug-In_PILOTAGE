@@ -1,11 +1,11 @@
 ---
 name: demarrage-guide
-description: Démarrage guidé d'un projet Pilotage : conversation en neuf étapes (type de projet, nom et objectif avec le vocabulaire du type, réglages propres au type, équipe, workflow, pôles, phases, agents et skills, récapitulatif) qui construit le projet avant d'écrire quoi que ce soit. À charger quand un membre veut démarrer un projet ou lance /demarrer.
+description: Démarrage guidé d'un projet Pilotage : conversation en neuf étapes (type de projet, nom et objectif avec le vocabulaire du type, réglages propres au type, équipe, workflow, pôles, phases, agents et skills, récapitulatif) qui construit le projet avant d'écrire quoi que ce soit. À charger quand un membre veut démarrer un projet ou lance /pilotage:demarrer.
 ---
 
 # Démarrage guidé
 
-Ce skill mène la conversation qui construit un projet Pilotage. Il ne produit qu'un récapitulatif : l'écriture des fichiers est faite par la commande `/demarrer`, et seulement après la confirmation de l'utilisateur.
+Ce skill mène la conversation qui construit un projet Pilotage. Il ne produit qu'un récapitulatif : l'écriture des fichiers est faite par la commande `/pilotage:demarrer`, et seulement après la confirmation de l'utilisateur.
 
 ## Règles
 
@@ -31,7 +31,7 @@ Le plugin est neutre : le type de projet est choisi **avant** le nom, parce que 
 6. **Pôles du projet.** Le preset propose des pôles ; l'utilisateur garde, renomme, ajoute ou retire. Les pôles ne sont pas fixés par le plugin : ce sont ceux de son projet. Chaque pôle a un identifiant court (minuscules, sans espace) et un titre.
 7. **Phases et leurs portes.** Proposer les phases du preset avec leurs tâches ; chaque phase se termine par une porte (on ne passe à la suivante que lorsque ses tâches sont faites). L'utilisateur peut les modifier : renommer, réordonner, ajouter ou retirer des phases et des tâches.
 8. **Agents puis skills.** Proposer les agents du preset, chacun rattaché à un pôle existant et avec la raison de sa spécialisation. Puis, agent par agent, ses skills, modifiables. Dire clairement qu'un skill cité par un preset peut ne pas être installé encore : il sera listé, et à installer ou à écrire plus tard. Un agent dont le pôle a été supprimé doit être rattaché à un autre pôle ou retiré.
-9. **Récapitulatif et confirmation explicite.** Présenter tout : le type, le nom, l'objectif, la définition de « fini », les réglages propres au type (valeur ou « non renseigné »), l'équipe, les pôles, les phases (et leur nombre de tâches), les agents (avec pôle et skills), le workflow, en employant les libellés du `vocabulaire`. Demander une confirmation explicite (« 1. Oui, créer le projet 2. Modifier quelque chose »). Ne rien écrire avant un oui clair. Après le oui, `/demarrer` écrit les fichiers (dont `vocabulaire`, `reglagesDef` et `reglages`).
+9. **Récapitulatif et confirmation explicite.** Présenter tout : le type, le nom, l'objectif, la définition de « fini », les réglages propres au type (valeur ou « non renseigné »), l'équipe, les pôles, les phases (et leur nombre de tâches), les agents (avec pôle et skills), le workflow, en employant les libellés du `vocabulaire`. Demander une confirmation explicite (« 1. Oui, créer le projet 2. Modifier quelque chose »). Ne rien écrire avant un oui clair. Après le oui, `/pilotage:demarrer` écrit les fichiers (dont `vocabulaire`, `reglagesDef` et `reglages`).
 
 ## Identifiants
 

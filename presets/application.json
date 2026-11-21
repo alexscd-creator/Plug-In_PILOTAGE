@@ -20,7 +20,7 @@
     { "id": "livraison", "titre": "Livraison", "taches": ["Préparer la mise en ligne", "Publier et recueillir les retours"] }
   ],
   "agents": [
-    { "id": "chef-de-chantier", "titre": "Chef de chantier", "pole": "produit", "skills": ["fiche-chantier"], "pourquoi": "Il garde la vue d'ensemble et découpe le travail, pour que personne ne travaille sur le même sujet par accident." },
+    { "id": "coordination", "titre": "Chef de chantier", "pole": "produit", "skills": ["fiche-chantier"], "pourquoi": "Il garde la vue d'ensemble et découpe le travail, pour que personne ne travaille sur le même sujet par accident." },
     { "id": "chercheur", "titre": "Chercheur", "pole": "produit", "skills": ["sources-web"], "pourquoi": "Il cherche et date ses sources : les autres n'ont pas à deviner ce qui existe déjà ni ce qui est vrai." },
     { "id": "developpeur", "titre": "Développeur", "pole": "technique", "skills": [], "pourquoi": "Il écrit et vérifie le code ; le garder à part évite de mélanger la conception et la réalisation." },
     { "id": "designer", "titre": "Designer", "pole": "design", "skills": [], "pourquoi": "Il s'occupe de la lisibilité et de la cohérence des écrans, un regard différent de celui qui code." },

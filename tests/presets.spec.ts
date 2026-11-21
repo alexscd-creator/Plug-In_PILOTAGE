@@ -30,6 +30,18 @@ test('chaque preset passe parsePreset et donne un projet accepté par parseProje
   }
 })
 
+test('aucun agent de preset ne porte le nom d’un agent du plugin (agents/*.md) : le chef de chantier des presets s’appelle « coordination »', () => {
+  const duPlugin = readdirSync(fileURLToPath(new URL('../agents/', import.meta.url))).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3))
+  assert.ok(duPlugin.includes('chef-de-chantier'))
+  for (const preset of charger()) {
+    for (const a of preset.agents) assert.ok(!duPlugin.includes(a.id), `${preset.id}/${a.id} prend le nom d’un agent du plugin`)
+  }
+  for (const id of ['application', 'site-web', 'jeu-roblox']) {
+    const a = charger().find(p => p.id === id)!.agents.find(x => x.id === 'coordination')
+    assert.equal(a?.titre, 'Chef de chantier', id)
+  }
+})
+
 test('preparerProjet copie les réponses sans lier les tableaux au preset', () => {
   const preset = charger().find(p => p.id === 'jeu-roblox')!
   const projet = preparerProjet(preset, reponses)

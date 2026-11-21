@@ -24,6 +24,8 @@ const ESSAIS_MAX = 5
 const DELAI_ESSAI_MS = 60_000
 
 const idValide = (s: unknown): s is string => typeof s === 'string' && s.length > 0 && s.length <= MAX_ID && ID_RE.test(s)
+/** Noms des agents fichiers du plugin (`agents/*.md`) : un agent du projet de même nom remplacerait le leur (`pilotage:<nom>`), il n'est jamais enregistré. */
+export const NOMS_RESERVES: readonly string[] = ['chef-de-chantier']
 
 /** Une valeur du projet sur UNE ligne : sauts de ligne et tabulations = espace, espaces réduits, chevrons (donc balises) retirés, bornée. */
 export const ligne = (v: unknown, max: number): string => texteSur(v, max)
@@ -91,9 +93,9 @@ export function promptAgent(projet: Projet, agent: AgentDef, contenuFiche: strin
 /** Vrai quand l'agent ne liste aucun outil permis : il garde la lecture seule par défaut (Read, Glob, Grep). */
 export const enLectureSeule = (agent: AgentDef): boolean => (Array.isArray(agent.outils) ? agent.outils : []).every(o => !OUTILS_PERMIS.includes(o))
 
-/** Spec pour `$.agent.register` ; null si l'identifiant n'est pas valide. La description : une ligne, 300 caractères au plus. */
+/** Spec pour `$.agent.register` ; null si l'identifiant n'est pas valide ou est celui d'un agent du plugin. La description : une ligne, 300 caractères au plus. */
 export function specAgent(projet: Projet, agent: AgentDef, contenuFiche: string | null | undefined): SpecAgent | null {
-  if (!idValide(agent?.id)) return null
+  if (!idValide(agent?.id) || NOMS_RESERVES.includes(agent.id)) return null
   const titre = ligne(agent.titre, MAX_TITRE)
   const pourquoi = ligne(agent.pourquoi, MAX_POURQUOI)
   const description = (pourquoi !== '' ? `${titre} — ${pourquoi}` : titre).slice(0, MAX_DESCRIPTION).trim()

@@ -32,7 +32,7 @@ const PHRASES_CHANTIER = [
   'Rappeler l’outil avec le proposal_id reçu, context: "fresh", use_worktree: false.',
   'Écrire la fiche avec scripts/pilotage-chantier.mjs.',
   'Ne jamais écrire une fiche à la main.',
-  'Déléguer le contrôle d’impact à l’agent chef-de-chantier.',
+  'Déléguer le contrôle d’impact à l’agent pilotage:chef-de-chantier.',
   'Charger le skill chantier-pilotage.',
   'La sous-session commence par /pilotage:chantier ouvrir <id>.',
   'Actions du script : lier-session et archiver.',
@@ -343,6 +343,20 @@ test('commande du panneau : « /pilotage » seul (commande de l’ancien plugin)
   }
   const d = nouveau()
   ecrire(d, 'commands/autre.md', '---\ndescription: test\n---\n`/projet` ouvre le panneau ; `/pilotage:chantier ouvrir <id>` ; dossier `.pilotage/equipe` ; `~/.claude/pilotage/config.json`.')
+  assert.equal(lint(d).status, 0, lint(d).stderr)
+})
+
+test('formes préfixées : /chantier, /phase, /demarrer seuls et l’agent chef-de-chantier sans préfixe échouent ; leurs formes préfixées passent', () => {
+  for (const texte of ['Taper `/chantier ouvrir <id>`.', 'Lancer /phase porte p1.', 'Sinon `/demarrer` crée le projet.', 'Appeler l’agent `chef-de-chantier`.', 'L’agent chef-de-chantier lit.']) {
+    const d = nouveau()
+    ecrire(d, 'commands/autre.md', '---\ndescription: test\n---\n' + texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, texte)
+    assert.match(r.stderr, /pilotage:/, r.stderr)
+  }
+  const d = nouveau()
+  ecrire(d, 'commands/autre.md', '---\ndescription: test\n---\nTaper `/pilotage:chantier ouvrir <id>`, `/pilotage:phase`, `/pilotage:demarrer` ; agent `pilotage:chef-de-chantier` ; fichier agents/chef-de-chantier.md ; `.pilotage/equipe/<prénom>/chantiers/` ; `/projet`.')
+  chantierComplet(d) // agents/chef-de-chantier.md : `name: chef-de-chantier` dans son frontmatter passe
   assert.equal(lint(d).status, 0, lint(d).stderr)
 })
 

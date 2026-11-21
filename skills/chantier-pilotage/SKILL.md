@@ -1,6 +1,6 @@
 ---
 name: chantier-pilotage
-description: Créer, suivre et clore un chantier du projet (fiche partagée, contrôle d'impact, sous-session, passation, archivage) avec le script pilotage-chantier.mjs, toujours avec la confirmation de l'utilisateur. À charger quand un membre lance /chantier ou /phase, ou veut ouvrir, mettre à jour ou clore un chantier.
+description: Créer, suivre et clore un chantier du projet (fiche partagée, contrôle d'impact, sous-session, passation, archivage) avec le script pilotage-chantier.mjs, toujours avec la confirmation de l'utilisateur. À charger quand un membre lance /pilotage:chantier ou /pilotage:phase, ou veut ouvrir, mettre à jour ou clore un chantier.
 ---
 
 # Pilotage d'un chantier
@@ -9,7 +9,7 @@ Un chantier est un travail délimité (une fonctionnalité, un lot de contenu) m
 
 ## Règles
 
-- **Conversation principale.** Ce skill se déroule dans la conversation principale : elle dialogue avec l'utilisateur et lance les scripts. L'agent `chef-de-chantier` ne fait que lire et proposer.
+- **Conversation principale.** Ce skill se déroule dans la conversation principale : elle dialogue avec l'utilisateur et lance les scripts. L'agent `pilotage:chef-de-chantier` (celui de ce plugin, toujours avec son préfixe) ne fait que lire et proposer.
 - **Confirmation d'abord.** Rien n'est créé, mis à jour au-delà du suivi courant, archivé, validé ni forcé sans la confirmation explicite de l'utilisateur, pour cette action précise. Un « oui » ne vaut que pour ce qui vient d'être montré.
 - **Jamais à la main.** Ne jamais écrire une fiche, `sessions.json`, `portes.md` ni `plan.md` à la main : toujours `node "${CLAUDE_PLUGIN_ROOT}/scripts/pilotage-chantier.mjs" "<dossier>" <action> <json> --membre "<prénom>"`. Le script valide, assainit le texte, écrit de façon transactionnelle et refuse d'écraser.
 - **On n'écrit que chez soi.** Les fiches, liens de session et portes d'un membre vivent dans `.pilotage/equipe/<prénom>/` (prénom en minuscules, sans accent, tirets). Celles des autres membres se lisent, ne se modifient jamais. Le prénom vient de `~/.claude/pilotage/config.json` et doit être dans l'équipe de `projet.json`.
@@ -18,7 +18,7 @@ Un chantier est un travail délimité (une fonctionnalité, un lot de contenu) m
 
 ## Étapes d'un chantier
 
-1. **Contrôle d'impact** (agent `chef-de-chantier`, lecture seule) : pôles et agents concernés, fichiers touchés, chevauchements avec les autres chantiers, tâches proposées.
+1. **Contrôle d'impact** (agent `pilotage:chef-de-chantier`, lecture seule) : pôles et agents concernés, fichiers touchés, chevauchements avec les autres chantiers, tâches proposées.
 2. **Confirmation** du récapitulatif par l'utilisateur, puis `creer`.
 3. **Sous-session** proposée (jamais automatiquement), qui commence par `/pilotage:chantier ouvrir <id>`.
 4. **Suivi** : `maj` (état, agent, tâche, fichier). L'état d'un chantier : `en-travail`, `attente`, `arrete`, `pret`, `bloque`, `termine` (ce dernier seulement par `archiver`).

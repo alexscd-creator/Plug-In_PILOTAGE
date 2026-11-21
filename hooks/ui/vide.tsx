@@ -6,7 +6,7 @@ import { banniere, boutonCopier, bulle, carte, iconeEl, titreSection } from './k
 import type { Ctx } from './kit'
 
 /** La commande que le bouton « Démarrer un projet » envoie dans la conversation. */
-export const COMMANDE_DEMARRER = '/demarrer'
+export const COMMANDE_DEMARRER = '/pilotage:demarrer'
 export const FICHIER_PROJET = '.pilotage/projet.json'
 const MAX_ERREURS = 8
 
@@ -34,7 +34,7 @@ export function retourCommande(c: Ctx, brut: string, copier: (texte: string) => 
   )
 }
 
-/** Démarrage vide : « Aucun projet ici » et le bouton qui lance /demarrer. */
+/** Démarrage vide : « Aucun projet ici » et le bouton qui lance /pilotage:demarrer. */
 export function ecranVide(c: Ctx, o: { demarrer: (surface?: string) => Promise<void>; retour: unknown }) {
   const { Box, Text, Button } = c.ui
   const { j } = c

@@ -148,7 +148,7 @@ function sectionChantiers(c: Ctx, d: DonneesApercu) {
       {enCours.length === 0 && d.chantiers.length === 0 && illisibles === 0 ? carteVide(c) : null}
       {enCours.length === 0 && d.chantiers.length > 0 ? <Text color={c.j.texteDim}>Aucun chantier en cours : tous sont archivés.</Text> : null}
       {illisibles > 0 ? <Text color={c.j.texteDim}>{`${resumeErreurs(erreurs)} : voir la page Chantiers.`}</Text> : null}
-      <Text size="caption" color={c.j.texteDim}>Pour lancer un chantier : tapez /chantier suivi de son nom dans la conversation.</Text>
+      <Text size="caption" color={c.j.texteDim}>Pour lancer un chantier : tapez /pilotage:chantier suivi de son nom dans la conversation.</Text>
     </Box>
   )
 }

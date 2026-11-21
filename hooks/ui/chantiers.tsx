@@ -1,5 +1,5 @@
 // Page « Chantiers » (maquette §6, écran 04) : « En cours » et « Archivés », une carte non bloquante pour les fiches
-// illisibles ou à avertissement. LIT seulement : les fiches se créent avec /chantier, jamais d'ici.
+// illisibles ou à avertissement. LIT seulement : les fiches se créent avec /pilotage:chantier, jamais d'ici.
 import { progressionChantier } from '../model/chantier.ts'
 import type { Chantier } from '../model/chantier.ts'
 import { grouperChantiers, nomAgent, resumeErreurs, resumePassation, separerAvis } from '../model/chantiers.ts'
@@ -11,7 +11,7 @@ import type { DonneesLigne } from './ligne-chantier'
 
 export type DonneesChantiers = DonneesLigne & { chantiers: Chantier[]; erreursChantiers: string[] }
 
-export const PHRASE_VIDE = 'Aucun chantier pour l’instant. Lancer un chantier : /chantier <nom> dans la conversation'
+export const PHRASE_VIDE = 'Aucun chantier pour l’instant. Lancer un chantier : /pilotage:chantier <nom> dans la conversation'
 
 /** Carte « Aucun chantier » honnête : jamais d'exemple, seulement la commande qui en crée un. */
 export function carteVide(c: Ctx) {

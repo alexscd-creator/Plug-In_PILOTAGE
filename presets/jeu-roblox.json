@@ -22,7 +22,7 @@
     { "id": "sortie", "titre": "Sortie", "taches": ["Préparer la page du jeu", "Publier", "Suivre les premiers retours"] }
   ],
   "agents": [
-    { "id": "chef-de-chantier", "titre": "Chef de chantier", "pole": "gameplay", "skills": ["fiche-chantier", "passation"], "pourquoi": "Il coordonne sans produire : il lance et clôt les chantiers et convoque les bons domaines." },
+    { "id": "coordination", "titre": "Chef de chantier", "pole": "gameplay", "skills": ["fiche-chantier", "passation"], "pourquoi": "Il coordonne sans produire : il lance et clôt les chantiers et convoque les bons domaines." },
     { "id": "chercheur-analyste", "titre": "Chercheur-analyste", "pole": "gameplay", "skills": ["sources-web", "limites-roblox"], "pourquoi": "Seul à chercher sur le web, il cite ses sources avec leur date ; les autres lui demandent de vérifier." },
     { "id": "concepteur-de-jeu", "titre": "Concepteur de jeu", "pole": "gameplay", "skills": ["brainstorming-studio"], "pourquoi": "Il porte la vision du jeu et conçoit sans construire, pour séparer l'idée de la réalisation." },
     { "id": "developpeur", "titre": "Développeur", "pole": "code", "skills": ["luau-et-architecture", "securite-client-serveur", "donnees-et-datastore"], "pourquoi": "Il écrit les scripts Luau et protège les données des joueurs ; un spécialiste évite les failles client-serveur." },

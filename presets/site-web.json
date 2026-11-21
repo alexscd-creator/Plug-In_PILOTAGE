@@ -21,7 +21,7 @@
     { "id": "mise-en-ligne", "titre": "Mise en ligne", "taches": ["Configurer le domaine et publier", "Suivre les premiers retours"] }
   ],
   "agents": [
-    { "id": "chef-de-chantier", "titre": "Chef de chantier", "pole": "strategie", "skills": ["fiche-chantier"], "pourquoi": "Il garde la vue d'ensemble et découpe le travail, pour que personne ne travaille sur le même sujet par accident." },
+    { "id": "coordination", "titre": "Chef de chantier", "pole": "strategie", "skills": ["fiche-chantier"], "pourquoi": "Il garde la vue d'ensemble et découpe le travail, pour que personne ne travaille sur le même sujet par accident." },
     { "id": "developpeur", "titre": "Développeur", "pole": "technique", "skills": [], "pourquoi": "Il écrit et vérifie le code ; le garder à part évite de mélanger la conception et la réalisation." },
     { "id": "designer", "titre": "Designer", "pole": "creation", "skills": [], "pourquoi": "Il s'occupe de la lisibilité et de la cohérence des pages, un regard différent de celui qui code." },
     { "id": "gardien", "titre": "Gardien qualité", "pole": "qualite", "skills": [], "pourquoi": "Il relit sans avoir construit : un regard indépendant repère ce que l'auteur ne voit plus." }

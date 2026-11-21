@@ -68,7 +68,7 @@ test('/projet sans marqueur : propose /demarrer', async ($, on) => {
   await demarrer($, 'C:/Projet')
   const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/Aucun projet/)
-  expect(r.text).toMatch(/\/demarrer/)
+  expect(r.text).toMatch(/\/pilotage:demarrer/)
   expect(ouverts).toEqual([])
 })
 

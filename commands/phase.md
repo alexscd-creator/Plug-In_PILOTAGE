@@ -3,7 +3,7 @@ description: Valider la porte d'une phase (porte), avancer sans attendre l'autre
 argument-hint: "[porte|forcer|repondre] <phase>"
 ---
 
-# /phase
+# /pilotage:phase
 
 Argument : `$ARGUMENTS`, soit `[porte|forcer|repondre] <identifiant de phase>`. Sans mode, c'est `porte`. Si la phase est absente, lister les phases de `.pilotage/projet.json` et demander laquelle.
 

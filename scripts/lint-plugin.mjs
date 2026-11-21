@@ -81,7 +81,7 @@ export const REGLES_CHANTIER = [
   [/pilotage-chantier\.mjs/, 'le script pilotage-chantier.mjs (écriture via le script)'],
   [/jamais[^.\n]*à la main/i, '« jamais à la main »'],
   [/contrôle d['’]impact/i, 'le contrôle d’impact'],
-  [/chef-de-chantier/, 'l’agent chef-de-chantier'],
+  [/pilotage:chef-de-chantier/, 'l’agent pilotage:chef-de-chantier (avec son préfixe)'],
   [/chantier-pilotage/, 'le skill chantier-pilotage'],
   [/\/pilotage:chantier ouvrir/, '/pilotage:chantier ouvrir'],
   [/lier-session/, 'l’action lier-session'],
@@ -183,9 +183,12 @@ function verifierNeutralite() {
 }
 
 // Commandes : `/pilotage` seul est la commande de l'ancien plugin ; le panneau de celui-ci s'ouvre par `/projet`, et ses commandes
-// markdown se citent avec leur préfixe (`/pilotage:chantier`). Seuls `.pilotage/`, `pilotage/` (dossier) et `/pilotage:` passent.
+// markdown et son agent se citent avec leur préfixe (`/pilotage:chantier`, `pilotage:chef-de-chantier`) : l'ancien plugin a les mêmes
+// noms. Passent : `.pilotage/`, `~/.claude/pilotage/`, `/pilotage:<commande>`, un chemin `agents/chef-de-chantier.md`, le `name:` d'un frontmatter.
 export const FORMES_NUES = [
-  [/(?<![\w.:/-])\/pilotage(?![\w:/-])/, '/pilotage', 'écrire /projet (panneau) ou /pilotage:<commande>'],
+  [/(?<![\w.:/-])\/pilotage(?![\w:/-])/, '« /pilotage » seul est la commande de l’ancien plugin : écrire /projet (panneau) ou /pilotage:<commande>'],
+  [/(?<![\w.:/-])\/(chantier|phase|demarrer)(?![\w:/-])/, 'commande sans préfixe (l’ancien plugin a des commandes du même nom) : écrire /pilotage:chantier, /pilotage:phase ou /pilotage:demarrer'],
+  [/(?<![\w.:/'"-])chef-de-chantier(?![\w-]|\.md)/, 'agent sans préfixe (l’ancien plugin a un agent du même nom) : écrire pilotage:chef-de-chantier'],
 ]
 function verifierFormes() {
   const propre = join(root, 'scripts', 'lint-plugin.mjs')
@@ -193,7 +196,8 @@ function verifierFormes() {
   for (const fichier of fichiers) {
     if (fichier === propre) continue
     readFileSync(fichier, 'utf8').split(/\r?\n/).forEach((ligne, i) => {
-      for (const [re, quoi, conseil] of FORMES_NUES) if (re.test(ligne)) erreurs.push(`${relatif(fichier)}:${i + 1} : « ${quoi} » seul est ambigu (${conseil})`)
+      if (/^name:\s/.test(ligne)) return // le nom d'un agent ou d'un skill, dans son propre frontmatter
+      for (const [re, conseil] of FORMES_NUES) if (re.test(ligne)) erreurs.push(`${relatif(fichier)}:${i + 1} : ${conseil}`)
     })
   }
 }

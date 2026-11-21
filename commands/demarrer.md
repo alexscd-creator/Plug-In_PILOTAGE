@@ -3,7 +3,7 @@ description: Démarrer un projet Pilotage avec une conversation guidée (type de
 argument-hint: "[nom du projet]"
 ---
 
-# /demarrer
+# /pilotage:demarrer
 
 Démarre un projet Pilotage dans le dossier courant (le dossier de la session). Argument facultatif : `$ARGUMENTS` (nom du projet, à confirmer à l'étape 2 du guide, une fois le type de projet choisi : le libellé du nom suit le type).
 
