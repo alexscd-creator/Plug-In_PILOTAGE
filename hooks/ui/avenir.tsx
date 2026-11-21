@@ -1,4 +1,4 @@
-// Pages pas encore remplies (Idées, Paramètres) : une carte honnête (titre, « Bientôt », ce que la page montrera).
+// Pages pas encore remplies (Idées) : une carte honnête (titre, « Bientôt », ce que la page montrera).
 // La page Agents a son écran complet (agents.tsx).
 import type { Page } from '../../types'
 import type { Projet } from '../model/projet.ts'
@@ -7,7 +7,6 @@ import type { Ctx } from './kit'
 
 const PAGES_AVENIR: Partial<Record<Page, { titre: string; phrase: string }>> = {
   idees: { titre: 'Idées', phrase: 'Les idées et retours classés automatiquement.' },
-  parametres: { titre: 'Paramètres', phrase: 'Thème, workflow, agents, pôles et réglages du type de projet.' },
 }
 
 export type DonneesAvenir = { projet: Projet; copier: (texte: string, surface?: string) => Promise<void> }

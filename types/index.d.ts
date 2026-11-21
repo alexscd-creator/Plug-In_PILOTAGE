@@ -42,6 +42,8 @@ declare module 'claude-code' {
       retourCommande: Shaped<string>
       /** Appels d'agents en cours et issues récentes, questions en attente de réponse (voir model/agents-live.ts). */
       agentsLive: Shaped<AgentsLive>
+      /** Erreurs de la dernière modification refusée dans Paramètres (vide : rien à dire). */
+      erreursReglages: Shaped<string[]>
       /** Dernière erreur d'écriture de l'état des agents dans une fiche ('' : la dernière écriture a réussi). Affichée nulle part pour l'instant. */
       erreurEcriture: Shaped<string>
     }

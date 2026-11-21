@@ -8,9 +8,8 @@ const PROJET = PROJET_PAGES
 
 const PHRASES = {
   idees: 'Les idées et retours classés automatiquement.',
-  parametres: 'Thème, workflow, agents, pôles et réglages du type de projet.',
 } as const
-const TITRES = { idees: 'Idées', parametres: 'Paramètres' } as const
+const TITRES = { idees: 'Idées' } as const
 const ETATS_VIVANTS = ['En travail', 'En attente d’une réponse', 'Arrêté', 'Prêt à reprendre', 'Bloqué', 'Terminé', 'Connecté']
 
 const texte = (ui: any, t: string | RegExp) => ui.find({ type: 'Text', text: t })

@@ -29,11 +29,13 @@ function carteAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
   const { pole, teinte } = poleAgent(d.projet, a)
   const t = teinte ? c.j.poles[teinte] : null
   const etat = d.etats.find(e => e.agent === a.id)
+  const actif = a.actif !== false
   return carte(c, [
     <Box key="entete" flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
-      {avatar(c, a.titre, teinte)}
-      <Text weight="semibold" color={t?.fg ?? c.j.texte}>{a.titre}</Text>
+      {avatar(c, a.titre, actif ? teinte : undefined)}
+      <Text weight="semibold" color={actif ? (t?.fg ?? c.j.texte) : c.j.texteDim}>{a.titre}</Text>
       {pole && teinte ? chipPole(c, pole.titre, teinte) : null}
+      {actif ? null : <Text key="desactive" size="footnote" weight="semibold" color={c.j.texteDim}>Désactivé</Text>}
     </Box>,
     <Box key="etat" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
       {pastille(c, etatStatut(etat?.etat ?? 'arrete'))}
@@ -48,7 +50,7 @@ function carteAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
     <Box key="actions" flexDirection="row" gap="sm">
       <Button key={`ouvrir-${a.id}`} label="Voir le détail" variant="secondary" onPress={() => d.ouvrir(a.id)} />
     </Box>,
-  ], { cle: `agent-${a.id}`, ...(t ? { bord: t.fg, fond: t.soft } : {}) })
+  ], { cle: `agent-${a.id}`, ...(t && actif ? { bord: t.fg, fond: t.soft } : actif ? {} : { fond: c.j.releve }) })
 }
 
 /** Légende : les six états, chacun avec son icône et son libellé. */

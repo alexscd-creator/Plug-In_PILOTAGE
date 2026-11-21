@@ -9,6 +9,8 @@ import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
+import { ecrireMonWorkflow, ecrireProjet } from './model/ecriture-projet.ts'
+import type { Patch } from './model/ecriture-projet.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
 import { lireProjetComplet, lireSessions } from './model/lecture.ts'
 import type { LienSession } from './model/lecture.ts'
@@ -17,6 +19,7 @@ import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { memeMembre, parseProjet } from './model/projet.ts'
+import type { Projet, Workflow } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
 import { pageAgents } from './ui/agents'
@@ -27,6 +30,7 @@ import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
 import type { NomIcone } from './ui/icones'
+import { pageParametres } from './ui/parametres'
 import { pagePhases } from './ui/phases'
 import { pagePlan } from './ui/plan'
 import { jetons, modeDeTheme } from './ui/theme'
@@ -61,6 +65,9 @@ const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tic
 const theme = atom({ plugin: 'pilotage', key: 'theme' } as const, 'systeme' as ChoixTheme, { shape: 'theme-1' })
 // Ce qui s'est passé quand un bouton a voulu envoyer une commande (voir model/retour-commande.ts) ; vide : tout est parti.
 const retour = atom({ plugin: 'pilotage', key: 'retourCommande' } as const, '', { shape: 'retour-1' })
+
+// Erreurs de la dernière modification refusée dans Paramètres (vide : rien à dire).
+const erreursReglages = atom({ plugin: 'pilotage', key: 'erreursReglages' } as const, [] as string[], { shape: 'erreurs-reglages-1' })
 
 // Agents suivis en direct (appels de l'outil Agent en cours, issue du dernier appel, questions en attente) : état de session, jamais sur disque.
 const agentsLive = atom({ plugin: 'pilotage', key: 'agentsLive' } as const, LIVE_VIDE as Live, { shape: 'agents-live-1' })
@@ -225,6 +232,43 @@ async function lireDonneesAgents($: any, lecture: LectureProjet, maintenant: num
 /** Icône du type de projet, d'après l'identifiant du preset (les libellés, eux, viennent du vocabulaire). */
 const iconeType = (preset: string): NomIcone =>
   preset.includes('roblox') ? 'manette' : preset === 'site-web' ? 'globe' : preset === 'application' ? 'code' : 'fichier'
+
+/** Dit en une ligne ce qui s'est passé après une modification des réglages. Ne lève jamais. */
+function direReglage($: any, texte: string): void {
+  try {
+    $.ui.toast(texte)
+  } catch {
+    // Un toast qui échoue ne casse rien.
+  }
+}
+
+/**
+ * Applique une modification des réglages au projet : validation, copie .bak, contrôle que le fichier n'a pas changé, écriture
+ * (voir model/ecriture-projet.ts). Succès : toast, les agents sont réenregistrés, le panneau se relit. Échec : les erreurs
+ * s'affichent dans le panneau et rien n'a changé. `affiche` est le projet tel que le panneau l'a lu.
+ */
+async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Patch): Promise<void> {
+  const r = await ecrireProjet(
+    { read: async p => String((await $.fs.read(p)) ?? ''), write: async (p, t) => void (await $.fs.write(p, t)) },
+    racine, affiche, patch,
+  )
+  await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
+  direReglage($, r.ok ? 'Réglage enregistré.' : 'Modification refusée : voir le panneau.')
+  if (r.ok) synchroniserAgents($).catch(() => undefined)
+  await update($, tick, n => n + 1)
+}
+
+/** « Enregistrer comme mon workflow » : écrit ~/.claude/pilotage/mon-workflow.json, après confirmation s'il existe déjà. */
+async function enregistrerMonWorkflow($: any, workflow: Workflow): Promise<void> {
+  const home = String((await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? '')
+  const r = await ecrireMonWorkflow(
+    { exists: async p => (await $.fs.exists(p)) === true, write: async (p, t) => void (await $.fs.write(p, t)) },
+    home, workflow,
+    async () => (await $.ui.ask('Un workflow enregistré existe déjà. Le remplacer ?', ['Remplacer', 'Garder'])) === 'Remplacer',
+  )
+  await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
+  direReglage($, r.ok ? 'Votre workflow est enregistré.' : 'Workflow non enregistré : voir le panneau.')
+}
 
 /** Copie le texte sur la surface donnée ; faux si rien n'a pu être copié. Ne lève jamais. */
 const copier = async ($: any, texte: string, surface?: string): Promise<boolean> =>
@@ -634,7 +678,8 @@ export const register: Register = on => {
       const ouverte = await read($, phaseOuverte)
       const detailOuvert = await read($, chantierOuvert)
       const donneesAgents = courante === 'agents' ? await lireDonneesAgents($, lecture, maintenant) : null
-      const aller = sur($, async (p: Page) => { await update($, page, () => p) })
+      const projet = lecture.projet
+      const aller = sur($, async (p: Page) => { await update($, erreursReglages, () => []); await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
       return cadre(ctx, [
@@ -673,7 +718,15 @@ export const register: Register = on => {
                       filtrer: sur($, async (id: string) => { await update($, filtrePole, () => id) }),
                       ouvrir: sur($, async (id: string) => { await update($, agentOuvert, () => id) }),
                     })
-                  // Les autres pages (Idées, Paramètres) sont des cartes « Bientôt ».
+                  : courante === 'parametres'
+                    ? pageParametres(ctx, {
+                        projet, moi, theme: choix, erreurs: await read($, erreursReglages),
+                        choisirTheme: sur($, async (t: ChoixTheme) => { await update($, theme, () => t) }),
+                        modifier: sur($, (patch: Patch) => appliquerPatch($, racine, projet, patch)),
+                        signaler: sur($, async (liste: string[]) => { await update($, erreursReglages, () => liste) }),
+                        enregistrerWorkflow: sur($, () => enregistrerMonWorkflow($, projet.workflow)),
+                      })
+                  // L'autre page (Idées) est une carte « Bientôt ».
                   : pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })),
       ])
     } catch {
