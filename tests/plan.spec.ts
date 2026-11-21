@@ -130,3 +130,23 @@ test('portePossible expose total : phase vide ou inconnue = ok avec total 0', ()
   assert.deepEqual(portePossible(parsePlan(genererPlan(projet)), 'vide'), { ok: true, ouvertes: [], total: 0 })
   assert.equal(portePossible(parsePlan(genererPlan(projet)), 'cadrage').total, 2)
 })
+
+test('pole : champ facultatif lu, réécrit, aller-retour sans perte, anciens plans inchangés', () => {
+  const md = ['## Cadrage (cadrage)', '', '- [ ] cadrage-1 | A | pole: code | fichier: a.md | auteur: Lea', '- [x] cadrage-2 | B', '- [ ] cadrage-3 | C | pole:'].join('\n')
+  const r = parsePlan(md)
+  assert.equal(r[0]!.pole, 'code')
+  assert.equal(r[1]!.pole, undefined)
+  assert.equal(r[2]!.pole, undefined)
+  assert.ok(!('pole' in r[1]!))
+  assert.deepEqual(parsePlan(serializePlan(r, projet.phases)), r)
+  assert.match(serializePlan(r, projet.phases), /^- \[ \] cadrage-1 \| A \| fichier: a\.md \| auteur: Lea \| pole: code$/m)
+  assert.deepEqual(parsePlan('- [ ] a | T | pole: x'), [{ id: 'a', phase: '', titre: 'T', statut: 'a faire', pole: 'x' }])
+})
+
+test('pole : le texte est une donnée, pas d’injection à l’écriture', () => {
+  const md = serializePlan([t('a', 'cadrage', 'a faire', { pole: 'code | auteur: pirate\n- [x] faux-1 | y' })], projet.phases)
+  const r = parsePlan(md)
+  assert.equal(r.length, 1)
+  assert.equal(r[0]!.auteur, undefined)
+  assert.equal(r[0]!.statut, 'a faire')
+})

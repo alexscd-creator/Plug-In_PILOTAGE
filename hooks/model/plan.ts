@@ -1,7 +1,7 @@
 // Plan du projet et tâches par phase : logique pure, sans fs ni process (les hooks tournent hors Node).
 // Le plan est un fichier Markdown que les membres éditent à la main :
 //   ## <titre de la phase> (<id de la phase>)
-//   - [ ] <id> | <titre> | fichier: <chemin relatif> | auteur: <prénom>      (fichier et auteur facultatifs)
+//   - [ ] <id> | <titre> | fichier: <chemin relatif> | auteur: <prénom> | pole: <id du pôle>      (fichier, auteur et pôle facultatifs)
 // Statuts : `[ ]` a faire, `[~]` en cours, `[x]` termine, `[>]` reporte, `[-]` abandonne.
 // Identifiants : `<id de la phase>-<n>`, n = position (à partir de 1) de la tâche dans la phase du preset.
 // Ils sont écrits dans le fichier et relus tels quels : modifier le texte, cocher ou réordonner à la main ne les change pas.
@@ -11,7 +11,7 @@
 import type { Projet, PhaseDef } from './projet.ts'
 
 export type Statut = 'a faire' | 'en cours' | 'termine' | 'reporte' | 'abandonne'
-export type Tache = { id: string; phase: string; titre: string; statut: Statut; fichier?: string; auteur?: string }
+export type Tache = { id: string; phase: string; titre: string; statut: Statut; fichier?: string; auteur?: string; pole?: string }
 
 const MARQUES: Record<Statut, string> = { 'a faire': ' ', 'en cours': '~', termine: 'x', reporte: '>', abandonne: '-' }
 const STATUTS: Record<string, Statut> = { ' ': 'a faire', '~': 'en cours', x: 'termine', X: 'termine', '>': 'reporte', '-': 'abandonne' }
@@ -27,7 +27,8 @@ const idPhaseNet = (s: string): string => texteNet(s).replace(/[()]/g, '_')
 const ligneTache = (t: Tache): string =>
   `- [${MARQUES[t.statut]}] ${idTacheNet(t.id)} | ${texteNet(t.titre)}` +
   (t.fichier && texteNet(t.fichier) ? ` | fichier: ${texteNet(t.fichier)}` : '') +
-  (t.auteur && texteNet(t.auteur) ? ` | auteur: ${texteNet(t.auteur)}` : '')
+  (t.auteur && texteNet(t.auteur) ? ` | auteur: ${texteNet(t.auteur)}` : '') +
+  (t.pole && texteNet(t.pole) ? ` | pole: ${texteNet(t.pole)}` : '')
 
 const enteteRe = /^\s{0,3}##\s+(.*?)\(([^()]*)\)\s*$/
 const titreSansIdRe = /^\s{0,3}##\s/
@@ -77,6 +78,7 @@ export function parsePlan(texte: string): Tache[] {
       if (val === '') continue
       if (cle === 'fichier') t.fichier = val
       else if (cle === 'auteur') t.auteur = val
+      else if (cle === 'pole') t.pole = val
     }
     vus.add(premier)
     taches.push(t)
