@@ -208,11 +208,17 @@ async function synchroniserAgents($: any): Promise<void> {
 /** Délai du rafraîchissement automatique du panneau. */
 const PERIODE_AUTO_MS = 5000
 
-/** Lance le rafraîchissement automatique (un tick toutes les 5 s) s'il ne tourne pas déjà. Ne lève jamais. */
+/**
+ * Lance le rafraîchissement automatique (un tick toutes les 5 s) s'il ne tourne pas déjà. Ne lève jamais. Sur la page Paramètres, le tick
+ * n'avance pas : un nouveau dessin remettrait les champs à leur valeur enregistrée (« la saisie remplace la valeur jusqu'au prochain
+ * dessin », types de `Input.value`) et effacerait ce que la personne tape. ↻ et une écriture réussie relisent toujours.
+ */
 function demarrerAuto($: any, auto: Minuterie): void {
   auto.demarrer({ every: (ms, fn) => $.clock.every(ms, fn) }, () => {
     synchroniserAgents($).catch(() => undefined)
-    update($, tick, n => n + 1).catch(() => undefined)
+    read($, page)
+      .then(p => (p === 'parametres' ? undefined : update($, tick, n => n + 1)))
+      .catch(() => undefined)
   })
 }
 

@@ -199,3 +199,23 @@ test('projet qui devient invalide puis valide : le minuteur est relancé une foi
   await $.command.run({ command: 'projet' })
   expect(periodes.length).toBe(2)
 })
+
+test('page Paramètres ouverte : le rafraîchissement automatique ne redessine pas (la saisie n’est pas effacée) ; ↻ relit toujours', async ($, on) => {
+  const f: Record<string, string> = fichiers()
+  const { lus } = banc(on, f)
+  const { portes } = horloge(on)
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'nav-reglages' })
+  const plan = () => lus.filter(p => p.endsWith('/plan.md')).length
+  const avant = plan()
+  Object.assign(f, fichiers('Nom changé'))
+  portes[0]!()
+  await ui.redraw()
+  expect(plan()).toBe(avant)
+  expect(await ui.find({ type: 'Text', text: 'Nom changé' })).toBeFalsy()
+  await ui.press({ key: 'nav-rafraichir' })
+  expect(plan()).toBe(avant + 1)
+  expect(await ui.find({ type: 'Text', text: 'Nom changé' })).toBeTruthy()
+  await ui.unmount()
+})
