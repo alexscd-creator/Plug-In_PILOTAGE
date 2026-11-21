@@ -69,3 +69,18 @@ test('icônes : les 43 de la maquette, un tracé et un repli texte chacune', () 
     assert.doesNotMatch(svg, /<text|<script/)
   }
 })
+
+test('mise en page : mobile sous 600 px (75 colonnes), colonne centrée de 880 px (110 colonnes) au plus', async () => {
+  const { estMobile, largeurColonne, MAX_COLONNE, SEUIL_MOBILE } = await import('../hooks/ui/theme.ts')
+  assert.equal(MAX_COLONNE, 110)
+  assert.equal(SEUIL_MOBILE, 75)
+  assert.equal(estMobile('mobile', 200), true)
+  assert.equal(estMobile('desktop', 74), true)
+  assert.equal(estMobile('desktop', 75), false)
+  assert.equal(estMobile('terminal', 80), false)
+  assert.equal(largeurColonne(300, false), 110)
+  assert.equal(largeurColonne(100, false), 92)
+  assert.equal(largeurColonne(60, true), 56)
+  assert.equal(largeurColonne(5, true), 20)
+  assert.equal(largeurColonne(Number.NaN, false), 20)
+})

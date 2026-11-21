@@ -104,3 +104,25 @@ export const TYPO = {
   legende: { taille: 12, interligne: 16, graisse: 'regular' },
   surtitre: { taille: 11, interligne: 14, graisse: 'semibold' },
 } as const
+
+// Mise en page. L'API de dessin compte en colonnes de caractères (pas en pixels) : on prend 8 px par colonne,
+// d'où la colonne centrée de 880 px = 110 colonnes et le seuil mobile de 600 px = 75 colonnes.
+export const PX_PAR_COLONNE = 8
+export const MAX_COLONNE = 110
+export const SEUIL_MOBILE = 75
+const MIN_COLONNE = 20
+// Gouttières de la maquette : 16 px (mobile) = 2 colonnes de chaque côté ; marges du bureau, 4 colonnes de chaque côté.
+const GOUTTIERE_MOBILE = 2
+const GOUTTIERE_BUREAU = 4
+
+/** Mobile : l'application mobile, ou un panneau plus étroit que 600 px. */
+export function estMobile(surface: string, colonnes: number): boolean {
+  return surface === 'mobile' || (Number.isFinite(colonnes) && colonnes < SEUIL_MOBILE)
+}
+
+/** Largeur de la colonne centrée, en colonnes : 880 px au plus, gouttières retirées, jamais sous 20. */
+export function largeurColonne(colonnes: number, mobile: boolean): number {
+  if (!Number.isFinite(colonnes)) return MIN_COLONNE
+  const libre = colonnes - 2 * (mobile ? GOUTTIERE_MOBILE : GOUTTIERE_BUREAU)
+  return Math.max(MIN_COLONNE, Math.min(MAX_COLONNE, Math.floor(libre)))
+}

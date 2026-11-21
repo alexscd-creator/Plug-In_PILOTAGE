@@ -1,3 +1,8 @@
+/** Pages du panneau, dans l'ordre des onglets de la maquette. */
+export type Page = 'apercu' | 'plan' | 'phases' | 'chantiers' | 'agents' | 'idees' | 'parametres'
+/** Thème choisi : le mod ne peut pas lire le mode de l'application, « systeme » prend le sombre. */
+export type ChoixTheme = 'systeme' | 'clair' | 'sombre'
+
 declare module 'claude-code' {
   interface PluginState {
     pilotage: {
@@ -9,6 +14,12 @@ declare module 'claude-code' {
       membre: string
       /** Erreurs du marqueur invalide, rappelées par /pilotage. */
       erreursMarqueur: string[]
+      /** Page affichée dans le panneau. */
+      page: Page
+      /** Compteur de rafraîchissement : un changement force une nouvelle lecture des fichiers. */
+      tick: number
+      /** Thème du panneau. */
+      theme: ChoixTheme
     }
   }
 }
