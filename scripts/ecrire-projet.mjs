@@ -3,9 +3,11 @@
 // Codes : 0 écrit ; 1 réponses invalides (rien n'est écrit) ; 3 projet.json existe déjà (rien n'est écrit) ;
 //   4 écriture impossible (tout ce que ce lancement avait créé est retiré, rien n'est resté) ;
 //   5 dossier introuvable ou qui n'est pas un dossier (rien n'est créé) ; 64 usage incorrect.
+// Les skills cités par les agents sont copiés du preset (presets/skills/<preset>/<skill>.md) vers `.pilotage/skills/<skill>.md`, sans jamais écraser ; sans fichier de preset : modèle minimal.
 // Les garanties communes (transaction, noms sûrs, dossier valide, import du modèle) viennent de scripts/lib/ecriture.mjs.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, verifierChemin } from './lib/ecriture.mjs'
 
 const [dossierArg, reponsesArg] = process.argv.slice(2)
@@ -53,6 +55,10 @@ projet.equipe.forEach(p => { if (prenomPerdDesLettres(p)) erreurs.push(`Le prén
 slugs.forEach((sl, i) => { if (sl !== '') erreurs.push(...erreursNom(`Le dossier du prénom « ${projet.equipe[i].slice(0, 20)} »`, sl)) })
 slugs.forEach((sl, i) => { if (sl === '') erreurs.push(`Le prénom « ${projet.equipe[i]} » ne donne aucun nom de dossier valide.`) })
 slugs.forEach((sl, i) => { if (sl !== '' && slugs.indexOf(sl) !== i) erreurs.push(`Les prénoms « ${projet.equipe[slugs.indexOf(sl)]} » et « ${projet.equipe[i]} » donnent le même dossier.`) })
+const skillsCites = [...new Set(projet.agents.flatMap(a => a.skills))]
+for (const sk of skillsCites)
+  if (typeof sk !== 'string' || !ID.test(sk)) erreurs.push(`Le nom du skill « ${String(sk).slice(0, 20)} » doit s'écrire en minuscules, chiffres et tirets seulement.`)
+  else erreurs.push(...erreursNom('Le nom du skill', sk))
 if (erreurs.length) echec(erreurs)
 
 const fichiers = []
@@ -66,6 +72,11 @@ function ecrire(rel, texte) {
 try {
   ecrire('projet.json', serializeProjet(projet))
   ecrire('plan.md', genererPlan(projet))
+  // Les skills d'abord parmi les écritures annexes : un échec plus loin les retire avec le reste. Un fichier déjà présent reste tel quel.
+  for (const sk of skillsCites) {
+    if (existsSync(join(pilotage, 'skills', `${sk}.md`))) continue
+    ecrire(`skills/${sk}.md`, texteSkill(projet.preset, sk))
+  }
   slugs.forEach(sl => ecrire(`equipe/${sl}/portes.md`, ''))
   for (const a of projet.agents) {
     const pole = projet.poles.find(p => p.id === a.pole)
@@ -73,7 +84,7 @@ try {
       `# ${ligne(a.titre)}`, '',
       `- Pôle : ${ligne(pole ? pole.titre : a.pole)}`,
       `- Pourquoi spécialisé : ${ligne(a.pourquoi)}`,
-      `- Skills : ${a.skills.length ? a.skills.map(ligne).join(', ') : 'aucun'} (certains peuvent ne pas être installés)`, '',
+      `- Skills : ${a.skills.length ? a.skills.map(ligne).join(', ') : 'aucun'} (installés dans .pilotage/skills)`, '',
     ].join('\n'))
   }
 } catch (e) {
@@ -82,4 +93,21 @@ try {
   echec(`Écriture impossible (${e instanceof Error ? e.message : 'erreur inconnue'}) : rien n'est resté.`, 4)
 }
 console.log(`projet écrit : ${fichiers.join(', ')}`)
+}
+
+/** Texte d'un skill : le fichier du preset s'il existe (preset au nom sûr seulement), sinon un modèle minimal. */
+function texteSkill(preset, sk) {
+  if (typeof preset === 'string' && ID.test(preset)) {
+    const f = fileURLToPath(new URL(`../presets/skills/${preset}/${sk}.md`, import.meta.url))
+    try { if (statSync(f).isFile()) return readFileSync(f, 'utf8') } catch { /* pas de fichier de preset : modèle */ }
+  }
+  return `---
+name: ${sk}
+description: Skill du projet, à compléter.
+---
+
+# ${sk}
+
+À compléter : décrire ici la méthode, les règles et les pièges de ce skill. Un fait y porte sa source et sa date de vérification.
+`
 }

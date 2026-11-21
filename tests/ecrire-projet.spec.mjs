@@ -188,3 +188,76 @@ test('vocabulaire ou réglages invalides : code 1, rien écrit', () => {
     assert.ok(!existsSync(join(d, '.pilotage')))
   }
 })
+
+// ---- Skills livrés avec le preset (Task 20) ----
+const lire = (d, rel) => readFileSync(join(d, ...rel.split('/')), 'utf8')
+const dePreset = nom => readFileSync(fileURLToPath(new URL(`../presets/skills/jeu-roblox/${nom}.md`, import.meta.url)), 'utf8')
+
+test('skills : les fichiers du preset sont copiés tels quels dans .pilotage/skills/, pour les skills cités par les agents seulement', () => {
+  const d = nouveau(); const rep = base()
+  rep.agents[0].skills = ['luau-et-architecture', 'sources-web']
+  const r = lancer(d, rep)
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(lire(d, '.pilotage/skills/luau-et-architecture.md'), dePreset('luau-et-architecture'))
+  assert.equal(lire(d, '.pilotage/skills/sources-web.md'), dePreset('sources-web'))
+  assert.deepEqual(readdirSync(join(d, '.pilotage/skills')).sort(), ['luau-et-architecture.md', 'sources-web.md'])
+  assert.match(r.stdout, /skills\/luau-et-architecture\.md/)
+})
+
+test('skills : un skill cité sans fichier de preset reçoit un modèle minimal (frontmatter, « À compléter »)', () => {
+  const d = nouveau()
+  const r = lancer(d, base()) // skills a et b : aucun fichier de preset
+  assert.equal(r.status, 0, r.stderr)
+  const t = lire(d, '.pilotage/skills/a.md')
+  assert.match(t, /^---\nname: a\ndescription: .+\n---\n/)
+  assert.match(t, /À compléter/)
+  assert.doesNotMatch(t, /TODO|TBD|XXX|FIXME/)
+  assert.ok(existsSync(join(d, '.pilotage/skills/b.md')))
+})
+
+test('skills : un preset inconnu ou « autre » : tous les skills cités reçoivent un modèle', () => {
+  for (const preset of ['autre', 'inconnu-x']) {
+    const d = nouveau(); const rep = base(); rep.preset = preset; rep.agents[0].skills = ['sources-web']
+    const r = lancer(d, rep)
+    assert.equal(r.status, 0, preset + r.stderr)
+    assert.match(lire(d, '.pilotage/skills/sources-web.md'), /À compléter/)
+  }
+})
+
+test('skills : un fichier déjà présent n’est jamais écrasé (les autres sont tout de même copiés)', () => {
+  const d = nouveau(); const rep = base()
+  rep.agents[0].skills = ['sources-web', 'luau-et-architecture']
+  mkdirSync(join(d, '.pilotage/skills'), { recursive: true })
+  writeFileSync(join(d, '.pilotage/skills/sources-web.md'), 'MIEN')
+  const r = lancer(d, rep)
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(lire(d, '.pilotage/skills/sources-web.md'), 'MIEN')
+  assert.equal(lire(d, '.pilotage/skills/luau-et-architecture.md'), dePreset('luau-et-architecture'))
+})
+
+test('skills : un nom de skill invalide (chemin, majuscules, 100 caractères, nom réservé) : code 1, rien écrit', () => {
+  for (const nom of ['../x', 'Mauvais Nom', 'a'.repeat(100), 'con', 'a/b']) {
+    const d = nouveau(); const rep = base(); rep.agents[0].skills = [nom]
+    const r = lancer(d, rep)
+    assert.equal(r.status, 1, nom.slice(0, 20)); sansTrace(r)
+    assert.ok(!existsSync(join(d, '.pilotage')), nom.slice(0, 20))
+  }
+})
+
+test('skills : un preset au nom piégé ne sort jamais du dossier des presets (modèles seulement)', () => {
+  const d = nouveau(); const rep = base(); rep.preset = '../../hooks'; rep.agents[0].skills = ['sources-web']
+  const r = lancer(d, rep)
+  assert.equal(r.status, 0, r.stderr)
+  assert.match(lire(d, '.pilotage/skills/sources-web.md'), /À compléter/)
+})
+
+test('skills : échec en cours d’écriture, les skills déjà copiés sont retirés aussi', () => {
+  const d = nouveau()
+  mkdirSync(join(d, '.pilotage', 'equipe'), { recursive: true })
+  writeFileSync(join(d, '.pilotage', 'equipe', 'jean-luc'), 'FICHIER') // bloque equipe/jean-luc/portes.md
+  const rep = base(); rep.agents[0].skills = ['luau-et-architecture', 'a']
+  const r = lancer(d, rep)
+  assert.equal(r.status, 4, r.stderr)
+  assert.equal(existsSync(join(d, '.pilotage/skills')), false)
+  assert.equal(existsSync(join(d, '.pilotage/projet.json')), false)
+})
