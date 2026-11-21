@@ -45,7 +45,7 @@ export function navigation(c: Ctx, courante: Page, aller: (p: Page) => void | Pr
             {...(actif ? { backgroundColor: j.accentSoft } : {})}
             {...(cadres ? { borderStyle: 'round', borderColor: actif ? j.accentSoft : j.surface } : {})}
           >
-            <Button key={`nav-${p.page}`} label={p.titre} onPress={() => { void aller(p.page) }}>
+            <Button key={`nav-${p.page}`} label={p.titre} onPress={() => aller(p.page)}>
               <Text color={fg} weight={actif ? 'semibold' : 'regular'}>{`${GLYPHES[p.icone]} ${p.titre}`}</Text>
             </Button>
           </Box>
@@ -69,7 +69,7 @@ export function barreHaut(c: Ctx, o: OptionsHaut) {
   const { Box, Text, Button } = c.ui
   const { j } = c
   const bouton = (cle: string, label: string, icone: NomIcone, f: () => void | Promise<void>) => (
-    <Button key={cle} label={label} variant="secondary" onPress={() => { void f() }}>
+    <Button key={cle} label={label} variant="secondary" onPress={() => f()}>
       <Text color={j.texteSec}>{GLYPHES[icone]}</Text>
     </Button>
   )

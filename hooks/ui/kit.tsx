@@ -176,7 +176,7 @@ export function barreProgression(c: Ctx, label: string, valeur: number, teinte?:
  */
 export function boutonCopier(c: Ctx, cle: string, chemin: string, copier: (texte: string, surface?: string) => Promise<void>) {
   const { Button, Text } = c.ui
-  const onPress = (p: { surface?: string } | undefined) => { void copier(chemin, p?.surface) }
+  const onPress = (p: { surface?: string } | undefined) => copier(chemin, p?.surface)
   if (c.mobile) {
     return (
       <Button key={`copier-${cle}`} label="Copier le chemin" variant="secondary" onPress={onPress as never}>
@@ -185,24 +185,6 @@ export function boutonCopier(c: Ctx, cle: string, chemin: string, copier: (texte
     )
   }
   return <Button key={`copier-${cle}`} label="Copier le chemin" variant="secondary" onPress={onPress as never} />
-}
-
-/** Copie sur la surface de l'appui puis le dit en une ligne (« Copié » ou l'échec) ; ne lève jamais. */
-export function faireCopier($: any): (texte: string, surface?: string) => Promise<void> {
-  return async (texte, surface) => {
-    let copie = false
-    try {
-      const r = await $.ui.copy({ text: texte, ...(surface ? { surface } : {}) })
-      copie = r?.isCopied === true
-    } catch {
-      copie = false
-    }
-    try {
-      $.ui.toast(copie ? `Copié : ${texte}` : 'Le chemin n’a pas pu être copié : sélectionnez-le à la main.')
-    } catch {
-      // Un toast qui échoue ne doit rien casser.
-    }
-  }
 }
 
 export type NiveauBanniere = 'info' | 'avertissement' | 'erreur'
