@@ -235,8 +235,18 @@ export const questionChargement = (outils: { role: string; outil: string }[]): s
 
 export type FsMonWorkflow = { exists(p: string): Promise<boolean>; write(p: string, texte: string): Promise<void> }
 
-/** Le texte exact de `~/.claude/pilotage/mon-workflow.json` pour ce workflow (montré avant l'écriture, puis écrit tel quel). */
-export const texteMonWorkflow = (w: Workflow): string => JSON.stringify({ outils: w.outils.map(o => ({ role: o.role, outil: o.outil })) }, null, 2) + '\n'
+/** Le texte exact de `~/.claude/pilotage/mon-workflow.json` pour ce workflow (écrit tel quel ; jamais affiché dans l'interface). */
+export const texteMonWorkflow = (w: Workflow): string => JSON.stringify({ outils: w.outils.map(o => ({ role: o.role, outil: o.outil })) }, null, 2) + String.fromCharCode(10)
+
+/** Résumé lisible d'un workflow : « Rôle : Outil » par ligne et le nombre d'outils (« 3 outils »). Ni JSON ni chemin. */
+export const resumeMonWorkflow = (w: Workflow): { lignes: string[]; total: string } => {
+  const outils = Array.isArray(w?.outils) ? w.outils : []
+  return { lignes: outils.map(o => `${o.role} : ${o.outil}`), total: `${outils.length} outil${outils.length > 1 ? 's' : ''}` }
+}
+
+/** Question posée avant de remplacer « mon workflow » déjà enregistré : en français, avec le nombre d'outils du workflow de ce projet. */
+export const questionEcrasement = (w: Workflow): string =>
+  `Vous avez déjà enregistré un workflow. Le remplacer par celui de ce projet (${resumeMonWorkflow(w).total}) ?`
 
 /** Chemin de `mon-workflow.json` ; vide si le dossier personnel est inconnu. */
 export const cheminMonWorkflow = (home: string): string => (typeof home === 'string' && normaliser(home) !== '' ? `${normaliser(home)}/.claude/pilotage/mon-workflow.json` : '')

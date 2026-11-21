@@ -12,7 +12,7 @@ import { construireConsigne, construireEtat, entreeDepuisLecture } from './model
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { ecritureSure, MESSAGE_LIEN_PANNEAU } from './model/liens.ts'
 import type { StatLien } from './model/liens.ts'
-import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
+import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement, questionEcrasement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
 import { lireNotes, lireProjetComplet, lireSessions } from './model/lecture.ts'
@@ -400,10 +400,10 @@ async function enregistrerMonWorkflow($: any, workflow: Workflow): Promise<void>
   const r = await ecrireMonWorkflow(
     { exists: async p => (await $.fs.exists(p)) === true, write: async (p, t) => void (await $.fs.write(p, t)) },
     home, workflow,
-    async () => (await $.ui.ask('Un workflow enregistré existe déjà. Le remplacer ?', ['Remplacer', 'Garder'])) === 'Remplacer',
+    async () => (await $.ui.ask(questionEcrasement(workflow), ['Remplacer', 'Garder'])) === 'Remplacer',
   )
   await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
-  direReglage($, r.ok ? 'Votre workflow est enregistré.' : 'Workflow non enregistré : voir le panneau.')
+  direReglage($, r.ok ? 'Workflow enregistré pour vos prochains projets.' : 'Workflow non enregistré : voir le panneau.')
 }
 
 /** Copie le texte sur la surface donnée ; faux si rien n'a pu être copié. Ne lève jamais. */

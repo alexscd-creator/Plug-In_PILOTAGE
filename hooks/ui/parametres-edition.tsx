@@ -1,5 +1,5 @@
 // Cartes Workflow, Agents et Pôles de l'écran Paramètres. Les outils d'un agent n'y sont pas modifiables : ils sont réglés par le moteur.
-import { texteMonWorkflow } from '../model/ecriture-projet.ts'
+import { resumeMonWorkflow } from '../model/ecriture-projet.ts'
 import { memeMembre, TEINTES_POLE } from '../model/projet.ts'
 import { action, champChoix, champTexte, interrupteur } from './parametres-base'
 import type { DonneesParametres } from './parametres-base'
@@ -34,10 +34,10 @@ export function carteWorkflow(c: Ctx, d: DonneesParametres) {
       const s = separerOutil(v)
       return s ? d.modifier({ type: 'workflowAjouter', ...s }) : d.signaler(['Écrivez le rôle, deux-points, puis l’outil : par exemple « Son : Audacity ».'])
     }),
-    <Box key="mon-workflow" flexDirection="column" gap="sm">
+    <Box key="resume-workflow" flexDirection="column" gap="sm">
       <Text size="caption" weight="semibold" color={c.j.texteDim}>Mon workflow</Text>
-      <Text size="caption" color={c.j.texteSec}>« Enregistrer comme mon workflow » écrit ce texte dans ~/.claude/pilotage/mon-workflow.json (il sert aux prochains projets) :</Text>
-      {texteMonWorkflow(d.projet.workflow).trimEnd().split('\n').map((l, i) => <Text key={`mw-${i}`} mono size="caption" color={c.j.texteSec}>{l}</Text>)}
+      <Text size="caption" color={c.j.texteSec}>{`Le workflow de ce projet (${resumeMonWorkflow(d.projet.workflow).total}) peut être enregistré pour vos prochains projets :`}</Text>
+      {resumeMonWorkflow(d.projet.workflow).lignes.map((l, i) => <Text key={`mw-${i}`} size="caption" color={c.j.texteSec}>{l}</Text>)}
       {action(c, d, 'workflow-enregistrer', 'Enregistrer comme mon workflow', d.enregistrerWorkflow)}
       {d.monWorkflow ? action(c, d, 'workflow-charger', 'Charger mon workflow', d.chargerWorkflow) : null}
       {d.monWorkflow ? <Text key="charger-aide" size="caption" color={c.j.texteDim}>{`Charger mon workflow remplace la liste ci-dessus par celle de votre fichier (${d.monWorkflow.outils.length} outils) ; une confirmation est demandée.`}</Text> : null}

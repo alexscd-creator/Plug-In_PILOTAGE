@@ -188,18 +188,46 @@ test('workflow : modifier, ajouter (« Rôle : Outil »), retirer ; le dernier o
   await ui.unmount()
 })
 
-test('« Enregistrer comme mon workflow » : le texte écrit est montré avant, écrit seulement au bouton, nulle part ailleurs', async ($, on) => {
+/** Tous les textes d'un arbre rendu (un par Text), pour vérifier ce qui s'affiche vraiment. */
+const NL = String.fromCharCode(10)
+const textes = (noeud: unknown, sortie: string[] = []): string[] => {
+  if (typeof noeud === 'string') sortie.push(noeud)
+  else if (Array.isArray(noeud)) noeud.forEach(n => textes(n, sortie))
+  else if (noeud && typeof noeud === 'object') Object.values(noeud).forEach(n => textes(n, sortie))
+  return sortie
+}
+
+test('« Mon workflow » : un résumé lisible, aucun JSON ni chemin de fichier, sur chaque surface ; rien n’est écrit avant le bouton', async ($, on) => {
+  const b = banc(on, SITE)
+  await demarrer($)
+  for (const surface of SURFACES) {
+    const ui = await monter($, surface)
+    const lignes = textes(await ui.find({ key: 'parametres-workflow' })).join(NL).split(NL)
+    for (const l of lignes) {
+      expect(l).not.toContain('{')
+      expect(l).not.toContain('"outils"')
+      expect(l).not.toContain('mon-workflow')
+      expect(l).not.toContain('.claude')
+    }
+    const flux = lignes.join(NL)
+    expect(flux).toContain('Code : Claude')
+    expect(flux).toContain('Design : Figma')
+    expect(flux).toContain('2 outils')
+    expect(await ui.find({ key: 'workflow-enregistrer' })).toBeTruthy()
+    await ui.unmount()
+  }
+  expect(b.ecrits).toEqual([])
+})
+
+test('« Enregistrer comme mon workflow » : écrit au bouton, dit « Workflow enregistré pour vos prochains projets. »', async ($, on) => {
   const b = banc(on, SITE)
   await demarrer($)
   const ui = await monter($, 'desktop')
-  const flux = await dans(ui, 'parametres-workflow')
-  expect(flux).toContain('mon-workflow.json')
-  expect(flux).toContain('Figma')
-  expect(b.ecrits).toEqual([])
   await ui.press({ key: 'workflow-enregistrer' })
   expect(b.ecrits).toEqual([MON])
   expect(JSON.parse(b.fichiers[MON]!)).toEqual({ outils: SITE.workflow.outils })
   expect(b.fichiers[PROJET_JSON]).toBe(JSON.stringify(SITE))
+  expect(b.toasts).toContain('Workflow enregistré pour vos prochains projets.')
   await ui.unmount()
 })
 
@@ -207,14 +235,18 @@ test('mon workflow déjà présent : jamais écrasé en silence (confirmation pa
   const b = banc(on, SITE)
   b.fichiers[MON] = '{"outils":[{"role":"x","outil":"y"}]}'
   const questions: string[] = []
+  const textesQuestion: string[] = []
   on('tool.call', (_: unknown, e: { tool: string; questions?: { question: string }[] }) => {
     questions.push(e.tool)
+    textesQuestion.push(...(e.questions ?? []).map(q => q.question))
     return { result: { questions: e.questions ?? [], answers: { [e.questions?.[0]?.question ?? '']: 'Garder' } } }
   })
   await demarrer($)
   const ui = await monter($, 'desktop')
   await ui.press({ key: 'workflow-enregistrer' })
   expect(questions).toContain('AskUserQuestion')
+  expect(textesQuestion.join(' ')).toContain('2 outils')
+  expect(textesQuestion.join(' ')).not.toMatch(/[{}]|mon-workflow|\.claude/)
   expect(b.ecrits).toEqual([])
   expect(b.fichiers[MON]).toBe('{"outils":[{"role":"x","outil":"y"}]}')
   await ui.unmount()
