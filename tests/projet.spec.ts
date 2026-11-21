@@ -183,3 +183,18 @@ test('agent : « outils » facultatif, lu tel quel, refusé s\'il n\'est pas une
   if (sans.ok) assert.equal('outils' in sans.projet.agents[0]!, false)
   assert.equal(parseProjet(JSON.stringify({ ...valide(), agents: [{ ...valide().agents[0], outils: 'Read' }] })).ok, false)
 })
+
+test('plafonds : pourquoi 500, skill 60, 20 skills, rôle/outil de workflow 120, 30 lignes de workflow, avec des erreurs en français', () => {
+  const a = (x: object) => ({ ...valide(), agents: [{ ...valide().agents[0], ...x }] })
+  const e1 = erreurs(a({ pourquoi: 'p'.repeat(501) }))
+  assert.ok(e1.some(e => e.includes('pourquoi') && e.includes('500')), e1.join('|'))
+  const e2 = erreurs(a({ skills: ['s'.repeat(61)] }))
+  assert.ok(e2.some(e => e.includes('skill') && e.includes('60')), e2.join('|'))
+  const e3 = erreurs(a({ skills: Array.from({ length: 21 }, (_, i) => `s${i}`) }))
+  assert.ok(e3.some(e => e.includes('20')), e3.join('|'))
+  const wf = (o: object[]) => ({ ...valide(), workflow: { outils: o } })
+  assert.ok(erreurs(wf([{ role: 'r'.repeat(121), outil: 'x' }])).some(e => e.includes('120')))
+  assert.ok(erreurs(wf([{ role: 'r', outil: 'o'.repeat(121) }])).some(e => e.includes('120')))
+  assert.ok(erreurs(wf(Array.from({ length: 31 }, () => ({ role: 'r', outil: 'o' })))).some(e => e.includes('30')))
+  assert.equal(parseProjet(JSON.stringify(a({ pourquoi: 'p'.repeat(500), skills: ['s'.repeat(60)] }))).ok, true)
+})

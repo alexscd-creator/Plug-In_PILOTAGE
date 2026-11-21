@@ -198,6 +198,7 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
     await update($, actif, () => true)
     await $.ui.open({ id: PANE, title: 'Pilotage' })
     demarrerAuto($, auto)
+    registre.reinitialiserEchecs() // chaque activation rend leurs essais aux agents que le moteur avait refusés
     await synchroniserAgents($)
     return { ouvert: true, texte: `Projet « ${trouve.projet.nom} » ouvert.` }
   } catch {

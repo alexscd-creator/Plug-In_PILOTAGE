@@ -39,6 +39,12 @@ const ID_REGLAGE = /^[a-z0-9-]+$/
 const MAX_ID_REGLAGE = 60
 const MAX_VALEUR = 500
 const MAX_TITRE = 200
+// Plafonds des textes qui finissent dans le prompt d'un agent (voir agents-registre.ts).
+const MAX_POURQUOI = 500
+const MAX_SKILL = 60
+const MAX_SKILLS = 20
+const MAX_FLUX = 120
+const MAX_LIGNES_FLUX = 30
 
 export type ResultatProjet = { ok: true; projet: Projet } | { ok: false; erreurs: string[] }
 
@@ -215,7 +221,10 @@ export function parseProjet(texte: string): ResultatProjet {
     if (!texteNonVide(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle est manquant.`)
     else if (!idsPoles.has(o.pole)) erreurs.push(`Agent ${i + 1} : le pôle « ${o.pole} » n'existe pas.`)
     if (typeof o.pourquoi !== 'string') erreurs.push(`Agent ${i + 1} : « pourquoi » doit être un texte.`)
+    else if (trop(o.pourquoi, MAX_POURQUOI)) erreurs.push(`Agent ${i + 1} : « pourquoi » dépasse ${MAX_POURQUOI} caractères.`)
     const skills = listeTextes(o.skills, `Agent ${i + 1} : les skills`, erreurs)
+    if (skills.length > MAX_SKILLS) erreurs.push(`Agent ${i + 1} : au plus ${MAX_SKILLS} skills (trouvé : ${skills.length}).`)
+    skills.forEach((s, k) => { if (trop(s, MAX_SKILL)) erreurs.push(`Agent ${i + 1} : le skill ${k + 1} dépasse ${MAX_SKILL} caractères.`) })
     const outils = o.outils === undefined ? [] : listeTextes(o.outils, `Agent ${i + 1} : les outils`, erreurs)
     return {
       id: texteNonVide(o.id) ? o.id : '', titre: texteNonVide(o.titre) ? o.titre : '',
@@ -229,8 +238,12 @@ export function parseProjet(texte: string): ResultatProjet {
   if (!estObjet(brut.workflow)) erreurs.push('Le workflow doit être un objet.')
   else listeObjets(brut.workflow.outils, 'Les outils du workflow', erreurs).forEach((o, i) => {
     if (!texteNonVide(o.role) || !texteNonVide(o.outil)) erreurs.push(`Outil ${i + 1} du workflow : « role » et « outil » sont requis.`)
+    else if (trop(o.role, MAX_FLUX) || trop(o.outil, MAX_FLUX)) erreurs.push(`Outil ${i + 1} du workflow : « role » et « outil » dépassent ${MAX_FLUX} caractères.`)
     else outils.push({ role: o.role, outil: o.outil })
   })
+  if (Array.isArray((brut.workflow as { outils?: unknown } | undefined)?.outils) && (brut.workflow as { outils: unknown[] }).outils.length > MAX_LIGNES_FLUX) {
+    erreurs.push(`Le workflow : au plus ${MAX_LIGNES_FLUX} outils (trouvé : ${(brut.workflow as { outils: unknown[] }).outils.length}).`)
+  }
 
   const vocabulaire = lireVocabulaire(brut.vocabulaire, erreurs)
   const reglagesDef = lireReglagesDef(brut.reglagesDef, erreurs)
