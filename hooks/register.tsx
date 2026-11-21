@@ -6,7 +6,7 @@ import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activati
 import type { FsLike } from './model/activation.ts'
 import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
-import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
+import { creerRegistre, lireFiches, lireSkills, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
@@ -196,8 +196,10 @@ async function synchroniserAgents($: any): Promise<void> {
     if (racine === '') return
     const r = parseProjet(String((await $.fs.read(`${racine}/.pilotage/projet.json`)) ?? ''))
     if (!r.ok) return
-    const fiches = await lireFiches(adapter($), racine, r.projet)
-    await registre.synchroniser(spec => $.agent.register(spec), specsProjet(r.projet, fiches))
+    const disque = adapter($) // une seule passe : les fiches et les skills inchangés viennent du cache (taille et date)
+    const fiches = await lireFiches(disque, racine, r.projet)
+    const skills = await lireSkills(disque, racine, r.projet)
+    await registre.synchroniser(spec => $.agent.register(spec), specsProjet(r.projet, fiches, skills))
   } catch {
     // Un enregistrement qui échoue ne casse jamais la session.
   } finally {
