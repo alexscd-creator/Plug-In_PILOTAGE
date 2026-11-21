@@ -11,6 +11,7 @@ import type { LectureProjet } from './model/lecture.ts'
 import { libelle } from './model/presets.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
+import { estPageAvenir, pageAvenir } from './ui/avenir'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation, PAGES } from './ui/nav'
@@ -309,7 +310,9 @@ export const register: Register = on => {
                   projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes, ouverte, copier: copierLeChemin,
                   choisir: sur($, async (id: string) => { await update($, phaseOuverte, () => id) }),
                 })
-              : [carteAVenir(ctx, titre)]),
+              : estPageAvenir(courante)
+                ? pageAvenir(ctx, courante, { projet: lecture.projet, copier: copierLeChemin })
+                : [carteAVenir(ctx, titre)]),
       ])
     } catch {
       // Un dessin ne doit jamais faire tomber le panneau : on le dit, et Rafraîchir réessaie.

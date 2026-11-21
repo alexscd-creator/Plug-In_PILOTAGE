@@ -27,14 +27,14 @@ test('projet ouvert : barre du haut, navigation dans l’ordre, page d’aperçu
   expect(ecritures).toEqual([])
 })
 
-test('un onglet change de page ; chaque page pas encore faite montre « À venir »', async ($, on) => {
+test('un onglet change de page ; chaque page pas encore faite montre « Bientôt »', async ($, on) => {
   const { ecritures } = banc(on, fichiers())
   await demarrer($)
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   for (const p of PAGES.filter(x => x.page !== 'parametres')) {
     await ui.press({ key: `nav-${p.page}` })
-    const faite = p.page === 'apercu' || p.page === 'plan'
-    expect(!!(await ui.find({ type: 'Text', text: 'À venir' }))).toBe(!faite)
+    const faite = p.page === 'apercu' || p.page === 'plan' || p.page === 'phases'
+    expect(!!(await ui.find({ type: 'Text', text: 'Bientôt' }))).toBe(!faite)
     expect((await ui.find({ key: `onglet-${p.page}` }))?.props.backgroundColor).toBeTruthy()
   }
   await ui.press({ key: 'nav-reglages' })

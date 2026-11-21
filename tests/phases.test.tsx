@@ -228,7 +228,8 @@ test('phases : 0 phase, carte neutre', async ($, on) => {
 })
 
 test('phases : 1 seule phase', async ($, on) => {
-  banc(on, dossierPages({ ...PROJET_PAGES, phases: [{ id: 'p1', titre: 'Unique', taches: [] }] }, '## Unique (p1)\n- [ ] p1-1 | Seule'))
+  const seule = dossierPages({ ...PROJET_PAGES, phases: [{ id: 'p1', titre: 'Unique', taches: [] }] }, '## Unique (p1)\n- [ ] p1-1 | Seule')
+  banc(on, { ...seule, 'C:/Projet/.pilotage/equipe/lea/portes.md': '', 'C:/Projet/.pilotage/equipe/sam/portes.md': '' })
   await demarrer($)
   const ui = await monter($, 'desktop')
   expect(await dans(ui, 'etape-cadre-p1')).toContain('En cours')
