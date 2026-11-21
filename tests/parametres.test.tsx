@@ -126,7 +126,7 @@ test('réglages du type : texte, choix, oui-non s’écrivent dans projet.json (
     await ui.unmount()
   }
   expect(b.ecrits.slice(0, 2)).toEqual([`${PROJET_JSON}.bak`, PROJET_JSON])
-  expect(b.ecrits.every(p => p === PROJET_JSON || p === `${PROJET_JSON}.bak`)).toBe(true)
+  expect(b.ecrits.every(p => p === PROJET_JSON || p === `${PROJET_JSON}.bak` || p === `${PROJET_JSON}.bak2`)).toBe(true)
   expect(b.toasts.length).toBeGreaterThan(0)
   expect(b.projet().nom).toBe('Boutique test')
 })
@@ -309,5 +309,77 @@ test('mon workflow déjà présent, « Remplacer » choisi : le fichier est remp
   await ui.press({ key: 'workflow-enregistrer' })
   expect(b.ecrits).toEqual([MON])
   expect(JSON.parse(b.fichiers[MON]!)).toEqual({ outils: SITE.workflow.outils })
+  await ui.unmount()
+})
+
+// ---- Fix round 1 ----
+const SIEN = '{"outils":[{"role":"Son","outil":"Audacity"},{"role":"Code","outil":"Claude"}]}'
+
+test('désactiver un agent : le texte et le toast disent la vérité (pris en compte au prochain démarrage, appelable d’ici là)', async ($, on) => {
+  const b = banc(on, SITE)
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  const aide = await dans(ui, 'parametres-agents')
+  expect(aide).toContain('pris en compte au prochain démarrage de la session')
+  expect(aide).toContain('reste appelable d’ici là')
+  expect(aide).not.toContain('n’est plus proposé')
+  await ui.press({ key: 'agent-actif-a1' })
+  expect(b.toasts.at(-1)).toContain('Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.')
+  await ui.press({ key: 'agent-actif-a1' })
+  expect(b.toasts.at(-1)).not.toContain('appelable')
+  await ui.unmount()
+})
+
+for (const [nom, contenu, attendu] of [['absent', undefined, false], ['illisible', 'pas du json', false], ['vide', '{"outils":[]}', false], ['valide', SIEN, true]] as const) {
+  test(`Charger mon workflow : fichier ${nom} : bouton ${attendu ? 'présent' : 'absent'}`, async ($, on) => {
+    const b = banc(on, SITE)
+    if (contenu !== undefined) b.fichiers[MON] = contenu
+    await demarrer($)
+    const ui = await monter($, 'desktop')
+    expect(!!(await ui.find({ key: 'workflow-charger' }))).toBe(attendu)
+    await ui.unmount()
+  })
+}
+
+test('Charger mon workflow : confirmé par « Charger » (la question montre la liste) : le workflow du projet est remplacé, copie .bak d’abord', async ($, on) => {
+  const b = banc(on, SITE)
+  b.fichiers[MON] = SIEN
+  const questions: string[] = []
+  on('tool.call', (_: unknown, e: { questions?: { question: string }[] }) => {
+    questions.push(e.questions?.[0]?.question ?? '')
+    return { result: { questions: e.questions ?? [], answers: { [e.questions?.[0]?.question ?? '']: 'Charger' } } }
+  })
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  await ui.press({ key: 'workflow-charger' })
+  expect(questions[0]).toContain('Son : Audacity')
+  expect(questions[0]).toContain('Code : Claude')
+  expect(b.projet().workflow.outils).toEqual([{ role: 'Son', outil: 'Audacity' }, { role: 'Code', outil: 'Claude' }])
+  expect(b.ecrits).toEqual([`${PROJET_JSON}.bak`, PROJET_JSON])
+  expect(b.fichiers[MON]).toBe(SIEN)
+  await ui.unmount()
+})
+
+for (const reponse of ['Garder', 'Autre texte', null]) {
+  test(`Charger mon workflow : réponse ${reponse === null ? 'refusée par le moteur' : `« ${reponse} »`} : rien ne change`, async ($, on) => {
+    const b = banc(on, SITE)
+    b.fichiers[MON] = SIEN
+    on('tool.call', (_: unknown, e: { questions?: { question: string }[] }) =>
+      reponse === null ? { deny: 'refusé' } : { result: { questions: e.questions ?? [], answers: { [e.questions?.[0]?.question ?? '']: reponse } } })
+    await demarrer($)
+    const ui = await monter($, 'desktop')
+    await ui.press({ key: 'workflow-charger' })
+    expect(b.ecrits).toEqual([])
+    expect(b.projet().workflow.outils).toEqual(SITE.workflow.outils)
+    await ui.unmount()
+  })
+}
+
+test('Charger mon workflow : pas de bouton en lecture seule', async ($, on) => {
+  const b = banc(on, SITE, { sansMembre: true })
+  b.fichiers[MON] = SIEN
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await ui.find({ key: 'workflow-charger' })).toBeFalsy()
   await ui.unmount()
 })

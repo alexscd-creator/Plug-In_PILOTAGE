@@ -6,7 +6,7 @@
 //    dans `projet.json.bak` (écrite AVANT, et le message l'indique). Jamais d'écriture ailleurs que `.pilotage/projet.json(.bak)` et
 //    `~/.claude/pilotage/mon-workflow.json`. Rien ne lève : tout échec est un résultat `{ ok: false, erreurs }`.
 import { parseMonWorkflow } from './presets.ts'
-import { parseProjet, serializeProjet, TEINTES_POLE } from './projet.ts'
+import { memeMembre, parseProjet, serializeProjet, TEINTES_POLE } from './projet.ts'
 import type { Projet, ResultatProjet, Workflow } from './projet.ts'
 
 export type Patch =
@@ -14,6 +14,7 @@ export type Patch =
   | { type: 'workflowAjouter'; role: string; outil: string }
   | { type: 'workflowRetirer'; index: number }
   | { type: 'workflowModifier'; index: number; role: string; outil: string }
+  | { type: 'workflowRemplacer'; outils: { role: string; outil: string }[] }
   | { type: 'agentActiver'; id: string; actif: boolean }
   | { type: 'agentRole'; id: string; titre: string; pourquoi: string }
   | { type: 'agentSkills'; id: string; skills: string[] }
@@ -62,6 +63,11 @@ function appliquer(n: Projet, patch: Patch): string | null {
     case 'workflowModifier':
       if (!indexValide(patch.index, n.workflow.outils.length)) return "Cet outil n'existe pas dans le workflow."
       n.workflow.outils[patch.index] = { role: patch.role, outil: patch.outil }
+      return null
+    case 'workflowRemplacer':
+      if (!Array.isArray(patch.outils)) return 'Les outils du workflow doivent former une liste.'
+      if (patch.outils.length === 0) return 'Le workflow ne peut pas rester vide : gardez au moins un outil.'
+      n.workflow.outils = patch.outils.map(o => ({ role: o?.role, outil: o?.outil }))
       return null
     case 'agentActiver': {
       const a = n.agents.find(x => x.id === patch.id)
@@ -122,13 +128,50 @@ export type FsProjet = { read(p: string): Promise<string>; write(p: string, text
 const BS = String.fromCharCode(92)
 const normaliser = (p: string): string => p.replaceAll(BS, '/').replace(/\/+/g, '/').replace(/\/$/, '')
 
+/** Texte à écrire : les clés connues dans l'ordre fixe de serializeProjet, puis chaque clé inconnue du fichier du disque, telle quelle et dans son ordre. */
+export function serializerFusionne(texteDisque: string, projet: Projet): string {
+  const connu = JSON.parse(serializeProjet(projet)) as Record<string, unknown>
+  let brut: Record<string, unknown> = {}
+  try {
+    const v: unknown = JSON.parse(texteDisque)
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) brut = v as Record<string, unknown>
+  } catch {
+    // Le texte du disque a déjà été validé : rien d'inconnu à garder sinon.
+  }
+  const inconnues = Object.entries(brut).filter(([k]) => !Object.hasOwn(connu, k))
+  return JSON.stringify(Object.fromEntries([...Object.entries(connu), ...inconnues]), null, 2) + String.fromCharCode(10)
+}
+
+/**
+ * Suivi des écritures de CE panneau : après une écriture réussie, un affichage resté sur l'ancienne version (deux appuis rapprochés)
+ * est reconnu comme l'ancêtre de ce qu'on vient d'écrire. Un vrai changement extérieur reste refusé : le disque est toujours comparé.
+ */
+export type Suivi = { base(racine: string, affiche: Projet): Projet; noter(racine: string, avant: Projet, apres: Projet): void }
+export function creerSuivi(): Suivi {
+  const versApres = new Map<string, Projet>()
+  const cle = (racine: string, p: Projet): string => `${racine}|${serializeProjet(p)}`
+  return {
+    base: (racine, affiche) => versApres.get(cle(racine, affiche)) ?? affiche,
+    noter(racine, avant, apres) {
+      const ancien = serializeProjet(avant)
+      for (const [k, v] of versApres) if (serializeProjet(v) === ancien) versApres.set(k, apres)
+      versApres.set(cle(racine, avant), apres)
+    },
+  }
+}
+
+const RESTAURER = 'Pour restaurer : remplacez projet.json par projet.json.bak.'
+
 /**
  * Applique le patch au `projet.json` du disque et l'écrit. `affiche` : le projet tel que le panneau l'a lu ; si le fichier du disque est
- * devenu différent (un associé, Git...), refus et rien n'est écrit. Ordre : relecture, contrôle, validation, copie `.bak` de l'ancien
- * texte, relecture juste avant d'écrire (contrôle encore), écriture de `serializeProjet(résultat)`. Un patch sans effet n'écrit rien.
+ * devenu différent (un associé, Git...), refus et rien n'est écrit. `o.moi` : le membre courant, qui doit être dans l'équipe (sinon
+ * lecture seule). Ordre : relecture, contrôle, validation, sauvegardes, relecture juste avant d'écrire (contrôle encore), écriture. Les
+ * clés inconnues du fichier sont gardées (serializerFusionne). Un patch sans effet n'écrit rien. `.bak` = texte d'avant, réécrit seulement
+ * s'il diffère du disque ; l'ancien `.bak` passe en `.bak2` si possible (sinon on continue).
  */
-export async function ecrireProjet(fs: FsProjet, racine: string, affiche: Projet, patch: Patch): Promise<Retour> {
+export async function ecrireProjet(fs: FsProjet, racine: string, affiche: Projet, patch: Patch, o: { moi: string; suivi?: Suivi }): Promise<Retour> {
   try {
+    if (typeof o?.moi !== 'string' || o.moi.trim() === '' || !affiche.equipe.some(m => memeMembre(m, o.moi))) return echec('Indiquez votre prénom pour modifier les réglages')
     if (typeof racine !== 'string' || normaliser(racine).trim() === '') return echec("Aucun dossier de projet n'est indiqué : rien n'est écrit.")
     const chemin = `${normaliser(racine)}/.pilotage/projet.json`
     const change = echec('Le fichier projet a changé sur le disque depuis son affichage (un associé ou Git l\'a modifié) : rafraîchissez, puis recommencez. Rien n\'est écrit.')
@@ -140,15 +183,32 @@ export async function ecrireProjet(fs: FsProjet, racine: string, affiche: Projet
     }
     const lu = parseProjet(texte)
     if (!lu.ok) return echec(`Le fichier projet du disque est invalide (${lu.erreurs[0] ?? 'illisible'}) : rien n'est écrit.`)
-    if (serializeProjet(lu.projet) !== serializeProjet(affiche)) return change
+    const base = o.suivi?.base(normaliser(racine), affiche) ?? affiche
+    if (serializeProjet(lu.projet) !== serializeProjet(base)) return change
     const r = modifierProjet(lu.projet, patch)
     if (!r.ok) return echec(...r.erreurs)
-    const sortie = serializeProjet(r.projet)
-    if (sortie === serializeProjet(lu.projet)) return { ok: true }
+    if (serializeProjet(r.projet) === serializeProjet(lu.projet)) return { ok: true }
+    const sortie = serializerFusionne(texte, r.projet)
+    if (!parseProjet(sortie).ok) return echec("Le fichier projet modifié ne se relirait pas : rien n'est écrit.")
+    let ancienneCopie = ''
     try {
-      await fs.write(`${chemin}.bak`, texte) // la copie d'abord : si elle échoue, le fichier n'est pas touché
+      ancienneCopie = await fs.read(`${chemin}.bak`)
     } catch {
-      return echec("La copie de sauvegarde (projet.json.bak) n'a pas pu être écrite : le fichier projet n'est pas touché.")
+      ancienneCopie = '' // pas encore de copie
+    }
+    if (ancienneCopie !== texte) {
+      if (ancienneCopie !== '') {
+        try {
+          await fs.write(`${chemin}.bak2`, ancienneCopie) // deuxième génération, facultative
+        } catch {
+          // Sans .bak2 on continue.
+        }
+      }
+      try {
+        await fs.write(`${chemin}.bak`, texte) // la copie d'abord : si elle échoue, le fichier n'est pas touché
+      } catch {
+        return echec("La copie de sauvegarde (projet.json.bak) n'a pas pu être écrite : le fichier projet n'est pas touché.")
+      }
     }
     let juste: string
     try {
@@ -160,13 +220,18 @@ export async function ecrireProjet(fs: FsProjet, racine: string, affiche: Projet
     try {
       await fs.write(chemin, sortie)
     } catch {
-      return echec("L'écriture du fichier projet a échoué. Son contenu d'avant est gardé dans .pilotage/projet.json.bak : vérifiez le fichier avant de continuer.")
+      return echec(`L'écriture du fichier projet a échoué. Son contenu d'avant est gardé dans .pilotage/projet.json.bak : vérifiez le fichier avant de continuer. ${RESTAURER}`)
     }
+    o.suivi?.noter(normaliser(racine), base, r.projet)
     return { ok: true }
   } catch {
     return echec("L'enregistrement a échoué : rien n'a été changé.")
   }
 }
+
+/** Question posée avant de remplacer le workflow du projet par « mon workflow » : montre la liste qui le remplacerait. */
+export const questionChargement = (outils: { role: string; outil: string }[]): string =>
+  `Remplacer le workflow du projet par le vôtre (${outils.map(o => `${o.role} : ${o.outil}`).join(' ; ')}) ?`
 
 export type FsMonWorkflow = { exists(p: string): Promise<boolean>; write(p: string, texte: string): Promise<void> }
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { ecrireMonWorkflow, ecrireProjet, modifierProjet, texteMonWorkflow } from '../hooks/model/ecriture-projet.ts'
-import type { FsProjet, Patch } from '../hooks/model/ecriture-projet.ts'
+import { creerSuivi, ecrireMonWorkflow, ecrireProjet, modifierProjet, questionChargement, texteMonWorkflow } from '../hooks/model/ecriture-projet.ts'
+import type { FsProjet, Patch, Suivi } from '../hooks/model/ecriture-projet.ts'
 import { parseProjet, serializeProjet } from '../hooks/model/projet.ts'
 import type { Projet } from '../hooks/model/projet.ts'
 
@@ -135,6 +135,7 @@ test('pôles : sans teinte libre, un pôle ajouté reste sans couleur', () => {
 })
 
 // ---- Écrivain gardé ----
+const ecrire = (fs: FsProjet, racine: string, affiche: Projet, patch: Patch, o: { moi: string; suivi?: Suivi } = { moi: 'Léa' }) => ecrireProjet(fs, racine, affiche, patch, o)
 const RACINE = 'C:/Projet'
 const CHEMIN = `${RACINE}/.pilotage/projet.json`
 function disque(fichiers: Record<string, string>, panne: { ecrire?: (p: string) => boolean; lecture?: (n: number) => void } = {}) {
@@ -142,8 +143,7 @@ function disque(fichiers: Record<string, string>, panne: { ecrire?: (p: string) 
   let lectures = 0
   const fs: FsProjet = {
     read: async p => {
-      lectures++
-      panne.lecture?.(lectures)
+      if (p === CHEMIN) panne.lecture?.(++lectures)
       if (!(p in fichiers)) throw new Error('absent')
       return fichiers[p]!
     },
@@ -161,7 +161,7 @@ const patchDom: Patch = { type: 'reglage', id: 'domaine', valeur: 'b.fr' }
 
 test('ecrireProjet : sauvegarde .bak d’abord (ancien texte), puis le fichier ; sortie = serializeProjet du résultat', async () => {
   const d = disque({ [CHEMIN]: surDisque() })
-  const r = await ecrireProjet(d.fs, RACINE, base(), patchDom)
+  const r = await ecrire(d.fs, RACINE, base(), patchDom)
   assert.deepEqual(r, { ok: true })
   assert.deepEqual(d.ecrits, [`${CHEMIN}.bak`, CHEMIN])
   assert.equal(d.fichiers[`${CHEMIN}.bak`], surDisque())
@@ -172,7 +172,7 @@ test('ecrireProjet : sauvegarde .bak d’abord (ancien texte), puis le fichier ;
 
 test('ecrireProjet : un patch invalide n’écrit rien (ni .bak)', async () => {
   const d = disque({ [CHEMIN]: surDisque() })
-  const r = await ecrireProjet(d.fs, RACINE, base(), { type: 'poleRetirer', id: 'code' })
+  const r = await ecrire(d.fs, RACINE, base(), { type: 'poleRetirer', id: 'code' })
   assert.equal(r.ok, false)
   assert.ok(!r.ok && r.erreurs.length > 0)
   assert.deepEqual(d.ecrits, [])
@@ -182,7 +182,7 @@ test('ecrireProjet : un patch invalide n’écrit rien (ni .bak)', async () => {
 test('ecrireProjet : le fichier a changé depuis l’affichage : refus en français, rien d’écrit', async () => {
   const autre = { ...BRUT, nom: 'Modifié par un associé' }
   const d = disque({ [CHEMIN]: JSON.stringify(autre) })
-  const r = await ecrireProjet(d.fs, RACINE, base(), patchDom)
+  const r = await ecrire(d.fs, RACINE, base(), patchDom)
   assert.equal(r.ok, false)
   assert.match(!r.ok ? r.erreurs.join(' ') : '', /changé/)
   assert.deepEqual(d.ecrits, [])
@@ -190,7 +190,7 @@ test('ecrireProjet : le fichier a changé depuis l’affichage : refus en franç
 
 test('ecrireProjet : le fichier change entre la sauvegarde et l’écriture : refus, le fichier n’est pas écrasé', async () => {
   const d = disque({ [CHEMIN]: surDisque() }, { lecture: n => { if (n === 2) d.fichiers[CHEMIN] = JSON.stringify({ ...BRUT, but: 'Autre but' }) } })
-  const r = await ecrireProjet(d.fs, RACINE, base(), patchDom)
+  const r = await ecrire(d.fs, RACINE, base(), patchDom)
   assert.equal(r.ok, false)
   assert.match(!r.ok ? r.erreurs.join(' ') : '', /changé/)
   assert.ok(!d.ecrits.includes(CHEMIN))
@@ -199,14 +199,15 @@ test('ecrireProjet : le fichier change entre la sauvegarde et l’écriture : re
 
 test('ecrireProjet : échec de la sauvegarde : le fichier n’est pas touché ; échec de l’écriture : message, ancien contenu en .bak', async () => {
   const a = disque({ [CHEMIN]: surDisque() }, { ecrire: p => p.endsWith('.bak') })
-  const ra = await ecrireProjet(a.fs, RACINE, base(), patchDom)
+  const ra = await ecrire(a.fs, RACINE, base(), patchDom)
   assert.equal(ra.ok, false)
   assert.deepEqual(a.ecrits, [])
   assert.equal(a.fichiers[CHEMIN], surDisque())
   const b = disque({ [CHEMIN]: surDisque() }, { ecrire: p => p === CHEMIN })
-  const rb = await ecrireProjet(b.fs, RACINE, base(), patchDom)
+  const rb = await ecrire(b.fs, RACINE, base(), patchDom)
   assert.equal(rb.ok, false)
   assert.match(!rb.ok ? rb.erreurs.join(' ') : '', /projet\.json\.bak/)
+  assert.match(!rb.ok ? rb.erreurs.join(' ') : '', /Pour restaurer : remplacez projet\.json par projet\.json\.bak\./)
   assert.equal(b.fichiers[CHEMIN], surDisque(), 'rien n’a changé')
   assert.equal(b.fichiers[`${CHEMIN}.bak`], surDisque())
 })
@@ -214,22 +215,22 @@ test('ecrireProjet : échec de la sauvegarde : le fichier n’est pas touché ; 
 test('ecrireProjet : fichier illisible, invalide ou racine vide : refus sans écriture ; rien n’est écrit ailleurs que .pilotage/projet.json(.bak)', async () => {
   for (const contenu of ['pas du json', '{"version":2}']) {
     const d = disque({ [CHEMIN]: contenu })
-    const r = await ecrireProjet(d.fs, RACINE, base(), patchDom)
+    const r = await ecrire(d.fs, RACINE, base(), patchDom)
     assert.equal(r.ok, false)
     assert.deepEqual(d.ecrits, [])
   }
   const sans = disque({})
-  assert.equal((await ecrireProjet(sans.fs, RACINE, base(), patchDom)).ok, false)
-  assert.equal((await ecrireProjet(sans.fs, '  ', base(), patchDom)).ok, false)
+  assert.equal((await ecrire(sans.fs, RACINE, base(), patchDom)).ok, false)
+  assert.equal((await ecrire(sans.fs, '  ', base(), patchDom)).ok, false)
   assert.deepEqual(sans.ecrits, [])
   const d = disque({ [CHEMIN]: surDisque() })
-  await ecrireProjet(d.fs, `${RACINE.replace('/', '\\')}\\`, base(), patchDom)
+  await ecrire(d.fs, `${RACINE.replace('/', '\\')}\\`, base(), patchDom)
   assert.ok(d.ecrits.every(p => p === CHEMIN || p === `${CHEMIN}.bak`))
 })
 
 test('ecrireProjet : un patch sans effet n’écrit rien', async () => {
   const d = disque({ [CHEMIN]: surDisque() })
-  const r = await ecrireProjet(d.fs, RACINE, base(), { type: 'reglage', id: 'domaine', valeur: 'a.fr' })
+  const r = await ecrire(d.fs, RACINE, base(), { type: 'reglage', id: 'domaine', valeur: 'a.fr' })
   assert.deepEqual(r, { ok: true })
   assert.deepEqual(d.ecrits, [])
 })
@@ -283,4 +284,95 @@ test('mon workflow : vide, sans dossier personnel, confirmation ou écriture qui
   const c = disqueMon({ [MON]: 'x' })
   assert.equal((await ecrireMonWorkflow(c.fs, HOME, w, async () => { throw new Error('fermé') })).ok, false)
   assert.deepEqual(c.ecrits, [])
+})
+
+// ---- Fix round 1 ----
+test('workflowRemplacer : remplace la liste ; vide refusé ; plafond de 30 ; textes vides refusés', () => {
+  const p = base()
+  assert.deepEqual(ok(p, { type: 'workflowRemplacer', outils: [{ role: 'A', outil: 'B' }] }).workflow.outils, [{ role: 'A', outil: 'B' }])
+  refus(p, { type: 'workflowRemplacer', outils: [] }, /vide|au moins/)
+  refus(p, { type: 'workflowRemplacer', outils: Array.from({ length: 31 }, (_, i) => ({ role: `r${i}`, outil: 'o' })) }, /30/)
+  refus(p, { type: 'workflowRemplacer', outils: [{ role: ' ', outil: 'b' }] })
+  refus(p, { type: 'workflowRemplacer', outils: 'x' as never })
+  assert.match(questionChargement([{ role: 'Son', outil: 'Audacity' }, { role: 'Code', outil: 'Claude' }]), /Son : Audacity.*Code : Claude/)
+})
+
+const AVEC_INCONNUES = () => ({ ...BRUT, zeta: { a: [1, { b: null, c: 'x' }], z: 1 }, alpha: 'garde-moi', zeta2: [3, 2, 1] })
+
+test('ecrire : une clé inconnue du fichier survit à une modification, dans son ordre, après les clés connues, valeurs intactes', async () => {
+  const d = disque({ [CHEMIN]: JSON.stringify(AVEC_INCONNUES()) })
+  const r = await ecrire(d.fs, RACINE, base(), patchDom)
+  assert.deepEqual(r, { ok: true })
+  const ecrit = JSON.parse(d.fichiers[CHEMIN]!)
+  assert.deepEqual(ecrit.zeta, { a: [1, { b: null, c: 'x' }], z: 1 })
+  assert.equal(ecrit.alpha, 'garde-moi')
+  assert.deepEqual(ecrit.zeta2, [3, 2, 1])
+  const cles = Object.keys(ecrit)
+  assert.deepEqual(cles.slice(-3), ['zeta', 'alpha', 'zeta2'], 'ordre d’origine des clés inconnues, après les connues')
+  assert.deepEqual(cles.slice(0, 3), ['version', 'nom', 'but'])
+  assert.equal(ecrit.reglages.domaine, 'b.fr')
+  assert.ok(parseProjet(d.fichiers[CHEMIN]!).ok, 'toujours lisible par parseProjet')
+  assert.equal(d.fichiers[`${CHEMIN}.bak`], JSON.stringify(AVEC_INCONNUES()))
+})
+
+test('ecrire : une clé « __proto__ » inconnue reste une clé du fichier', async () => {
+  const d = disque({ [CHEMIN]: JSON.stringify(BRUT).replace('{', '{"__proto__":{"x":1},') })
+  await ecrire(d.fs, RACINE, base(), patchDom)
+  assert.equal(Object.keys(JSON.parse(d.fichiers[CHEMIN]!)).includes('__proto__'), true)
+})
+
+test('ecrire : un patch sans effet n’écrit rien même avec des clés inconnues', async () => {
+  const d = disque({ [CHEMIN]: JSON.stringify(AVEC_INCONNUES()) })
+  const r = await ecrire(d.fs, RACINE, base(), { type: 'reglage', id: 'domaine', valeur: 'a.fr' })
+  assert.deepEqual(r, { ok: true })
+  assert.deepEqual(d.ecrits, [])
+})
+
+test('ecrire : .bak non réécrit s’il est déjà égal au disque ; sinon l’ancien .bak passe en .bak2 (échec de .bak2 : on continue)', async () => {
+  const a = disque({ [CHEMIN]: surDisque(), [`${CHEMIN}.bak`]: surDisque() })
+  await ecrire(a.fs, RACINE, base(), patchDom)
+  assert.deepEqual(a.ecrits, [CHEMIN], '.bak identique au disque : pas réécrit')
+  const AVANT = 'ancienne sauvegarde'
+  const b = disque({ [CHEMIN]: surDisque(), [`${CHEMIN}.bak`]: AVANT })
+  await ecrire(b.fs, RACINE, base(), patchDom)
+  assert.deepEqual(b.ecrits, [`${CHEMIN}.bak2`, `${CHEMIN}.bak`, CHEMIN])
+  assert.equal(b.fichiers[`${CHEMIN}.bak2`], AVANT)
+  assert.equal(b.fichiers[`${CHEMIN}.bak`], surDisque())
+  const c = disque({ [CHEMIN]: surDisque(), [`${CHEMIN}.bak`]: AVANT }, { ecrire: p => p.endsWith('.bak2') })
+  const rc = await ecrire(c.fs, RACINE, base(), patchDom)
+  assert.deepEqual(rc, { ok: true })
+  assert.deepEqual(c.ecrits, [`${CHEMIN}.bak`, CHEMIN])
+})
+
+test('ecrire : sans membre connu (moi vide ou hors équipe) : refus, rien n’est écrit', async () => {
+  for (const moi of ['', '  ', 'Inconnu']) {
+    const d = disque({ [CHEMIN]: surDisque() })
+    const r = await ecrire(d.fs, RACINE, base(), patchDom, { moi })
+    assert.equal(r.ok, false)
+    assert.match(!r.ok ? r.erreurs.join(' ') : '', /Indiquez votre prénom pour modifier les réglages/)
+    assert.deepEqual(d.ecrits, [])
+  }
+  const d = disque({ [CHEMIN]: surDisque() })
+  assert.deepEqual(await ecrire(d.fs, RACINE, base(), patchDom, { moi: 'lea' }), { ok: true }, 'même membre, autre écriture du prénom')
+})
+
+test('ecrire : appuis rapides avec le même affichage périmé : les suivants passent grâce au suivi ; un vrai changement extérieur reste refusé', async () => {
+  const suivi = creerSuivi()
+  const d = disque({ [CHEMIN]: surDisque() })
+  const p0 = base()
+  assert.deepEqual(await ecrire(d.fs, RACINE, p0, patchDom, { moi: 'Léa', suivi }), { ok: true })
+  assert.deepEqual(await ecrire(d.fs, RACINE, p0, { type: 'reglage', id: 'paiement', valeur: true }, { moi: 'Léa', suivi }), { ok: true })
+  assert.deepEqual(await ecrire(d.fs, RACINE, p0, { type: 'poleRenommer', id: 'code', titre: 'Code' }, { moi: 'Léa', suivi }), { ok: true })
+  const fin = JSON.parse(d.fichiers[CHEMIN]!)
+  assert.equal(fin.reglages.domaine, 'b.fr')
+  assert.equal(fin.reglages.paiement, true)
+  assert.equal(fin.poles[0].titre, 'Code')
+  d.fichiers[CHEMIN] = JSON.stringify({ ...fin, nom: 'Associé' })
+  const r4 = await ecrire(d.fs, RACINE, p0, { type: 'reglage', id: 'domaine', valeur: 'c.fr' }, { moi: 'Léa', suivi })
+  assert.equal(r4.ok, false)
+  assert.match(!r4.ok ? r4.erreurs.join(' ') : '', /changé/)
+  assert.equal(JSON.parse(d.fichiers[CHEMIN]!).nom, 'Associé')
+  const e = disque({ [CHEMIN]: surDisque() })
+  await ecrire(e.fs, RACINE, p0, patchDom)
+  assert.equal((await ecrire(e.fs, RACINE, p0, { type: 'reglage', id: 'paiement', valeur: true })).ok, false, 'sans suivi, comme avant')
 })

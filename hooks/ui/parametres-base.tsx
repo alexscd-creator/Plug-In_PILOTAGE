@@ -2,7 +2,7 @@
 // d'écriture (prénom inconnu) il devient un simple texte, sans la clé du champ : rien ne s'y presse ni ne s'y tape.
 import type { ChoixTheme } from '../../types'
 import type { Patch } from '../model/ecriture-projet.ts'
-import type { Projet } from '../model/projet.ts'
+import type { Projet, Workflow } from '../model/projet.ts'
 import type { Ctx } from './kit'
 
 export type DonneesParametres = {
@@ -18,6 +18,10 @@ export type DonneesParametres = {
   /** Dit une erreur de saisie sans rien écrire. */
   signaler: (erreurs: string[]) => void | Promise<void>
   enregistrerWorkflow: () => void | Promise<void>
+  /** « Mon workflow » lu dans ~/.claude/pilotage/mon-workflow.json (null : absent, illisible ou vide). */
+  monWorkflow: Workflow | null
+  /** Remplace le workflow du projet par `monWorkflow`, après confirmation. */
+  chargerWorkflow: () => void | Promise<void>
 }
 
 export const modifiable = (d: DonneesParametres): boolean => d.moi !== ''

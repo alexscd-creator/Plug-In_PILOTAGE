@@ -9,7 +9,7 @@ import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession } from './model/chantiers.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
-import { ecrireMonWorkflow, ecrireProjet } from './model/ecriture-projet.ts'
+import { creerSuivi, ecrireMonWorkflow, ecrireProjet, cheminMonWorkflow, questionChargement } from './model/ecriture-projet.ts'
 import type { Patch } from './model/ecriture-projet.ts'
 import type { Cible, MajFiche, Moyens } from './model/ecriture-chantier.ts'
 import { lireProjetComplet, lireSessions } from './model/lecture.ts'
@@ -17,7 +17,7 @@ import type { LienSession } from './model/lecture.ts'
 import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
-import { libelle } from './model/presets.ts'
+import { libelle, parseMonWorkflow } from './model/presets.ts'
 import { memeMembre, parseProjet } from './model/projet.ts'
 import type { Projet, Workflow } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
@@ -247,15 +247,45 @@ function direReglage($: any, texte: string): void {
  * (voir model/ecriture-projet.ts). Succès : toast, les agents sont réenregistrés, le panneau se relit. Échec : les erreurs
  * s'affichent dans le panneau et rien n'a changé. `affiche` est le projet tel que le panneau l'a lu.
  */
-async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Patch): Promise<void> {
+const suiviEcritures = creerSuivi()
+const TOAST_DESACTIVE = 'Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.'
+
+async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Patch, moi: string): Promise<void> {
   const r = await ecrireProjet(
     { read: async p => String((await $.fs.read(p)) ?? ''), write: async (p, t) => void (await $.fs.write(p, t)) },
-    racine, affiche, patch,
+    racine, affiche, patch, { moi, suivi: suiviEcritures },
   )
   await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
-  direReglage($, r.ok ? 'Réglage enregistré.' : 'Modification refusée : voir le panneau.')
+  direReglage($, !r.ok ? 'Modification refusée : voir le panneau.' : patch.type === 'agentActiver' && !patch.actif ? TOAST_DESACTIVE : 'Réglage enregistré.')
   if (r.ok) synchroniserAgents($).catch(() => undefined)
   await update($, tick, n => n + 1)
+}
+
+/** « Mon workflow » (~/.claude/pilotage/mon-workflow.json) : null s'il est absent, illisible ou vide. Ne lève jamais. */
+async function lireMonWorkflow($: any): Promise<Workflow | null> {
+  try {
+    const home = String((await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? '')
+    const chemin = cheminMonWorkflow(home)
+    if (chemin === '' || (await $.fs.exists(chemin)) !== true) return null
+    const w = parseMonWorkflow(String((await $.fs.read(chemin)) ?? ''))
+    return w && w.outils.length > 0 ? w : null
+  } catch {
+    return null
+  }
+}
+
+const CHARGER = 'Charger'
+
+/** « Charger mon workflow » : la question montre la liste ; seule la réponse exacte « Charger » applique, tout le reste (refus, absence de $.ui.ask) vaut non. */
+async function chargerMonWorkflow($: any, racine: string, affiche: Projet, moi: string, w: Workflow): Promise<void> {
+  let accord = false
+  try {
+    accord = (await $.ui.ask(questionChargement(w.outils), [CHARGER, 'Garder'])) === CHARGER
+  } catch {
+    accord = false
+  }
+  if (!accord) return void direReglage($, 'Workflow du projet inchangé.')
+  await appliquerPatch($, racine, affiche, { type: 'workflowRemplacer', outils: w.outils }, moi)
 }
 
 /** « Enregistrer comme mon workflow » : écrit ~/.claude/pilotage/mon-workflow.json, après confirmation s'il existe déjà. */
@@ -679,6 +709,7 @@ export const register: Register = on => {
       const detailOuvert = await read($, chantierOuvert)
       const donneesAgents = courante === 'agents' ? await lireDonneesAgents($, lecture, maintenant) : null
       const projet = lecture.projet
+      const monWorkflow = courante === 'parametres' ? await lireMonWorkflow($) : null
       const aller = sur($, async (p: Page) => { await update($, erreursReglages, () => []); await update($, page, () => p) })
       const { Text } = ui
       const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
@@ -722,7 +753,8 @@ export const register: Register = on => {
                     ? pageParametres(ctx, {
                         projet, moi, theme: choix, erreurs: await read($, erreursReglages),
                         choisirTheme: sur($, async (t: ChoixTheme) => { await update($, theme, () => t) }),
-                        modifier: sur($, (patch: Patch) => appliquerPatch($, racine, projet, patch)),
+                        modifier: sur($, (patch: Patch) => appliquerPatch($, racine, projet, patch, moi)),
+                        monWorkflow, chargerWorkflow: sur($, async () => { if (monWorkflow) await chargerMonWorkflow($, racine, projet, moi, monWorkflow) }),
                         signaler: sur($, async (liste: string[]) => { await update($, erreursReglages, () => liste) }),
                         enregistrerWorkflow: sur($, () => enregistrerMonWorkflow($, projet.workflow)),
                       })

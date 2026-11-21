@@ -39,6 +39,8 @@ export function carteWorkflow(c: Ctx, d: DonneesParametres) {
       <Text size="caption" color={c.j.texteSec}>« Enregistrer comme mon workflow » écrit ce texte dans ~/.claude/pilotage/mon-workflow.json (il sert aux prochains projets) :</Text>
       {texteMonWorkflow(d.projet.workflow).trimEnd().split('\n').map((l, i) => <Text key={`mw-${i}`} mono size="caption" color={c.j.texteSec}>{l}</Text>)}
       {action(c, d, 'workflow-enregistrer', 'Enregistrer comme mon workflow', d.enregistrerWorkflow)}
+      {d.monWorkflow ? action(c, d, 'workflow-charger', 'Charger mon workflow', d.chargerWorkflow) : null}
+      {d.monWorkflow ? <Text key="charger-aide" size="caption" color={c.j.texteDim}>{`Charger mon workflow remplace la liste ci-dessus par celle de votre fichier (${d.monWorkflow.outils.length} outils) ; une confirmation est demandée.`}</Text> : null}
     </Box>,
   ], { cle: 'parametres-workflow' })
 }
@@ -47,7 +49,7 @@ export function carteAgents(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   const p = d.projet
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Gestion des agents', 'Un agent désactivé n’est plus proposé à la conversation et apparaît grisé.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Gestion des agents', 'Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.')}</Box>,
     p.agents.length === 0 ? <Text key="aucun" color={c.j.texteDim}>Aucun agent défini pour ce projet.</Text> : null,
     ...p.agents.map(a => {
       const i = p.poles.findIndex(x => x.id === a.pole)
