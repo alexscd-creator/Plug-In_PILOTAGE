@@ -73,7 +73,7 @@ const agentOuvert = atom({ plugin: 'pilotage', key: 'agentOuvert' } as const, ''
 const filtreIdees = atom({ plugin: 'pilotage', key: 'filtreIdees' } as const, 'tout' as FiltreIdees, { shape: 'filtre-idees-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
-// Thème du panneau : le mod ne peut pas lire le mode de l'application, « systeme » prend donc le sombre.
+// Thème du panneau : « systeme » suit le thème de l'application (ligne « theme » de `$.config.list`), sombre si elle ne se lit pas.
 const theme = atom({ plugin: 'pilotage', key: 'theme' } as const, 'systeme' as ChoixTheme, { shape: 'theme-1' })
 // Ce qui s'est passé quand un bouton a voulu envoyer une commande (voir model/retour-commande.ts) ; vide : tout est parti.
 const retour = atom({ plugin: 'pilotage', key: 'retourCommande' } as const, '', { shape: 'retour-1' })

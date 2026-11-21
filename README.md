@@ -52,7 +52,7 @@ Fichiers personnels, hors du projet : `~/.claude/pilotage/config.json` (`{"preno
 
 ## Sécurité
 
-- Chaque membre n'écrit que dans **son** dossier `equipe/<prénom>/` (le prénom est vérifié contre l'équipe de `projet.json`). Seule exception : le statut d'une tâche du plan partagé.
+- Chaque membre n'écrit que dans **son** dossier `equipe/<prénom>/` (le prénom est vérifié contre l'équipe de `projet.json` ; c'est le modèle qui passe celui de `~/.claude/pilotage/config.json`, les scripts ne le relisent pas). Seule exception : le statut d'une tâche du plan partagé.
 - **Liens et jonctions** : les scripts refusent d'écrire (code 1, « Chemin non sûr (lien hors du projet) », rien n'est écrit) si `.pilotage`, `equipe`, le dossier du membre ou un fichier visé se résout hors du projet ; le panneau ne lit jamais une entrée que le disque marque comme lien (il le signale) et n'écrit jamais au travers d'un lien.
 - Les fichiers ne s'écrivent jamais à la main : des scripts valident les données et écrivent de façon transactionnelle (tout est remis comme avant en cas d'échec).
 - Les agents du projet sont enregistrés en **lecture seule** (Read, Glob, Grep, TodoWrite), quoi que dise `projet.json`.

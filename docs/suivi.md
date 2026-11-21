@@ -10,4 +10,5 @@
 - Modifier le nom et l'objectif du projet.
 - Charger le workflow idéal d'un type de projet (preset) depuis les Paramètres.
 - Désenregistrer du moteur un agent désactivé quand une API le permettra (aujourd'hui il reste appelable jusqu'au prochain démarrage de la session).
+- Livrer ou générer les skills des presets : les 13 skills que nomme le preset « Jeu Roblox » (et ceux des autres presets) ne sont pas installés avec Pilotage ; l'écran Agents les montre « skill non installé ».
 - Restaurer `projet.json` depuis `projet.json.bak` après un échec d'écriture : pour l'instant c'est manuel (le message d'erreur dit « Pour restaurer : remplacez projet.json par projet.json.bak. »).

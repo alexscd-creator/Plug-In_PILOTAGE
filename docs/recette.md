@@ -118,7 +118,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 **Agents**
 - `$.agent.register` avant que la session soit liée, et agents qui restent enregistrés (aucune API pour les désenregistrer : un agent désactivé reste appelable jusqu'au prochain démarrage).
 - Les fichiers `.pilotage/agents/*.md` sont lus par le plugin, pas par le moteur ; `.claude/agents/` du projet n'est pas relu en cours de session (non prouvé).
-- Les 13 skills du preset « Jeu Roblox » existent dans l'ancien plugin, pas dans Pilotage : ils s'affichent « skill non installé » (scénario I).
+- Les 13 skills du preset « Jeu Roblox » existent dans l'ancien plugin, pas dans Pilotage : ils s'affichent « skill non installé » (scénario I) ; les livrer ou les générer est à faire (docs/suivi.md).
 
 **Sous-sessions**
 - Le flux de la carte `start_session` : « Nouvelle session / Faire ici », puis le second appel avec le `proposal_id` et un prompt commençant par `/pilotage:chantier ouvrir <id>`.
@@ -134,6 +134,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 
 **Autres**
 - `--confirme` est un drapeau passé par le modèle ; il ne prouve pas un vrai « oui » de l'utilisateur.
+- `--membre` aussi : les scripts vérifient que le prénom est dans l'équipe de `projet.json`, pas qu'il est celui de `~/.claude/pilotage/config.json` ; « on n'écrit que chez soi » est tenu par le modèle (commandes et skills), pas par les scripts.
 - Maquette : validation visuelle par le propriétaire jamais faite (captures Figma seulement) ; versions sombres de certains écrans non dessinées.
 
 ## Limites connues
@@ -149,7 +150,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 
 **Lecture du plan et des fiches**
 - Une copie de conflit de synchronisation (Dropbox, Syncthing) n'est pas toujours reconnue ; certains vrais fichiers sont pris à tort pour des copies (`Report (2024).md`).
-- Doublons d'identifiant de tâche entre phases perdus à la réécriture ; tâches « Sans phase » repoussées en fin de fichier à la première réécriture ; un identifiant de phase avec `()` ou `|` n'est pas réversible.
+- Doublons d'identifiant de tâche entre phases perdus à la réécriture ; tâches « Sans phase » repoussées en fin de fichier à la première réécriture ; un identifiant de pôle, de phase ou d'agent hors de a-z, 0-9 et tirets est maintenant refusé dès la lecture de `projet.json` (message en français).
 - Une fiche de plus de 256 Ko est lue entièrement avant refus (la taille donnée par la liste ne sert encore qu'à ne pas relire un fichier inchangé : un fichier de même taille et de même date n'est pas relu à chaque rafraîchissement) ; dossiers `lea` et `lea 2` fusionnés comme un même membre ; nombre de dossiers de membres non borné.
 - Chemins UNC non pris en charge ; `projet.json` sensible à la casse.
 
@@ -162,7 +163,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 
 **Paramètres et projet**
 - Champs inconnus imbriqués (dans un pôle ou un agent) perdus à l'écriture ; les clés inconnues de premier niveau sont conservées.
-- Ids et valeurs de réglages sans plafond ; l'identifiant `constructor` mal traité dans les réglages (à passer à `Object.hasOwn`).
+- Valeurs de réglages : plafonnées à 500 caractères ; les identifiants de réglages, de pôles, de phases et d'agents : a-z, 0-9 et tirets, 60 au plus.
 - Un nom de fichier de skill avec `_` ou `:` est refusé (faux « skill non installé »).
 - La ligne « Application » du vocabulaire n'a pas d'écran propre dans la maquette.
 
