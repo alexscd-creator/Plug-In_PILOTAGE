@@ -24,7 +24,7 @@ try {
 function principal() {
 const dossier = dossierExistant(dossierArg)
 const pilotage = join(dossier, '.pilotage')
-if (existsSync(join(pilotage, 'projet.json'))) echec(`Un projet existe déjà (${join(pilotage, 'projet.json')}) : rien n'est écrit. Utiliser /pilotage.`, 3)
+if (existsSync(join(pilotage, 'projet.json'))) echec(`Un projet existe déjà (${join(pilotage, 'projet.json')}) : rien n'est écrit. Utiliser /projet pour ouvrir le panneau.`, 3)
 
 let reponses
 try { reponses = JSON.parse(readFileSync(resolve(reponsesArg), 'utf8')) } catch (e) {

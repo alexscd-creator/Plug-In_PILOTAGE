@@ -22,7 +22,7 @@ declare module 'claude-code' {
       projetTrouve: Shaped<string>
       /** Membre courant d'après la config ('' si inconnu). */
       membre: Shaped<string>
-      /** Erreurs du marqueur invalide, rappelées par /pilotage. */
+      /** Erreurs du marqueur invalide, rappelées par /projet. */
       erreursMarqueur: Shaped<string[]>
       /** Page affichée dans le panneau. */
       page: Shaped<Page>

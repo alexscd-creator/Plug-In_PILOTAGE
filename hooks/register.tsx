@@ -40,6 +40,8 @@ import type { Mode } from './ui/theme'
 import { carteErreurRendu, COMMANDE_DEMARRER, ecranErreur, ecranVide, retourCommande } from './ui/vide'
 
 const PANE = 'pilotage'
+/** La commande du panneau (`/projet`). */
+const COMMANDE_PANNEAU = 'projet'
 /** Durée pendant laquelle la consigne du modèle n'est pas relue sur le disque. */
 const DUREE_CONSIGNE_MS = 20_000
 
@@ -49,7 +51,7 @@ const actif = atom({ plugin: 'pilotage', key: 'actif' } as const, false, { shape
 const projetTrouve = atom({ plugin: 'pilotage', key: 'projetTrouve' } as const, '', { shape: 'projet-1' })
 // Membre courant d'après ~/.claude/pilotage/config.json ; vide si inconnu (le panneau invitera à se choisir).
 const membre = atom({ plugin: 'pilotage', key: 'membre' } as const, '', { shape: 'membre-1' })
-// Erreurs d'un marqueur invalide, rappelées à /pilotage.
+// Erreurs d'un marqueur invalide, rappelées à /projet.
 const erreursMarqueur = atom({ plugin: 'pilotage', key: 'erreursMarqueur' } as const, [] as string[], {
   shape: 'erreurs-1',
 })
@@ -203,7 +205,7 @@ async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouve
     const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
     const prenom = await lirePrenomConfig(home, async (p: string) => String((await $.fs.read(p)) ?? ''))
     await update($, erreursMarqueur, () => [])
-    // Autre projet que celui déjà ouvert : les agents suivis ne sont plus les siens. Même projet (/pilotage relancé) : ils restent.
+    // Autre projet que celui déjà ouvert : les agents suivis ne sont plus les siens. Même projet (/projet relancé) : ils restent.
     const ancien = await read($, projetTrouve)
     if (ancien !== '' && ancien !== trouve.racine) await viderAgents($)
     await update($, projetTrouve, () => trouve.racine)
@@ -567,9 +569,10 @@ export const register: Register = on => {
 
   on('session.start', async ($, e, next) => {
     try {
+      // `/projet` : les noms de commande d'un mod ne sont pas préfixés, et l'ancien plugin enregistre déjà la commande « pilotage ».
       await $.command.register({
-        name: 'pilotage',
-        description: 'Ouvre le panneau Pilotage (chantiers, idées, suivi)',
+        name: COMMANDE_PANNEAU,
+        description: 'Ouvre le panneau Pilotage du projet (chantiers, idées, suivi)',
       })
       dossierSession = e.cwd
       // Un dossier sans marqueur n'ouvre jamais rien ; un marqueur invalide non plus (les erreurs sont gardées).
@@ -580,7 +583,7 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'pilotage' }, async $ => {
+  on('command.run', { command: COMMANDE_PANNEAU }, async $ => {
     try {
       const dossier = (await $.session.cwd().catch(() => '')) || dossierSession
       return { text: (await activer($, dossier, auto)).texte }
@@ -612,7 +615,7 @@ export const register: Register = on => {
     }
   })
 
-  // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /pilotage le relance.
+  // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /projet le relance.
   on('ui.close', async ($, e, next) => {
     try {
       if (e.id === PANE) auto.arreter()

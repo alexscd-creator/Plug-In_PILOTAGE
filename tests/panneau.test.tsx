@@ -192,10 +192,10 @@ test('projet qui devient invalide puis valide : le minuteur est relancé une foi
   expect(periodes.length).toBe(1)
   const valide = f['C:/Projet/.pilotage/projet.json']!
   f['C:/Projet/.pilotage/projet.json'] = '{"version":2}'
-  await $.command.run({ command: 'pilotage' })
+  await $.command.run({ command: 'projet' })
   f['C:/Projet/.pilotage/projet.json'] = valide
-  await $.command.run({ command: 'pilotage' })
+  await $.command.run({ command: 'projet' })
   expect(periodes.length).toBe(2)
-  await $.command.run({ command: 'pilotage' })
+  await $.command.run({ command: 'projet' })
   expect(periodes.length).toBe(2)
 })

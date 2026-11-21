@@ -327,6 +327,25 @@ test('idées et workflow : une phrase obligatoire en moins échoue, pour chaque 
   }
 })
 
+test('commande du panneau : « /pilotage » seul (commande de l’ancien plugin) échoue dans les textes du modèle ; /projet et /pilotage:chantier passent', () => {
+  for (const [rel, texte] of [
+    ['commands/autre.md', '---\ndescription: test\n---\nRouvrir le panneau avec `/pilotage`.'],
+    ['skills/un/SKILL.md', fm('un', 'suggérer /pilotage puis s’arrêter')],
+    ['hooks/register.tsx', "const t = 'Tapez /pilotage'"],
+    ['scripts/x.mjs', "echec('Utiliser /pilotage.')"],
+  ]) {
+    const d = nouveau()
+    ecrire(d, rel, texte)
+    const r = lint(d)
+    assert.equal(r.status, 1, rel)
+    assert.match(r.stderr, /\/projet/, r.stderr)
+    assert.ok(r.stderr.includes(rel + ':'), r.stderr)
+  }
+  const d = nouveau()
+  ecrire(d, 'commands/autre.md', '---\ndescription: test\n---\n`/projet` ouvre le panneau ; `/pilotage:chantier ouvrir <id>` ; dossier `.pilotage/equipe` ; `~/.claude/pilotage/config.json`.')
+  assert.equal(lint(d).status, 0, lint(d).stderr)
+})
+
 test('le vrai plugin passe le lint', () => {
   const r = spawnSync('node', [script], { encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)

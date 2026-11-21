@@ -16,7 +16,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/check-projet.mjs" "<dossier courant>"
 ```
 
 - Code 2 (`aucun projet`) : continuer.
-- Code 0 (`projet ok`) ou code 1 (marqueur présent mais invalide) : il y a déjà un `.pilotage/projet.json` dans le dossier ou un parent. Le dire, ne rien écrire, ne jamais écraser, suggérer `/pilotage`, et s'arrêter.
+- Code 0 (`projet ok`) ou code 1 (marqueur présent mais invalide) : il y a déjà un `.pilotage/projet.json` dans le dossier ou un parent. Le dire, ne rien écrire, ne jamais écraser, suggérer `/projet` (qui ouvre le panneau), et s'arrêter.
 
 ## 2. Mener la conversation
 
@@ -46,4 +46,4 @@ Relire chaque fichier écrit (existence et contenu conformes à ce qui a été c
 node "${CLAUDE_PLUGIN_ROOT}/scripts/check-projet.mjs" "<dossier courant>"
 ```
 
-Attendu : `projet ok`. Sinon, afficher les erreurs, corriger le fichier concerné et relancer. Rapporter la liste des fichiers créés, puis suggérer de rouvrir le panneau avec `/pilotage`.
+Attendu : `projet ok`. Sinon, afficher les erreurs, corriger le fichier concerné et relancer. Rapporter la liste des fichiers créés, puis suggérer de ouvrir le panneau avec `/projet`.

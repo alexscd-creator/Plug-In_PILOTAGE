@@ -23,14 +23,14 @@ Puis redémarrer Claude Desktop.
 ## Première utilisation
 
 1. Ouvrir une session dans le dossier du projet.
-2. `/pilotage` ouvre le panneau (sans projet, il indique comment en créer un).
+2. `/projet` ouvre le panneau (sans projet, il montre l'écran « Aucun projet ici » et son bouton « Démarrer un projet »).
 3. `/demarrer` lance la conversation guidée : le type de projet d'abord, puis le nom (son libellé suit le type), les réglages du type, l'équipe, le workflow, les pôles, les phases, les agents. Rien n'est écrit avant la confirmation du récapitulatif.
 
 ## Commandes
 
 | Commande | Rôle |
 |---|---|
-| `/pilotage` | Ouvre le panneau du projet du dossier courant. |
+| `/projet` | Ouvre le panneau du projet du dossier courant (ou l'écran de démarrage, ou l'erreur du fichier de projet). |
 | `/demarrer [nom]` | Crée le projet par une conversation guidée ; refuse d'écraser un projet existant. |
 | `/chantier <nom>` / `ouvrir <id>` / `clore <id>` | Crée un chantier (contrôle d'impact, confirmation, carte « Nouvelle session / Faire ici »), l'ouvre dans sa sous-session, ou l'archive avec sa passation. |
 | `/phase [porte\|forcer\|repondre] <phase>` | Valide la porte d'une phase, avance sans attendre l'autre membre, ou répond « pas encore ». Confirmation demandée. |
@@ -65,7 +65,7 @@ Le dossier `.pilotage/` se partage dans un dépôt Git commun. Chacun écrit che
 
 ## Cohabitation avec l'ancien plugin Roblox
 
-L'ancien plugin (Roblox_Project_creator) reste séparé : autre dossier, autres fichiers, rien de partagé. Il ne doit rien ouvrir de lui-même dans un dossier sans sa propre configuration (scénario L de la recette).
+L'ancien plugin (Roblox_Project_creator) reste séparé : autre dossier, autres fichiers. Les deux plugins partagent pourtant l'espace des noms de commande : une commande enregistrée par un hook n'est pas préfixée, et l'ancien plugin enregistre déjà `/pilotage`. C'est pourquoi le panneau de ce plugin s'ouvre par **`/projet`** : `/pilotage` reste celui de l'ancien plugin. Les commandes en markdown et l'agent ont aussi des noms communs aux deux plugins (`chantier`, `phase`, `chef-de-chantier`) : ce plugin les cite toujours avec leur préfixe (`/pilotage:chantier`, `pilotage:chef-de-chantier`). L'ancien plugin ne doit rien ouvrir de lui-même dans un dossier sans sa propre configuration (scénario L de la recette).
 
 ## Développement
 

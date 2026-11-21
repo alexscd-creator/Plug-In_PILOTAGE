@@ -331,7 +331,7 @@ test('projet qui change ou devient invalide : les agents suivis sont retirés et
   expect(live(m.etat).appels.length).toBe(2)
   const avant = m.ecrits.length
   f['C:/Projet/.pilotage/projet.json'] = '{"version":2}'
-  await $.command.run({ command: 'pilotage' })
+  await $.command.run({ command: 'projet' })
   expect(m.etat.actif).toBe(false)
   expect(live(m.etat)).toEqual({ appels: [], derniers: [], attentes: [] })
   await m.horloge.advance(5000)
@@ -345,13 +345,13 @@ test('projet qui change ou devient invalide : les agents suivis sont retirés et
   expect(m.ecrits.length).toBe(avant)
 })
 
-test('/pilotage relancé sur le même projet : les appels en cours ne sont pas perdus', async ($, on) => {
+test('/projet relancé sur le même projet : les appels en cours ne sont pas perdus', async ($, on) => {
   const f = lie()
   const m = monde(on, f)
   await demarrer($)
   const a = $.tool.call(agent('a1'))
   await m.horloge.settle()
-  await $.command.run({ command: 'pilotage' })
+  await $.command.run({ command: 'projet' })
   expect(live(m.etat).appels.length).toBe(1)
   m.portes[0]!.ouvrir()
   await a

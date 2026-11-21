@@ -182,6 +182,22 @@ function verifierNeutralite() {
   }
 }
 
+// Commandes : `/pilotage` seul est la commande de l'ancien plugin ; le panneau de celui-ci s'ouvre par `/projet`, et ses commandes
+// markdown se citent avec leur préfixe (`/pilotage:chantier`). Seuls `.pilotage/`, `pilotage/` (dossier) et `/pilotage:` passent.
+export const FORMES_NUES = [
+  [/(?<![\w.:/-])\/pilotage(?![\w:/-])/, '/pilotage', 'écrire /projet (panneau) ou /pilotage:<commande>'],
+]
+function verifierFormes() {
+  const propre = join(root, 'scripts', 'lint-plugin.mjs')
+  const fichiers = ['skills', 'commands', 'hooks', 'scripts', 'agents'].flatMap(d => fichiersDe(join(root, d)))
+  for (const fichier of fichiers) {
+    if (fichier === propre) continue
+    readFileSync(fichier, 'utf8').split(/\r?\n/).forEach((ligne, i) => {
+      for (const [re, quoi, conseil] of FORMES_NUES) if (re.test(ligne)) erreurs.push(`${relatif(fichier)}:${i + 1} : « ${quoi} » seul est ambigu (${conseil})`)
+    })
+  }
+}
+
 const agents = join(root, 'agents')
 if (existsSync(agents)) {
   for (const f of readdirSync(agents).filter(f => f.endsWith('.md'))) {
@@ -234,6 +250,7 @@ if (estPlugin || FICHIERS_IDEES.some(f => existsSync(join(root, f)))) {
 }
 
 verifierNeutralite()
+verifierFormes()
 
 if (erreurs.length) {
   console.error(erreurs.join('\n'))

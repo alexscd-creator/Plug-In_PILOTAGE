@@ -8,13 +8,13 @@ Préparation : un dossier vide `essai-a` (sans `.pilotage`), un autre dossier `e
 
 1. Ouvrir une session dans `essai-a`.
 2. Vérifier : aucun panneau ne s'ouvre, et aucune section « Pilotage » n'apparaît dans les consignes de la conversation.
-3. Taper `/pilotage` : un message dit qu'il n'y a pas de projet et propose `/demarrer`.
+3. Taper `/projet` : le panneau s'ouvre sur l'écran « Aucun projet ici » avec le bouton « Démarrer un projet ».
 
 Résultat : (à remplir)
 
-## B. `/pilotage` puis `/demarrer`
+## B. `/projet` puis `/demarrer`
 
-1. `/pilotage` puis `/demarrer` dans `essai-a`.
+1. `/projet` puis `/demarrer` dans `essai-a`.
 2. Vérifier l'ordre : le **type de projet** est demandé en premier ; le libellé du **nom** suit le type (autre type, autre libellé) ; viennent les **réglages du type**, l'équipe, le **workflow proposé** (ajustable), les **pôles**, les **phases**, les **agents**.
 3. Un récapitulatif est montré et une **confirmation** est demandée ; sans oui, rien n'est écrit.
 4. Après le oui : `.pilotage/projet.json`, `plan.md`, `agents/<id>.md` et `equipe/<prénom>/portes.md` existent ; le script a dit ce qu'il a écrit. Relancer `/demarrer` : refus d'écraser.
@@ -92,8 +92,11 @@ Résultat : (à remplir)
 
 ## L. L'ancien plugin Roblox
 
+Les deux plugins cohabitent parce que leurs commandes diffèrent : `/pilotage` est celle de l'ancien plugin, `/projet` celle de ce plugin ; les commandes en markdown de ce plugin se tapent avec leur préfixe (`/pilotage:chantier`, `/pilotage:phase`, `/pilotage:demarrer`).
+
 1. Avec les deux plugins installés, ouvrir une session dans un dossier sans la configuration de l'ancien plugin.
 2. Vérifier : l'ancien plugin n'ouvre rien tout seul.
+3. Taper `/pilotage` : c'est le panneau de l'ancien plugin qui s'ouvre ; taper `/projet` : c'est celui de ce plugin. Aucun des deux ne remplace l'autre.
 
 Résultat : (à remplir)
 
@@ -104,7 +107,7 @@ Tout ce qui suit n'est prouvé que par les types du moteur ou par des tests simu
 **Moteur et commandes**
 - `$.command.run` sur une commande de plugin en markdown, et son nom exact : `demarrer` ou `pilotage:demarrer` (le code essaie les deux).
 - `$.prompt.submit` refuse un texte qui commence par « / » (dit par un agent, jamais essayé).
-- `$.session.cwd()` rempli au démarrage (vérifié une fois en vrai par le spike du 2026-11-20) et activation automatique par dossier ; si le dossier est vide, le repli `/pilotage <chemin>` reste à prévoir.
+- `$.session.cwd()` rempli au démarrage (vérifié une fois en vrai par le spike du 2026-11-20) et activation automatique par dossier ; si le dossier est vide, le repli `/projet <chemin>` reste à prévoir.
 - `$.session.id()` donne bien l'identifiant utilisé par le bandeau (lien session, chantier via `sessions.json`).
 - `$.config.list` : la ligne du thème de l'application, suivie par le thème « système ».
 - `$.clock.every` : le redessin périodique réel (toutes les 5 s) ; le test simulé ne le prouve pas ; le bouton ↻ reste en secours.

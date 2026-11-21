@@ -51,31 +51,31 @@ test('marqueur dans un dossier parent : panneau ouvert', async ($, on) => {
   expect(ouverts).toEqual([PANE.requestId])
 })
 
-test('marqueur invalide : pas de panneau, /pilotage répond avec les erreurs', async ($, on) => {
+test('marqueur invalide : pas de panneau, /projet répond avec les erreurs', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': '{"version":2}' })
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
   expect(ouverts).toEqual([])
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/invalide/)
   expect(r.text).toMatch(/version/)
   expect(ouverts).toEqual([])
 })
 
-test('/pilotage sans marqueur : propose /demarrer', async ($, on) => {
+test('/projet sans marqueur : propose /demarrer', async ($, on) => {
   disque(on, {})
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/Aucun projet/)
   expect(r.text).toMatch(/\/demarrer/)
   expect(ouverts).toEqual([])
 })
 
-test('/pilotage avec marqueur valide : ouvre le panneau', async ($, on) => {
+test('/projet avec marqueur valide : ouvre le panneau', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET })
   const ouverts = socle(on, 'C:/Projet')
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toBe('Projet « Mon jeu » ouvert.')
   expect(ouverts).toEqual([PANE.requestId])
   expect(await ids($)).toEqual(['pilotage:consigne'])
@@ -128,27 +128,27 @@ test('marqueur invalide : actif faux, erreursMarqueur remplies', async ($, on) =
   expect((etat.erreursMarqueur as string[]).length).toBeGreaterThan(0)
 })
 
-test('le dossier change vers un dossier sans marqueur : /pilotage remet tout à zéro', async ($, on) => {
+test('le dossier change vers un dossier sans marqueur : /projet remet tout à zéro', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, [CONFIG_LEA]: '{"prenom":"Léa"}', 'C:/Autre/x.txt': 'a' })
   let cwd = 'C:/Projet'
   const { etat } = avecEtat(on, () => cwd)
   await demarrer($, 'C:/Projet')
   expect(etat.actif).toBe(true)
   cwd = 'C:/Autre'
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/Aucun projet/)
   expect(etat.actif).toBe(false)
   expect(etat.projetTrouve).toBe('')
   expect(etat.membre).toBe('')
 })
 
-test('le dossier change vers un marqueur invalide : /pilotage remet tout à zéro', async ($, on) => {
+test('le dossier change vers un marqueur invalide : /projet remet tout à zéro', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': PROJET, 'C:/Mauvais/.pilotage/projet.json': '{"version":2}' })
   let cwd = 'C:/Projet'
   const { etat } = avecEtat(on, () => cwd)
   await demarrer($, 'C:/Projet')
   cwd = 'C:/Mauvais'
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/invalide/)
   expect(etat.actif).toBe(false)
   expect(etat.projetTrouve).toBe('')
@@ -190,7 +190,7 @@ test('un échec après un changement de dossier remet tout à zéro (actif, proj
   expect(etat.membre).toBe('Léa')
   cwd = 'C:/Autre'
   panne = true
-  const r = await $.command.run({ command: 'pilotage' })
+  const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/pas pu/)
   expect(etat.actif).toBe(false)
   expect(etat.projetTrouve).toBe('')
