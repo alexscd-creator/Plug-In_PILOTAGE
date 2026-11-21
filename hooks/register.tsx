@@ -252,24 +252,44 @@ async function themeDeLApplication($: any): Promise<Mode> {
   }
 }
 
-/** Cherche le projet du dossier et applique le résultat ; rend le texte de réponse (jamais ne lève). */
-async function activer($: any, dossier: string, auto: Minuterie): Promise<{ ouvert: boolean; texte: string }> {
+/** Ouvre le panneau ; faux s'il n'a pas pu s'ouvrir. Ne lève jamais. */
+async function ouvrirPanneau($: any): Promise<boolean> {
+  try {
+    await $.ui.open({ id: PANE, title: 'Pilotage' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Cherche le projet du dossier et applique le résultat ; rend le texte de réponse (jamais ne lève). `demande` : la personne a tapé /projet,
+ * le panneau s'ouvre alors toujours (écran « Aucun projet ici » ou « Fichier de projet illisible » sans projet valide) ; au démarrage de
+ * la session, il ne s'ouvre que sur un projet valide.
+ */
+async function activer($: any, dossier: string, auto: Minuterie, demande = false): Promise<{ ouvert: boolean; texte: string }> {
   try {
     const trouve = await trouverProjet(adapter($), dossier)
     if (!trouve) {
       await remettreAZero($, auto)
       await update($, erreursMarqueur, () => [])
+      const ouvert = demande && (await ouvrirPanneau($))
       return {
-        ouvert: false,
-        texte: "Aucun projet Pilotage ici (pas de fichier .pilotage/projet.json dans ce dossier ni dans ses parents). Tapez /pilotage:demarrer pour en créer un.",
+        ouvert,
+        texte: ouvert
+          ? 'Aucun projet Pilotage ici : le panneau propose « Démarrer un projet » (/pilotage:demarrer).'
+          : "Aucun projet Pilotage ici (pas de fichier .pilotage/projet.json dans ce dossier ni dans ses parents). Tapez /pilotage:demarrer pour en créer un.",
       }
     }
     if ('erreurs' in trouve) {
       await remettreAZero($, auto)
       await update($, erreursMarqueur, () => trouve.erreurs)
+      const ouvert = demande && (await ouvrirPanneau($))
       return {
-        ouvert: false,
-        texte: [`Le fichier projet de ${trouve.racine} est invalide :`, ...trouve.erreurs.map(x => `- ${x}`)].join(String.fromCharCode(10)),
+        ouvert,
+        texte: ouvert
+          ? `Le fichier de projet (.pilotage/projet.json) est invalide : le panneau dit quoi corriger (${trouve.erreurs.length} problème${trouve.erreurs.length > 1 ? 's' : ''}).`
+          : [`Le fichier projet de ${trouve.racine} est invalide :`, ...trouve.erreurs.map(x => `- ${x}`)].join(String.fromCharCode(10)),
       }
     }
     const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
@@ -668,7 +688,7 @@ export const register: Register = on => {
   on('command.run', { command: COMMANDE_PANNEAU }, async $ => {
     try {
       const dossier = (await $.session.cwd().catch(() => '')) || dossierSession
-      return { text: (await activer($, dossier, auto)).texte }
+      return { text: (await activer($, dossier, auto, true)).texte }
     } catch {
       return { text: "Pilotage n'a pas pu lire le projet de ce dossier." }
     }

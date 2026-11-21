@@ -51,25 +51,37 @@ test('marqueur dans un dossier parent : panneau ouvert', async ($, on) => {
   expect(ouverts).toEqual([PANE.requestId])
 })
 
-test('marqueur invalide : pas de panneau, /projet répond avec les erreurs', async ($, on) => {
+test('marqueur invalide : pas de panneau au démarrage ; /projet ouvre le panneau sur « Fichier de projet illisible », réponse courte', async ($, on) => {
   disque(on, { 'C:/Projet/.pilotage/projet.json': '{"version":2}' })
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
   expect(ouverts).toEqual([])
   const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/invalide/)
-  expect(r.text).toMatch(/version/)
-  expect(ouverts).toEqual([])
+  expect(r.text.length).toBeLessThan(160)
+  expect(ouverts).toEqual([PANE.requestId])
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'Fichier de projet illisible' })).toBeTruthy()
+  expect(await ui.find({ type: 'Text', text: /La version doit valoir 1/ })).toBeTruthy()
+  expect((await ui.find({ key: 'reessayer' }))?.props.label).toBe('Réessayer')
+  await ui.unmount()
 })
 
-test('/projet sans marqueur : propose /demarrer', async ($, on) => {
+test('/projet sans marqueur : le panneau s’ouvre sur « Aucun projet ici » et son bouton « Démarrer un projet » ; réponse courte', async ($, on) => {
   disque(on, {})
   const ouverts = socle(on, 'C:/Projet')
   await demarrer($, 'C:/Projet')
+  expect(ouverts).toEqual([])
   const r = await $.command.run({ command: 'projet' })
   expect(r.text).toMatch(/Aucun projet/)
   expect(r.text).toMatch(/\/pilotage:demarrer/)
-  expect(ouverts).toEqual([])
+  expect(r.text.length).toBeLessThan(160)
+  expect(ouverts).toEqual([PANE.requestId])
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'Aucun projet ici' })).toBeTruthy()
+  expect((await ui.find({ key: 'demarrer' }))?.props.label).toBe('Démarrer un projet')
+  await ui.unmount()
+  expect(await ids($)).toEqual([]) // sans projet, rien ne s'injecte dans le prompt
 })
 
 test('/projet avec marqueur valide : ouvre le panneau', async ($, on) => {
