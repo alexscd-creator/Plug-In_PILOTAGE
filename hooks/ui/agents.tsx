@@ -8,7 +8,7 @@ import type { DonneesAgents } from './agents-base'
 import { GLYPHES } from './icones'
 import { bulle, carte, chipPole, iconeEl, pastille, pointEl } from './kit'
 import type { Ctx } from './kit'
-import { couleurPole, ETATS } from './theme'
+import { couleurPole } from './theme'
 import type { Teinte } from './theme'
 
 export type { DonneesAgents }
@@ -34,39 +34,29 @@ function carteAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
   const etat = d.etats.find(e => e.agent === a.id)
   const actif = a.actif !== false
   return carte(c, [
-    <Box key="entete" flexDirection="row" alignItems="center" gap="md">
-      {bulle(c, 'agent', 40, actif ? teinte : undefined)}
-      <Box flexDirection="column" flexShrink={1}>
-        <Text weight="semibold" color={actif ? c.j.texte : c.j.texteDim}>{a.titre}</Text>
+    <Box key="entete" flexDirection="row" alignItems="center" gap="lg">
+      {bulle(c, 'agent', c.mobile ? 56 : 72, actif ? teinte : undefined)}
+      <Box flexDirection="column" gap="xs" flexShrink={1}>
+        <Text weight="bold" size="heading" color={actif ? c.j.texte : c.j.texteDim}>{a.titre}</Text>
         {actif ? null : <Text key="desactive" size="footnote" weight="semibold" color={c.j.texteDim}>Désactivé</Text>}
+        <Box key="etat" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
+          {pole && teinte ? chipPole(c, pole.titre, teinte) : null}
+          {pastille(c, etatStatut(etat?.etat ?? 'arrete'))}
+        </Box>
       </Box>
     </Box>,
-    <Box key="etat" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
-      {pole && teinte ? chipPole(c, pole.titre, teinte) : null}
-      {pastille(c, etatStatut(etat?.etat ?? 'arrete'))}
-      {etat && etat.quoi !== '' ? <Text size="footnote" color={c.j.texteSec}>{etat.quoi}</Text> : null}
-    </Box>,
+    etat && etat.quoi !== '' ? <Text key="quoi" size="footnote" color={c.j.texteSec}>{etat.quoi}</Text> : null,
     a.pourquoi !== '' ? <Text key="pourquoi" size="footnote" color={c.j.texteSec}>{`Pourquoi spécialisé : ${a.pourquoi}`}</Text> : null,
     a.skills.length > 0 ? (
       <Box key="skills" flexDirection="row" flexWrap="wrap" gap="sm">
         {a.skills.map((s, k) => chipSkill(c, d, a, s, k))}
       </Box>
     ) : null,
+    <Box key="espace" flexGrow={1} />,
     <Box key="actions" flexDirection="row" gap="sm">
       <Button key={`ouvrir-${a.id}`} label="Voir le détail" variant="secondary" onPress={() => d.ouvrir(a.id)} />
     </Box>,
-  ], { cle: `agent-${a.id}`, ...(actif ? {} : { fond: c.j.releve }) })
-}
-
-/** Légende : les six états, chacun avec son icône et son libellé. */
-function legende(c: Ctx) {
-  const { Box, Text } = c.ui
-  return (
-    <Box key="legende-etats" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
-      <Text size="footnote" weight="semibold" color={c.j.texteSec}>États :</Text>
-      {ETATS.map(e => pastille(c, e))}
-    </Box>
-  )
+  ], { cle: `agent-${a.id}`, grandir: true, ...(c.mobile ? {} : { hauteurMin: 380 }), ...(actif ? {} : { fond: c.j.releve }) })
 }
 
 function filtres(c: Ctx, d: DonneesAgents, filtre: string) {
@@ -125,7 +115,6 @@ export function pageAgents(c: Ctx, d: DonneesAgents) {
     </Box>,
     carteInstaller(c, d),
     filtres(c, d, filtre),
-    legende(c),
     <Box key="grille" flexDirection="row" flexWrap="wrap" gap="lg" width="100%">
       {visibles.map(a => <Box key={`cellule-${a.id}`} flexDirection="column" width={c.mobile ? '100%' : '48%'}>{carteAgent(c, d, a)}</Box>)}
     </Box>,

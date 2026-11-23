@@ -155,14 +155,13 @@ test('un appel resté « en cours » depuis 40 minutes se lit « Prêt à repren
   await ui.unmount()
 })
 
-test('légende : les six états sont écrits avec leur icône', async ($, on) => {
+test('pas de légende des états : chaque carte porte déjà sa pastille (icône et libellé)', async ($, on) => {
   banc(on, fichiers())
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
-    const l = await dans(ui, 'legende-etats')
-    for (const e of LABELS) expect(l).toContain(e)
-    for (const e of ['travail', 'attente', 'arrete', 'reprendre', 'bloque', 'termine']) expect(l).toContain(`pastille-icone-${e}`)
+    expect(await ui.find({ key: 'legende-etats' })).toBeFalsy()
+    expect(await dans(ui, 'agent-a-travail')).toContain('En travail')
     await ui.unmount()
   }
 })

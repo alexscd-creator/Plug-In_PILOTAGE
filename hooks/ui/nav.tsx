@@ -83,10 +83,10 @@ export function barreHaut(c: Ctx, o: OptionsHaut) {
   return (
     <Box key="barre-haut" flexDirection="row" alignItems="center" justifyContent="space-between" gap="md" width="100%">
       <Box flexDirection="row" alignItems="center" gap="md" flexShrink={1}>
-        {bulle(c, o.icone, 40)}
+        {bulle(c, o.icone, c.mobile ? 44 : 56)}
         <Box flexDirection="column" flexShrink={1}>
-          <Text size="caption" weight="semibold" color={j.texteDim}>{`Pilotage · ${o.type}`}</Text>
-          <Text weight="semibold" color={j.texte} wrap="truncate-end">{o.nom}</Text>
+          <Text size="footnote" weight="semibold" color={j.texteDim}>{`Pilotage · ${o.type}`}</Text>
+          <Text weight="bold" size={c.mobile ? 'heading' : 'title'} color={j.texte} wrap="truncate-end">{o.nom}</Text>
         </Box>
       </Box>
       <Box flexDirection="row" gap="xs" flexShrink={0}>

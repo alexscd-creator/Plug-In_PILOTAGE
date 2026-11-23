@@ -67,7 +67,7 @@ export function cadre(c: Ctx, enfants: unknown) {
   )
 }
 
-type OptionsCarte = { cle?: string; actif?: boolean; centre?: boolean; fond?: string; bord?: string }
+type OptionsCarte = { cle?: string; actif?: boolean; centre?: boolean; fond?: string; bord?: string; grandir?: boolean; hauteurMin?: number }
 
 /** Carte : surface, bordure fine arrondie, jamais de grand aplat coloré ; le bord passe en accent si `actif`. */
 export function carte(c: Ctx, enfants: unknown, o: OptionsCarte = {}) {
@@ -82,6 +82,8 @@ export function carte(c: Ctx, enfants: unknown, o: OptionsCarte = {}) {
       borderColor={o.bord ?? (o.actif ? c.j.accent : c.j.bord)}
       backgroundColor={o.fond ?? c.j.surface}
       {...(o.centre ? { alignItems: 'center' as const } : {})}
+      {...(o.grandir ? { flexGrow: 1 } : {})}
+      {...(o.hauteurMin ? { minHeight: o.hauteurMin } : {})}
     >
       {enfants as never}
     </Box>
