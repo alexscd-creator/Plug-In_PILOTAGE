@@ -9,6 +9,7 @@ import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, lireSkills, specsProjet } from './model/agents-registre.ts'
 import { chantierDeSession, grouperChantiers } from './model/chantiers.ts'
 import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
+import { RAPPEL_TRI, ressembleIdeeOuRetour } from './model/detecteur.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { ecritureSure, MESSAGE_LIEN_PANNEAU } from './model/liens.ts'
 import type { StatLien } from './model/liens.ts'
@@ -803,12 +804,14 @@ export const register: Register = on => {
   let dernierEtat: { cle: string; a: number; texte: string } | null = null
   on('prompt.submit', async ($, e, next) => {
     let texte = ''
+    let rappel = false
     try {
       if (!e.isMeta && (await read($, actif))) {
         const racine = await read($, projetTrouve)
         const moi = await read($, membre)
         const maintenant = await horloge($)
         if (racine !== '') {
+          rappel = ressembleIdeeOuRetour(e.text)
           const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($))
           const etat = entree ? construireEtat(entree) : ''
           const cle = `${racine}|${moi}`
@@ -822,7 +825,8 @@ export const register: Register = on => {
     } catch {
       texte = ''
     }
-    return next(texte === '' ? e : { ...e, context: [...(e.context ?? []), texte] })
+    const ajouts = [...(texte === '' ? [] : [texte]), ...(rappel ? [RAPPEL_TRI] : [])]
+    return next(ajouts.length === 0 ? e : { ...e, context: [...(e.context ?? []), ...ajouts] })
   })
 
   // Panneau fermé (par la personne ou par un plugin) : plus de rafraîchissement automatique ; /projet le relance.

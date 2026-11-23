@@ -161,3 +161,19 @@ test('sans projet : aucun état rattaché au message', async ($, on) => {
   await demarrer($)
   expect(await envoyer($)).toEqual([])
 })
+
+test('détecteur : une idée reçoit le rappel de tri (en plus de l’état), une commande ou un simple « ok » non ; sans projet, rien', async ($, on) => {
+  socle(on, dossierPages())
+  await demarrer($)
+  const idee = await envoyer($, 'Et si on ajoutait un mode sombre ?')
+  expect(idee.some(c => c.includes('skill `chef-de-projet`'))).toBe(true)
+  expect((await envoyer($, '/projet')).some(c => c.includes('chef-de-projet'))).toBe(false)
+  expect((await envoyer($, 'ok')).some(c => c.includes('chef-de-projet'))).toBe(false)
+  expect((await envoyer($, 'il faudrait un export')).filter(c => c.includes('chef-de-projet')).length).toBe(1)
+})
+
+test('détecteur : hors projet, pas de rappel', async ($, on) => {
+  socle(on, { 'C:/Projet/x.txt': 'a' })
+  await demarrer($)
+  expect(await envoyer($, 'Et si on ajoutait un mode sombre ?')).toEqual([])
+})
