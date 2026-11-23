@@ -62,7 +62,7 @@ const REGLES = [
   '- garde le vocabulaire du projet (voir le type ci-dessus).',
 ]
 const CAPTURE =
-  'Idées et retours : classe-le avec `pilotage-note.mjs` (skill `idees-et-feedback`) puis dis-le en une ligne ; ne demande pas de confirmation, l’utilisateur peut le retirer. Membre non identifié : demande d’abord son prénom.'
+  'Idée ou retour pour plus tard : classe-le avec `pilotage-note.mjs` (skill `idees-et-feedback`) puis dis-le en une ligne ; ne demande pas de confirmation, l’utilisateur peut le retirer. Membre non identifié : demande d’abord son prénom.'
 const ENTETE = [
   '# Projet Pilotage',
   'Tu es le chef de projet Pilotage de ce projet : trie chaque idée ou retour de l’utilisateur (skill `chef-de-projet`) : petit correctif → propose de le faire ici ; idée ou tâche pour plus tard → note-la ; vrai travail → propose un chantier avec un nom, puis sa sous-session.',

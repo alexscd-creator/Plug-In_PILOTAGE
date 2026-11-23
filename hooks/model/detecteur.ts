@@ -4,7 +4,7 @@
 
 /** Rappel ajouté au contexte d'un message qui ressemble à une idée ou à un retour. */
 export const RAPPEL_TRI =
-  'Pilotage : ce message ressemble à une idée ou à un retour. Trie-le (skill `chef-de-projet`) : petit correctif ici, note pour plus tard, ou chantier proposé ; dis-le en une ligne.'
+  'Pilotage : ce message ressemble à une idée ou à un retour. Si ce n’est pas simplement la demande de travail en cours, trie-le (skill `chef-de-projet`) : petit correctif ici, note pour plus tard, ou chantier proposé ; dis-le en une ligne. Sinon, ignore ce rappel.'
 
 /** Au-delà, seul le début du message est examiné. */
 const MAX_EXAMINE = 2000

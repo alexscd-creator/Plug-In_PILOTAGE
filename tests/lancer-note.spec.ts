@@ -112,3 +112,30 @@ test('lancerNote : note changée sur le disque (illisible) → refus avant toute
   assert.equal(r.ok, false)
   assert.deepEqual(d.ecrits, [])
 })
+
+test('relecture : casse différente sur le disque → suffixe ; dossier présent mais illisible → refus ; dossier de note inattendu → refus', async () => {
+  const d = disque(base(note(), { [`${R}/.pilotage/equipe/lea/chantiers/Export-PDF-du-plan.md`]: 'à la main' }))
+  const r = await lancerNote(d.fs, R, 'Léa', lue(note()), '', MAINTENANT)
+  assert.ok(r.ok && r.id === 'export-pdf-du-plan-2')
+
+  const e = disque(base(note(), { [`${R}/.pilotage/equipe/lea/chantiers/autre.md`]: 'x' }))
+  const fsPanne = {
+    ...e.fs,
+    list: async (p: string) => { if (p.endsWith('/chantiers')) throw new Error('accès refusé'); return e.fs.list(p) },
+    exists: async (p: string) => Object.keys(e.f).some(k => k === p || k.startsWith(p + '/')),
+  }
+  assert.equal((await lancerNote(fsPanne, R, 'Léa', lue(note()), '', MAINTENANT)).ok, false)
+  assert.deepEqual(e.ecrits, [])
+
+  const g = disque(base())
+  const ailleurs: NoteLue = { ...lue(note()), chemin: '.pilotage/equipe/lea/chantiers/2026-11-22-export-pdf.md' }
+  assert.equal((await lancerNote(g.fs, R, 'Léa', ailleurs, '', MAINTENANT)).ok, false)
+  assert.deepEqual(g.ecrits, [])
+})
+
+test('exists : une fiche que la liste ne montre pas mais qui existe n’est jamais écrasée', async () => {
+  const d = disque(base())
+  const fs = { ...d.fs, exists: async (p: string) => p.endsWith('/chantiers/export-pdf-du-plan.md') }
+  assert.equal((await lancerNote(fs, R, 'Léa', lue(note()), '', MAINTENANT)).ok, false)
+  assert.deepEqual(d.ecrits, [])
+})

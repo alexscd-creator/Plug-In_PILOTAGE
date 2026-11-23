@@ -15,6 +15,8 @@ export type FsEcriture = {
   read(p: string): Promise<string>
   write(p: string, texte: string): Promise<void>
   list(p: string): Promise<string[]>
+  /** Facultatif : le fichier ou dossier existe-t-il ? (sert à ne jamais écraser une fiche) */
+  exists?(p: string): Promise<boolean>
 }
 /** Où écrire : racine du projet, membre courant (prénom du projet) et identifiant du chantier. */
 export type Cible = { racine: string; membre: string; chantier: string }

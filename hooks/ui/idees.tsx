@@ -78,7 +78,7 @@ export const notePropre = (n: NoteLue, moi: string): boolean => moi !== '' && do
 
 function copierNote(c: Ctx, d: DonneesIdees, n: NoteLue) {
   const racine = d.racine.replaceAll(String.fromCharCode(92), '/').replace(/\/+$/, '')
-  return boutonCopier(c, `note-${cleNote(n)}`, `${racine}/${n.chemin}`, d.copier, c.surface === 'terminal' ? 'Copier le chemin' : GLYPHES.copier)
+  return boutonCopier(c, `note-${cleNote(n)}`, `${racine}/${n.chemin}`, d.copier, c.surface === 'terminal' || c.mobile ? 'Copier le chemin' : GLYPHES.copier)
 }
 
 function carteNote(c: Ctx, d: DonneesIdees, n: NoteLue) {

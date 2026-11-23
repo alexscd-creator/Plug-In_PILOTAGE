@@ -27,3 +27,8 @@ test('le rappel nomme le skill chef-de-projet et ne décide rien', () => {
   assert.match(RAPPEL_TRI, /idée ou (à )?un retour/)
   assert.ok(RAPPEL_TRI.length < 300)
 })
+
+test('le rappel laisse ignorer une demande de travail en cours', () => {
+  assert.match(RAPPEL_TRI, /demande de travail en cours/)
+  assert.match(RAPPEL_TRI, /ignore/)
+})

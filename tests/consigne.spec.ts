@@ -215,3 +215,7 @@ test('chef de projet : la ligne juste après le titre donne le rôle, nomme le s
   const tous = projet({ workflow: { outils: ['Figma', 'Gemini', 'Blender', 'Mesh AI', 'GitHub', 'Vault', 'Roblox'].map(o => ({ role: 'r', outil: o })) } })
   assert.ok(partieFixe(tous, 'abc-123').length < 3000, String(partieFixe(tous, 'abc-123').length))
 })
+
+test('capture : réservée à ce qui est pour plus tard (pas de note pour un petit correctif ni un chantier)', () => {
+  assert.ok(partieFixe(projet()).includes('Idée ou retour pour plus tard : classe-le'))
+})

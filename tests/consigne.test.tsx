@@ -177,3 +177,14 @@ test('détecteur : hors projet, pas de rappel', async ($, on) => {
   await demarrer($)
   expect(await envoyer($, 'Et si on ajoutait un mode sombre ?')).toEqual([])
 })
+
+test('détecteur : dans la session liée à un chantier, pas de rappel (« il faudrait » y est le travail en cours)', async ($, on) => {
+  socle(on, {
+    ...dossierPages(),
+    'C:/Projet/.pilotage/equipe/lea/chantiers/menu.md': serializeChantier(chantier('menu', { titre: 'Refonte du menu' })),
+    'C:/Projet/.pilotage/equipe/lea/sessions.json': JSON.stringify({ 'sess-chantier': 'menu' }),
+  })
+  on('session.id', () => ({ value: 'sess-chantier' }))
+  await demarrer($)
+  expect((await envoyer($, 'il faudrait corriger ce bug')).some(c => c.includes('chef-de-projet'))).toBe(false)
+})

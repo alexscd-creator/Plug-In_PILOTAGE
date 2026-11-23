@@ -206,6 +206,10 @@ function bancEcrivant(on: Function, fichiers: Record<string, string>) {
     return { value: undefined }
   })
   on('ui.toast', (_: unknown, e: { text: string }) => { toasts.push(e.text); return { value: undefined } })
+  on('fs.exists', (_: unknown, e: { path: string }) => {
+    const p = e.path.replaceAll(String.fromCharCode(92), '/')
+    return { value: Object.keys(fichiers).some(k => k === p || k.startsWith(p + '/')) }
+  })
   on('command.register', () => ({ value: undefined }))
   on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
   on('session.cwd', () => ({ value: 'C:/Projet' }))
@@ -238,4 +242,14 @@ test('« Lancer en chantier » : aucune écriture chez un autre membre, même su
   expect(await ui.find({ key: 'lancer-sam-2026-11-21-mode-sombre' })).toBeFalsy()
   await ui.unmount()
   expect(ecritures).toEqual([])
+})
+
+test('« Lancer en chantier » : deux appuis rapprochés ne créent qu’un chantier', async ($, on) => {
+  const fichiers = dossier(TROIS)
+  const { ecritures } = bancEcrivant(on, fichiers)
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  await Promise.all([ui.press({ key: 'lancer-lea-2026-11-20-lancer-les-defis' }), ui.press({ key: 'lancer-lea-2026-11-20-lancer-les-defis' })])
+  expect(ecritures.filter(p => p.includes('/chantiers/'))).toEqual([`${R}/lea/chantiers/lancer-les-defis.md`])
+  await ui.unmount()
 })

@@ -385,12 +385,31 @@ async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Pa
  * « Lancer en chantier » (page À faire) : la fiche est créée chez le membre, la note marquée (voir model/lancer-note.ts), jamais au
  * travers d'un lien. Succès : toast, le panneau se relit. Échec : l'erreur en toast, rien d'autre ne change.
  */
+const notesEnLancement = new Set<string>()
 async function lancerNoteDepuisPanneau($: any, racine: string, moi: string, n: NoteLue, phase: string): Promise<void> {
+  // Un second appui pendant le premier ne lance rien : sinon deux fiches pour une note.
+  const cle = `${racine}|${n.chemin}`
+  if (notesEnLancement.has(cle)) return
+  notesEnLancement.add(cle)
+  try {
+    await lancerUneNote($, racine, moi, n, phase)
+  } finally {
+    notesEnLancement.delete(cle)
+  }
+}
+async function lancerUneNote($: any, racine: string, moi: string, n: NoteLue, phase: string): Promise<void> {
   const r = await lancerNote(
     {
       read: async p => String((await $.fs.read(p)) ?? ''),
       write: (p, t) => ecrireDansProjet($, racine, p, t),
       list: p => listeSansLiens($, p, []),
+      exists: async p => {
+        try {
+          return (await $.fs.exists(p)) === true
+        } catch {
+          return false // la liste du dossier reste la garde
+        }
+      },
     },
     racine, moi, n, phase, new Date(await horloge($)).toISOString(),
   )
@@ -832,8 +851,14 @@ export const register: Register = on => {
         const moi = await read($, membre)
         const maintenant = await horloge($)
         if (racine !== '') {
-          rappel = ressembleIdeeOuRetour(e.text)
-          const entree = entreeDepuisLecture(await lireProjetComplet(adapter($), racine, moi), moi, maintenant, nomDuPlugin($))
+          const lecture = await lireProjetComplet(adapter($), racine, moi)
+          // Dans la session d'un chantier, « il faudrait… » ou « bug » est le travail en cours, pas une idée à trier.
+          if (ressembleIdeeOuRetour(e.text)) {
+            const idSession = String((await $.session.id().catch(() => '')) ?? '')
+            const sessions = await lireSessions(adapter($), racine, lecture.projet?.equipe ?? [])
+            rappel = chantierDeSession(lecture.chantiers, sessions, idSession) === null
+          }
+          const entree = entreeDepuisLecture(lecture, moi, maintenant, nomDuPlugin($))
           const etat = entree ? construireEtat(entree) : ''
           const cle = `${racine}|${moi}`
           const neuf = dernierEtat?.cle !== cle || dernierEtat.texte !== etat || maintenant - dernierEtat.a > RAPPEL_ETAT_MS

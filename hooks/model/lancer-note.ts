@@ -43,11 +43,16 @@ export function chantierDepuisNote(n: Note, idsPris: string[], phase: string, ma
   }
 }
 
-/** Les identifiants des fiches d'un dossier (`<id>.md`) ; dossier absent : aucun. */
+/**
+ * Les identifiants des fiches d'un dossier (`<id>.md`), en minuscules (disques insensibles à la casse) ; dossier absent : aucun.
+ * Un dossier présent mais illisible lève : on ne crée rien à l'aveugle.
+ */
 async function idsDe(fs: FsEcriture, dossier: string): Promise<string[]> {
   try {
-    return (await fs.list(dossier)).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3))
-  } catch {
+    return (await fs.list(dossier)).map(f => f.toLowerCase()).filter(f => f.endsWith('.md')).map(f => f.slice(0, -3))
+  } catch (e) {
+    const present = fs.exists ? await fs.exists(dossier).catch(() => true) : false
+    if (present) throw new Error(`dossier illisible : ${premiereLigne(e)}`)
     return []
   }
 }
@@ -60,7 +65,7 @@ export async function lancerNote(fs: FsEcriture, racine: string, moi: string, n:
     if ((n.lance ?? '') !== '') return refus('Cette note est déjà lancée en chantier.')
     const equipe = `${normaliser(String(racine ?? ''))}/.pilotage/equipe`
     const parties = n.chemin.split('/')
-    if (parties.length !== 5 || parties[0] !== '.pilotage' || parties[1] !== 'equipe' || !nomSur(parties[2]!) || !nomSur(parties[4]!)) {
+    if (parties.length !== 5 || parties[0] !== '.pilotage' || parties[1] !== 'equipe' || !nomSur(parties[2]!) || (parties[3] !== 'idees' && parties[3] !== 'feedback') || !nomSur(parties[4]!) || !parties[4]!.endsWith('.md')) {
       return refus('Chemin de note inattendu : rien n’est écrit.')
     }
     const dossiers = (await fs.list(equipe)).filter(nomSur).sort()
@@ -85,7 +90,7 @@ export async function lancerNote(fs: FsEcriture, racine: string, moi: string, n:
     if (!relue.ok) return refus(`La fiche ne se relirait pas : ${relue.erreurs[0] ?? 'illisible'} Rien n’est écrit.`)
     const cheminFiche = `${dossierChantiers}/${c.id}.md`
     // Relu juste avant d'écrire (une autre session a pu créer la fiche entre-temps) : un fichier présent n'est jamais écrasé.
-    if ((await idsDe(fs, dossierChantiers)).includes(c.id)) return refus('Une fiche porte déjà ce nom : rien n’est écrit.')
+    if ((await idsDe(fs, dossierChantiers)).includes(c.id) || (fs.exists && (await fs.exists(cheminFiche)))) return refus('Une fiche porte déjà ce nom : rien n’est écrit.')
 
     marquee.lance = c.id
     const erreursNote = validerNote(marquee)
