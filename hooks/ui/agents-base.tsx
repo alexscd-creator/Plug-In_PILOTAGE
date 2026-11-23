@@ -5,6 +5,14 @@ import type { Ctx } from './kit'
 import { couleurPole } from './theme'
 import type { Teinte } from './theme'
 
+/** Actions sur les skills ; absent quand le prénom est inconnu (lecture seule). */
+export type GestionSkills = {
+  ajouter: (agent: string) => void | Promise<void>
+  retirer: (agent: string, skill: string) => void | Promise<void>
+  supprimer: (skill: string) => void | Promise<void>
+  demander: (skill: string) => void | Promise<void>
+}
+
 export type DonneesAgents = {
   projet: Projet
   /** Un état par agent du projet (`fusionnerEtats`). */

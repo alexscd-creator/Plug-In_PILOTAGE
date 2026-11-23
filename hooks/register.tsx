@@ -21,6 +21,7 @@ import { creerMinuterie } from './model/minuterie.ts'
 import type { Minuterie } from './model/minuterie.ts'
 import type { LectureProjet } from './model/lecture.ts'
 import { libelle, parseMonWorkflow } from './model/presets.ts'
+import { AUTRE, agentsUtilisant, demandeModifier, demandeNouveau, NOUVEAU, optionsAjout, pasRattaches } from './model/skills-gestion.ts'
 import { memeMembre, parseProjet } from './model/projet.ts'
 import type { Projet, Workflow } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
@@ -328,7 +329,7 @@ async function lireDonneesAgents($: any, lecture: LectureProjet, maintenant: num
   return {
     live, filtre: await read($, filtrePole), ouvert: await read($, agentOuvert),
     etats: fusionnerEtats(lecture.projet?.agents ?? [], live, lecture.chantiers, maintenant),
-    fichesAgents: lecture.fichesAgents, fichesSkills: lecture.fichesSkills,
+    fichesAgents: lecture.fichesAgents, fichesSkills: lecture.fichesSkills, skillsDisponibles: lecture.skillsDisponibles,
   }
 }
 
@@ -454,6 +455,57 @@ async function envoyer($: any, texte: string, surface?: string): Promise<void> {
   } catch {
     // L'état ne s'est pas mis à jour : le bouton reste utilisable.
   }
+}
+
+/**
+ * Prépare une demande à Claude qui garde une consigne à compléter (« <décrivez le changement> ») : elle n'est jamais envoyée toute seule.
+ * Zone de saisie d'abord ; sinon copie ; sinon la demande s'affiche dans un message à recopier. Ne lève jamais.
+ */
+async function preparer($: any, texte: string): Promise<void> {
+  if (texte === '') return
+  const dire = (t: string) => direReglage($, t)
+  const rempli = await $.prompt.fill({ text: texte }).then((r: { isFilled: boolean }) => r.isFilled === true).catch(() => false)
+  if (rempli) return dire('Demande prête dans la zone de saisie : remplacez le texte entre < > puis envoyez.')
+  if (await copier($, texte)) return dire('Demande copiée : collez-la dans la conversation et complétez le texte entre < >.')
+  dire(`Copiez cette demande dans la conversation : ${texte}`)
+}
+
+/** « Ajouter un skill » : choix parmi les skills non rattachés ($.ui.ask, 2 à 4 options), ou « Nouveau skill » (demande à Claude). Annuler ou refuser : rien ne change. */
+async function ajouterSkill($: any, racine: string, projet: Projet, agent: string, disponibles: string[], moi: string): Promise<void> {
+  const a = projet.agents.find(x => x.id === agent)
+  if (!a) return
+  const candidats = pasRattaches(projet, agent, disponibles)
+  let page = 0
+  for (let tour = 0; tour < 100; tour++) {
+    const { options, suivante } = optionsAjout(candidats, page)
+    let choix = ''
+    try {
+      choix = String((await $.ui.ask(`Quel skill ajouter à ${a.titre} ?`, options)) ?? '')
+    } catch {
+      choix = ''
+    }
+    if (choix === AUTRE && suivante !== null) { page = suivante; continue }
+    if (choix === NOUVEAU) return await preparer($, demandeNouveau(a.titre))
+    if (candidats.includes(choix)) return await appliquerPatch($, racine, projet, { type: 'skillRattacher', agent, skill: choix }, moi)
+    return direReglage($, 'Aucun skill ajouté.')
+  }
+}
+
+/** « Supprimer le skill » : seulement si aucun agent ne l'utilise, après confirmation ; la suppression elle-même est une demande à Claude (script pilotage-skill.mjs). */
+async function supprimerSkill($: any, projet: Projet, skill: string): Promise<void> {
+  const utilisateurs = agentsUtilisant(projet, skill)
+  if (utilisateurs.length > 0) return direReglage($, `Ce skill est encore utilisé par ${utilisateurs.map(x => x.titre).join(', ')} : retirez-le d'abord.`)
+  const id = demandeModifier(skill) === '' ? '' : skill.replace(/[^a-z0-9-]/g, '')
+  if (id === '') return
+  let accord = false
+  try {
+    accord = (await $.ui.ask(`Supprimer le skill « ${id} » du projet ? Son fichier sera supprimé, sans retour possible.`, ['Supprimer', 'Garder'])) === 'Supprimer'
+  } catch {
+    accord = false
+  }
+  if (!accord) return direReglage($, 'Skill gardé.')
+  await envoyer($, `Supprime le skill ${id} du projet avec le script pilotage-skill.mjs (action supprimer) : l'utilisateur a confirmé la suppression.`)
+  direReglage($, 'Suppression demandée à Claude. Rafraîchissez ensuite le panneau.')
 }
 
 // ---- Suivi des agents en direct (fonctions de module : le moteur n'accepte `$` que dans les fonctions déclarées en haut du fichier) ----
@@ -911,6 +963,12 @@ export const register: Register = on => {
                 : courante === 'agents' && donneesAgents
                   ? pageAgents(ctx, {
                       ...donneesAgents, projet: lecture.projet, maintenant, copier: copierLeChemin,
+                      ...(moi === '' ? {} : { gestion: {
+                        ajouter: sur($, (agent: string) => ajouterSkill($, racine, projet, agent, lecture.skillsDisponibles, moi)),
+                        retirer: sur($, (agent: string, skill: string) => appliquerPatch($, racine, projet, { type: 'skillRetirer', agent, skill }, moi)),
+                        supprimer: sur($, (skill: string) => supprimerSkill($, projet, skill)),
+                        demander: sur($, (skill: string) => preparer($, demandeModifier(skill))),
+                      } }),
                       filtrer: sur($, async (id: string) => { await update($, filtrePole, () => id) }),
                       ouvrir: sur($, async (id: string) => { await update($, agentOuvert, () => id) }),
                     })

@@ -1,12 +1,13 @@
 // Détail d'un agent (maquette « Détail d'agent ») : définition, skills avec « Copier le chemin », fiche .md, outils, appels récents
-// de CETTE session. LIT seulement. Les textes viennent des fichiers du projet : ils ne sont qu'affichés.
+// de CETTE session. Les skills se gèrent dans hooks/ui/skills.tsx. Les textes viennent des fichiers du projet : ils ne sont qu'affichés.
 import { enLectureSeule, outilsAgent } from '../model/agents-registre.ts'
 import { etatStatut } from '../model/chantiers.ts'
 import type { AgentDef } from '../model/projet.ts'
-import { boutonVoir, cheminAgent, cheminSkill, poleAgent } from './agents-base'
+import { boutonVoir, cheminAgent, poleAgent } from './agents-base'
 import type { DonneesAgents } from './agents-base'
-import { avatar, boutonCopier, carte, chipPole, pastille, titreSection } from './kit'
+import { avatar, carte, chipPole, pastille, titreSection } from './kit'
 import type { Ctx } from './kit'
+import { carteSkills } from './skills'
 
 const MIN = 60_000
 
@@ -65,21 +66,7 @@ export function detailAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
             : <Text key={`fiche-absente-${a.id}`} size="caption" color={j.texteDim}>Fiche .md non installée</Text>}
         </Box>,
       ], { cle: `definition-agent-${a.id}` })}
-      {carte(c, [
-        titreSection(c, 'Skills'),
-        a.skills.length === 0 ? <Text key="aucun-skill" color={j.texteDim}>Aucun skill pour cet agent.</Text> : null,
-        ...a.skills.map((s, k) => (
-          <Box key={`skill-ligne-${a.id}-${k}`} flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md" padding="sm" backgroundColor={j.releve}>
-            <Box flexDirection="column" flexShrink={1}>
-              <Text weight="semibold" color={j.texte}>{s}</Text>
-              <Text size="footnote" mono color={j.texteDim}>{cheminSkill(s)}</Text>
-            </Box>
-            {d.fichesSkills[s] === true
-              ? boutonCopier(c, `skill-${a.id}-${k}`, cheminSkill(s), d.copier)
-              : <Text key={`absent-${a.id}-${k}`} size="caption" color={j.texteDim}>skill non installé</Text>}
-          </Box>
-        )),
-      ], { cle: `skills-agent-${a.id}` })}
+      {carteSkills(c, d, a)}
       {carte(c, [
         titreSection(c, 'Outils autorisés'),
         <Box key="outils" flexDirection="row" flexWrap="wrap" gap="sm">
