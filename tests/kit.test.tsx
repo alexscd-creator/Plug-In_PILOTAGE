@@ -159,7 +159,7 @@ test('BoutonCopier : sur mobile, icône seule avec le nom accessible conservé',
 
 test('Navigation : sept onglets dans l’ordre de la maquette, l’actif en teinte d’accent', async ($, on) => {
   const monter = banc(on)
-  expect(PAGES.map(p => p.titre)).toEqual(['Aperçu', 'Plan', 'Phases', 'Chantiers', 'Agents', 'Idées', 'Paramètres'])
+  expect(PAGES.map(p => p.titre)).toEqual(['Aperçu', 'Plan', 'Phases', 'Chantiers', 'Agents', 'À faire', 'Paramètres'])
   const j = jetons('clair')
   for (const surface of TOUTES) {
     const ui = await monter($, surface, c => navigation(c, 'plan', () => undefined))

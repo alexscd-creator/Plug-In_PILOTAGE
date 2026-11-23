@@ -7,7 +7,7 @@ import { PANE, SURFACES } from './disque'
 import { dossierPages, PROJET_PAGES } from './fixture-pages'
 
 const R = 'C:/Projet/.pilotage/equipe'
-const VIDE = 'Aucune idée ni retour classé pour l’instant. Lancez une idée dans la conversation : elle sera classée automatiquement.'
+const VIDE = 'Rien à faire pour l’instant. Lancez une idée ou un retour dans la conversation : il sera classé ici.'
 
 const note = (id: string, extra: Partial<Note> = {}): Note => ({
   id, type: 'idee', titre: `Titre ${id}`, date: '2026-11-21T10:00:00Z', auteur: 'Léa', phase: '', chantier: '', lance: '', texte: `Texte de ${id}.`, ...extra,
@@ -35,7 +35,7 @@ const copies = (on: Function) => {
   return l
 }
 
-test('page Idées sans aucune note : état vide honnête, ni « Bientôt » ni exemple, sur chaque surface', async ($, on) => {
+test('page À faire sans aucune note : état vide honnête, ni « Bientôt » ni exemple, sur chaque surface', async ($, on) => {
   const { ecritures } = banc(on, dossierPages(PROJET_PAGES))
   await demarrer($)
   for (const surface of SURFACES) {
@@ -43,7 +43,8 @@ test('page Idées sans aucune note : état vide honnête, ni « Bientôt » ni e
     expect(await texte(ui, VIDE)).toBeTruthy()
     expect(await ui.find({ key: 'carte-avenir-idees' })).toBeFalsy()
     expect(await texte(ui, 'Bientôt')).toBeFalsy()
-    expect(await texte(ui, /^Tout · /)).toBeFalsy()
+    expect(await texte(ui, /Tout · /)).toBeFalsy()
+    expect(await texte(ui, 'À faire')).toBeTruthy()
     await ui.unmount()
   }
   expect(ecritures).toEqual([])
@@ -55,9 +56,9 @@ test('idées et retours de toute l’équipe : puce de type, titre, date, auteur
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile']) {
     const ui = await monter($, surface)
     const a = await dans(ui, 'note-lea-2026-11-20-lancer-les-defis'), b = await dans(ui, 'note-lea-2026-11-21-menu-confus'), c = await dans(ui, 'note-sam-2026-11-21-mode-sombre')
-    expect(a).toContain('Lancer les défis'); expect(a).toContain('Idée'); expect(a).toContain('2026-11-20'); expect(a).toContain('Léa'); expect(a).toContain('Texte de 2026-11-20-lancer-les-defis.')
+    expect(a).toContain('Lancer les défis'); expect(a).toContain('Idée · Léa · 20/11'); expect(a).toContain('Texte de 2026-11-20-lancer-les-defis.')
     expect(a).not.toContain('Phase :'); expect(a).not.toContain('Chantier :')
-    expect(b).toContain('Menu confus'); expect(b).toContain('Retour'); expect(b).toContain('Phase : Conception'); expect(b).toContain('Chantier : refonte-menu')
+    expect(b).toContain('Menu confus'); expect(b).toContain('Retour · Léa · 21/11'); expect(b).toContain('Phase : Conception'); expect(b).toContain('Chantier : refonte-menu')
     expect(c).toContain('Mode sombre'); expect(c).toContain('Sam')
     const tout = JSON.stringify(await ui.find({ key: 'liste-notes' }))
     expect(tout.indexOf('Mode sombre')).toBeLessThan(tout.indexOf('Menu confus'))
@@ -74,7 +75,7 @@ test('« Copier le chemin » copie le chemin du fichier de la note, sur la surfa
   await demarrer($)
   for (const surface of SURFACES) {
     const ui = await monter($, surface)
-    expect((await ui.find({ key: 'copier-note-lea-2026-11-21-menu-confus' }))?.props.label).toBe('Copier le chemin')
+    expect((await ui.find({ key: 'copier-note-lea-2026-11-21-menu-confus' }))?.props.label).toBe(surface === 'terminal' ? 'Copier le chemin' : '⧉')
     await ui.press({ key: 'copier-note-lea-2026-11-21-menu-confus' })
     expect(l.at(-1)).toEqual({ text: `${R}/lea/feedback/2026-11-21-menu-confus.md`.replace('C:/Projet/.pilotage/equipe', 'C:/Projet/.pilotage/equipe'), surface })
     await ui.press({ key: 'copier-note-sam-2026-11-21-mode-sombre' })
@@ -88,9 +89,9 @@ test('filtre idées, retours, tout : les compteurs sont dans les boutons, l’é
   await demarrer($)
   for (const surface of SURFACES) {
     const ui = await monter($, surface)
-    expect((await ui.find({ key: 'filtre-tout' }))?.props.label).toBe('Tout · 3')
-    expect((await ui.find({ key: 'filtre-idee' }))?.props.label).toBe('Idées · 2')
-    expect((await ui.find({ key: 'filtre-feedback' }))?.props.label).toBe('Retours · 1')
+    expect((await ui.find({ key: 'filtre-tout' }))?.props.label).toBe('☰  Tout · 3')
+    expect((await ui.find({ key: 'filtre-idee' }))?.props.label).toBe('✦  Idées · 2')
+    expect((await ui.find({ key: 'filtre-feedback' }))?.props.label).toBe('⚠  Retours · 1')
     expect((await ui.find({ key: 'filtre-tout' }))?.props.variant).toBe('primary')
     await ui.press({ key: 'filtre-idee' })
     expect(await ui.find({ key: 'note-lea-2026-11-20-lancer-les-defis' })).toBeTruthy()
@@ -112,7 +113,7 @@ test('filtre sans résultat : une phrase honnête, les boutons restent', async (
   await demarrer($)
   const ui = await monter($, 'desktop')
   await ui.press({ key: 'filtre-feedback' })
-  expect(await texte(ui, 'Aucun retour classé pour l’instant.')).toBeTruthy()
+  expect(await texte(ui, 'Aucun retour à faire pour l’instant.')).toBeTruthy()
   expect(await texte(ui, VIDE)).toBeFalsy()
   expect(await ui.find({ key: 'filtre-tout' })).toBeTruthy()
   await ui.press({ key: 'filtre-idee' })
@@ -163,4 +164,33 @@ test('le texte d’une note est une donnée : il s’affiche tel quel, balises e
     expect(await ui.find({ key: 'liste-notes' })).toBeTruthy()
     await ui.unmount()
   }
+})
+
+test('notes lancées : hors de la liste et des compteurs, dans « Déjà en chantier · n » replié, qui se déplie', async ($, on) => {
+  const lancee = note('2026-11-22-export', { titre: 'Export PDF', date: '2026-11-22T10:00:00Z', lance: 'export-pdf' })
+  const { ecritures } = banc(on, dossier([...TROIS, ['lea', lancee]]))
+  await demarrer($)
+  for (const surface of SURFACES) {
+    const ui = await monter($, surface)
+    expect(JSON.stringify(await ui.find({ key: 'liste-notes' }))).not.toContain('Export PDF')
+    expect((await ui.find({ key: 'filtre-tout' }))?.props.label).toBe('☰  Tout · 3')
+    expect((await ui.find({ key: 'basculer-deja' }))?.props.label).toContain('Déjà en chantier · 1')
+    expect(await dans(ui, 'deja-en-chantier')).toContain('Export PDF → chantier « export-pdf »')
+    expect(await ui.find({ key: 'lancee-lea-2026-11-22-export' })).toBeFalsy()
+    await ui.press({ key: 'basculer-deja' })
+    expect(await ui.find({ key: 'lancee-lea-2026-11-22-export' })).toBeTruthy()
+    await ui.press({ key: 'basculer-deja' })
+    await ui.unmount()
+  }
+  expect(ecritures).toEqual([])
+})
+
+test('toutes les notes lancées : « Rien à faire », pas de filtres, la section « Déjà en chantier » reste', async ($, on) => {
+  banc(on, dossier([['lea', note('2026-11-22-export', { titre: 'Export PDF', lance: 'export-pdf' })]]))
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect(await texte(ui, VIDE)).toBeTruthy()
+  expect(await ui.find({ key: 'filtre-tout' })).toBeFalsy()
+  expect(await ui.find({ key: 'deja-en-chantier' })).toBeTruthy()
+  await ui.unmount()
 })

@@ -52,6 +52,8 @@ declare module 'claude-code' {
       erreurEcriture: Shaped<string>
       /** Vrai dès que l'utilisateur a choisi une page : la page « Chantier ouvert » n'est plus ouverte d'office. */
       pageChoisie: Shaped<boolean>
+      /** Section « Déjà en chantier » de la page À faire dépliée. */
+      dejaOuvert: Shaped<boolean>
     }
   }
 }

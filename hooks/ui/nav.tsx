@@ -11,7 +11,7 @@ export const PAGES: { page: Page; titre: string; icone: NomIcone }[] = [
   { page: 'phases', titre: 'Phases', icone: 'phase' },
   { page: 'chantiers', titre: 'Chantiers', icone: 'chantier' },
   { page: 'agents', titre: 'Agents', icone: 'agent' },
-  { page: 'idees', titre: 'Idées', icone: 'idee' },
+  { page: 'idees', titre: 'À faire', icone: 'idee' },
   { page: 'parametres', titre: 'Paramètres', icone: 'reglages' },
 ]
 

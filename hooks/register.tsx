@@ -77,6 +77,7 @@ const filtrePole = atom({ plugin: 'pilotage', key: 'filtrePole' } as const, '', 
 const agentOuvert = atom({ plugin: 'pilotage', key: 'agentOuvert' } as const, '', { shape: 'agent-ouvert-1' })
 // Filtre de la page Idées : tout, les idées seulement ou les retours seulement.
 const filtreIdees = atom({ plugin: 'pilotage', key: 'filtreIdees' } as const, 'tout' as FiltreIdees, { shape: 'filtre-idees-1' })
+const dejaOuvert = atom({ plugin: 'pilotage', key: 'dejaOuvert' } as const, false, { shape: 'deja-ouvert-1' })
 // Compteur : un changement force une nouvelle lecture des fichiers (bouton Rafraîchir).
 const tick = atom({ plugin: 'pilotage', key: 'tick' } as const, 0, { shape: 'tick-1' })
 // Thème du panneau : « systeme » suit le thème de l'application (ligne « theme » de `$.config.list`), sombre si elle ne se lit pas.
@@ -1024,6 +1025,8 @@ export const register: Register = on => {
                   : pageIdees(ctx, {
                       projet: lecture.projet, racine, notes: notes.notes, erreursNotes: notes.erreurs, filtre: await read($, filtreIdees), copier: copierLeChemin,
                       filtrer: sur($, async (f: FiltreIdees) => { await update($, filtreIdees, () => f) }),
+                      moi, dejaOuvert: await read($, dejaOuvert),
+                      basculerDeja: sur($, async () => { await update($, dejaOuvert, x => !x) }),
                     })),
       ])
     } catch {
