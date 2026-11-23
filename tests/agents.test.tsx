@@ -74,25 +74,42 @@ const copies = (on: Function) => {
   return l
 }
 
-test('grille : chaque carte est à la couleur de son pôle (bordure et fond en hex), sur chaque surface', async ($, on) => {
+test('grille : carte neutre (surface, bordure discrète) ; la teinte du pôle n’est que sur la chip, l’icône et l’avatar', async ($, on) => {
   const { ecritures } = banc(on, fichiers())
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
-    const code = await ui.find({ key: 'agent-a-travail' })
-    const art = await ui.find({ key: 'agent-a-arrete' })
-    expect(code.props.borderColor).toBe(sombre.poles.vert.fg)
-    expect(code.props.backgroundColor).toBe(sombre.poles.vert.soft)
-    expect(art.props.borderColor).toBe(sombre.poles.rose.fg)
-    expect(art.props.backgroundColor).toBe(sombre.poles.rose.soft)
+    for (const id of ['a-travail', 'a-arrete']) {
+      const c = await ui.find({ key: `agent-${id}` })
+      expect(c.props.borderColor).toBe(sombre.bord)
+      expect(c.props.backgroundColor).toBe(sombre.surface)
+    }
     const a = await dans(ui, 'agent-a-travail')
     expect(a).toContain('Alpha')
     expect(a).toContain('Technique')
+    expect(a).toContain(sombre.poles.vert.fg)
+    expect(a).not.toContain(sombre.poles.vert.soft + '","borderStyle":"round","gap":"lg"')
     expect(a).not.toContain(sombre.poles.rose.fg)
     expect(await dans(ui, 'agent-a-arrete')).not.toContain(sombre.poles.vert.fg)
     await ui.unmount()
   }
   expect(ecritures).toEqual([])
+})
+
+test('carte d’agent : tête = robot en bulle teintée (pas l’initiale), skills en police normale avec l’icône œil, aucun Svg à alt vide', async ($, on) => {
+  banc(on, fichiers())
+  await demarrer($)
+  for (const surface of ['desktop', 'mobile']) {
+    const ui = await monter($, surface)
+    const sources = (await ui.findAll({ type: 'Svg' })).map(s => String(s.props.source))
+    const carte = await ui.find({ key: 'agent-a-travail' })
+    const svgs = (await ui.findAll({ type: 'Svg' }))
+    expect(svgs.every(s => String(s.props.alt ?? '').trim().length > 0)).toBe(true)
+    expect(sources.some(s => s.includes('viewBox="-12 -12 48 48"') && s.includes(sombre.poles.vert.soft))).toBe(true)
+    expect(JSON.stringify(carte)).not.toContain('"mono"')
+    expect(sources.some(s => s.includes('r="3"') && s.includes('stroke="' + sombre.texteSec + '"'))).toBe(true)
+    await ui.unmount()
+  }
 })
 
 test('grille : rôle, « Pourquoi spécialisé » et pas de ligne quand il est vide', async ($, on) => {

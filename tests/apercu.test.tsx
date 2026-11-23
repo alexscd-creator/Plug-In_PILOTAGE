@@ -134,3 +134,15 @@ test('plan vide, projet sans pôle, nom très long : rien ne casse', async ($, o
     await ui.unmount()
   }
 })
+
+test('pôles : icône du pôle dans une bulle teintée selon le rang (cible, code, crayon, bouclier), aucun Svg à alt vide', async ($, on) => {
+  banc(on, dossierPages({ ...PROJET_PAGES, poles: [...PROJET_PAGES.poles, { id: 'q3', titre: 'Trois' }, { id: 'q4', titre: 'Quatre' }, { id: 'q5', titre: 'Cinq' }] }))
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  const svgs = await ui.findAll({ type: 'Svg' })
+  for (const s of svgs) expect(String(s.props.alt ?? '').trim().length).toBeGreaterThan(0)
+  const bulles = svgs.map(s => String(s.props.source)).filter(s => s.includes('viewBox="-12 -12 48 48"'))
+  const signes = ['r="5"', 'M8 8l-4 4', 'M4 20l1-4', 'M12 3l8 3']
+  for (const sg of signes) expect(bulles.some(b => b.includes(sg))).toBe(true)
+  await ui.unmount()
+})

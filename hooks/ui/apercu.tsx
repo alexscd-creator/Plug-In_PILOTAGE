@@ -63,6 +63,9 @@ function carteProjet(c: Ctx, d: DonneesApercu) {
   ], { cle: 'carte-projet' })
 }
 
+/** Icône d'un pôle d'après son rang dans le projet (le projet n'en définit pas) : cible, code, crayon, bouclier, puis on recommence. */
+export const ICONES_POLE: readonly NomIcone[] = ['cible', 'code', 'crayon', 'bouclier']
+
 function cartePole(c: Ctx, d: DonneesApercu, i: number) {
   const { Box, Text } = c.ui
   const pole = d.projet.poles[i]!
@@ -71,13 +74,13 @@ function cartePole(c: Ctx, d: DonneesApercu, i: number) {
   const resume = a.total === 0 ? 'Aucune tâche rattachée' : `${pluriel(a.faites, 'tâche terminée', 'tâches terminées')} sur ${a.total}${a.dansChantiers > 0 ? ` (dont ${a.dansChantiers} dans des chantiers)` : ''}`
   return carte(c, [
     <Box key="entete" flexDirection="row" alignItems="center" gap="md">
-      {bulle(c, 'cible', 40, teinte)}
+      {bulle(c, ICONES_POLE[i % ICONES_POLE.length]!, 40, teinte)}
       <Box flexDirection="column" flexShrink={1}>
         <Text weight="semibold" color={c.j.texte}>{pole.titre}</Text>
         <Text size="caption" color={c.j.texteDim}>{resume}</Text>
       </Box>
     </Box>,
-    barreProgression(c, `Avancement du pôle ${pole.titre}`, a.pourcent / 100, teinte),
+    barreProgression(c, `Avancement du pôle ${pole.titre}`, a.pourcent / 100, teinte, { partage: 2 }),
     <Box key="agents" flexDirection="column" gap="xs">
       <Text size="caption" weight="semibold" color={c.j.texteSec}>{a.agents.length === 0 ? 'Aucun agent' : pluriel(a.agents.length, 'agent', 'agents')}</Text>
       {a.agents.map(ag => (
