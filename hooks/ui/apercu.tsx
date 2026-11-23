@@ -146,7 +146,7 @@ function sectionChantiers(c: Ctx, d: DonneesApercu) {
   const illisibles = erreurs.length
   return (
     <Box key="chantiers" flexDirection="column" gap="lg">
-      {titreSection(c, 'Chantiers en cours', enCours.length > 0 ? 'Mis à jour toutes les 5 secondes à partir des fiches de chantier.' : undefined)}
+      {titreSection(c, 'Chantiers en cours', enCours.length > 0 ? 'Mis à jour toutes les 5 secondes.' : undefined)}
       {enCours.map((ch, i) => ligneChantier(c, ligne, ch, nb[i]!))}
       {enCours.length === 0 && d.chantiers.length === 0 && illisibles === 0 ? carteVide(c) : null}
       {enCours.length === 0 && d.chantiers.length > 0 ? <Text color={c.j.texteDim}>Aucun chantier en cours : tous sont archivés.</Text> : null}

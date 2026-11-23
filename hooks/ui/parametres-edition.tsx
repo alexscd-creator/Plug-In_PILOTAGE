@@ -20,7 +20,7 @@ export function carteWorkflow(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   const outils = d.projet.workflow.outils
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Workflow', 'Les outils du projet, par rôle. Modifiable à tout moment : Entrée valide un champ.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Workflow', 'Les outils du projet, par rôle.')}</Box>,
     <Box key="flux" flexDirection="column" gap="sm">
       {outils.map((o, i) => (
         <Box key={`flux-ligne-${i}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
@@ -49,7 +49,7 @@ export function carteAgents(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   const p = d.projet
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Gestion des agents', 'Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Gestion des agents', 'Désactivé : pris en compte au prochain démarrage de la session.')}</Box>,
     p.agents.length === 0 ? <Text key="aucun" color={c.j.texteDim}>Aucun agent défini pour ce projet.</Text> : null,
     ...p.agents.map(a => {
       const i = p.poles.findIndex(x => x.id === a.pole)
@@ -80,7 +80,7 @@ export function cartePoles(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   const p = d.projet
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Pôles', 'Renommez-les, changez leur couleur (deux pôles n’ont jamais la même) ou ajoutez-en. Un pôle utilisé par un agent ne se retire pas.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Pôles', 'Nom et couleur de chaque pôle.')}</Box>,
     ...p.poles.map((x, i) => (
       <Box key={`pole-ligne-${x.id}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
         {chipPole(c, x.titre, couleurPole(x.couleur, i))}
@@ -99,7 +99,7 @@ export function cartePoles(c: Ctx, d: DonneesParametres) {
 export function carteEquipe(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Équipe', d.moi !== '' && d.projet.equipe.length < 3 ? 'Les membres du projet (3 au plus). Ajoutez un associé pour qu’il puisse choisir son prénom à son premier lancement.' : 'Les membres du projet.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Équipe', d.moi !== '' && d.projet.equipe.length < 3 ? 'Trois membres au plus.' : 'Les membres du projet.')}</Box>,
     ...d.projet.equipe.map(m => (
       <Box key={`membre-${m}`} flexDirection="row" alignItems="center" gap="md">
         {avatar(c, m)}

@@ -15,6 +15,9 @@ export const PAGES: { page: Page; titre: string; icone: NomIcone }[] = [
   { page: 'parametres', titre: 'Paramètres', icone: 'reglages' },
 ]
 
+/** Libellé d'un onglet : son icône puis son titre (sur desktop, un bouton n'affiche que son libellé). */
+export const libelleOnglet = (p: { titre: string; icone: NomIcone }): string => `${GLYPHES[p.icone]}  ${p.titre}`
+
 /**
  * Barre d'onglets : une pilule bordée ; l'onglet actif a le fond et le texte d'accent. Sur mobile elle reste sur une
  * ligne et défile à l'horizontale ; ailleurs les onglets passent à la ligne si la place manque.
@@ -22,12 +25,11 @@ export const PAGES: { page: Page; titre: string; icone: NomIcone }[] = [
 export function navigation(c: Ctx, courante: Page, aller: (p: Page) => void | Promise<void>) {
   const { Box, Button, Text } = c.ui
   const { j } = c
-  const cadres = c.surface !== 'terminal'
   return (
     <Box
       key="navigation"
       flexDirection="row"
-      gap="sm"
+      gap="xs"
       padding="sm"
       justifyContent="center"
       alignItems="center"
@@ -39,16 +41,15 @@ export function navigation(c: Ctx, courante: Page, aller: (p: Page) => void | Pr
       {PAGES.map(p => {
         const actif = p.page === courante
         const fg = actif ? j.accent : j.texteSec
+        const libelle = libelleOnglet(p)
         return (
           <Box
             key={`onglet-${p.page}`}
             flexShrink={0}
-            paddingX="sm"
             {...(actif ? { backgroundColor: j.accentSoft } : {})}
-            {...(cadres ? { borderStyle: 'round', borderColor: actif ? j.accentSoft : j.surface } : {})}
           >
-            <Button key={`nav-${p.page}`} label={p.titre} variant={actif ? 'primary' : 'secondary'} onPress={() => aller(p.page)}>
-              <Text color={fg} weight={actif ? 'semibold' : 'regular'}>{`${GLYPHES[p.icone]} ${p.titre}`}</Text>
+            <Button key={`nav-${p.page}`} label={libelle} variant={actif ? 'primary' : 'secondary'} onPress={() => aller(p.page)}>
+              <Text color={fg} weight={actif ? 'semibold' : 'regular'}>{libelle}</Text>
             </Button>
           </Box>
         )
@@ -70,11 +71,15 @@ export type OptionsHaut = {
 export function barreHaut(c: Ctx, o: OptionsHaut) {
   const { Box, Text, Button } = c.ui
   const { j } = c
-  const bouton = (cle: string, label: string, icone: NomIcone, f: () => void | Promise<void>) => (
-    <Button key={cle} label={label} variant="secondary" onPress={() => f()}>
-      <Text color={j.texteSec}>{GLYPHES[icone]}</Text>
-    </Button>
-  )
+  // Boutons icône seule, comme la maquette : le symbole est le libellé (le terminal garde le mot, plus lisible).
+  const bouton = (cle: string, label: string, icone: NomIcone, f: () => void | Promise<void>) => {
+    const texte = c.surface === 'terminal' ? label : GLYPHES[icone]
+    return (
+      <Button key={cle} label={texte} variant="secondary" onPress={() => f()}>
+        <Text color={j.texteSec}>{texte}</Text>
+      </Button>
+    )
+  }
   return (
     <Box key="barre-haut" flexDirection="row" alignItems="center" justifyContent="space-between" gap="md" width="100%">
       <Box flexDirection="row" alignItems="center" gap="md" flexShrink={1}>

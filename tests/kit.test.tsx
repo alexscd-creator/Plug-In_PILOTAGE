@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { avatar, barreProgression, boutonCopier, bulle, cadre, carte, chipPole, creerCtx, iconeEl, pastille, titreSection } from '../hooks/ui/kit'
 import type { Ctx } from '../hooks/ui/kit'
 import { GLYPHES } from '../hooks/ui/icones'
-import { barreHaut, navigation, PAGES } from '../hooks/ui/nav'
+import { barreHaut, libelleOnglet, navigation, PAGES } from '../hooks/ui/nav'
 import { ETATS, jetons, LIBELLES_ETAT } from '../hooks/ui/theme'
 import type { Mode } from '../hooks/ui/theme'
 import { PANE } from './disque'
@@ -164,7 +164,7 @@ test('Navigation : sept onglets dans l’ordre de la maquette, l’actif en tein
   for (const surface of TOUTES) {
     const ui = await monter($, surface, c => navigation(c, 'plan', () => undefined))
     const boutons = await ui.findAll({ type: 'Button' })
-    expect(boutons.map(b => b.props.label)).toEqual(PAGES.map(p => p.titre))
+    expect(boutons.map(b => b.props.label)).toEqual(PAGES.map(libelleOnglet))
     expect((await ui.find({ key: 'onglet-plan' }))?.props.backgroundColor).toBe(j.accentSoft)
     expect((await ui.find({ key: 'onglet-agents' }))?.props.backgroundColor).toBeUndefined()
     await ui.unmount()
@@ -190,8 +190,8 @@ test('Barre du haut : « Pilotage · type », nom du projet, rafraîchir et para
       barreHaut(c, { type: 'Site web', icone: 'globe', nom: 'Mon projet', rafraichir: () => undefined, reglages: () => undefined }))
     expect(await ui.find({ type: 'Text', text: 'Pilotage · Site web' })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: 'Mon projet' })).toBeTruthy()
-    expect((await ui.find({ key: 'nav-rafraichir' }))?.props.label).toBe('Rafraîchir')
-    expect((await ui.find({ key: 'nav-reglages' }))?.props.label).toBe('Paramètres')
+    expect((await ui.find({ key: 'nav-rafraichir' }))?.props.label).toBe(surface === 'terminal' ? 'Rafraîchir' : '↻')
+    expect((await ui.find({ key: 'nav-reglages' }))?.props.label).toBe(surface === 'terminal' ? 'Paramètres' : '⚙')
     await ui.unmount()
   }
 })

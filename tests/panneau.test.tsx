@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { PAGES } from '../hooks/ui/nav'
+import { libelleOnglet, PAGES } from '../hooks/ui/nav'
 import { banc, CONFIG_LEA, demarrer, PLAN, PROJET, TOUTES } from './banc'
 import { PANE } from './disque'
 
@@ -19,7 +19,7 @@ test('projet ouvert : barre du haut, navigation dans l’ordre, page d’aperçu
     expect(await ui.find({ type: 'Text', text: 'Pilotage · Site web' })).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: 'Mon projet' })).toBeTruthy()
     const onglets = (await ui.findAll({ type: 'Button' })).filter(b => PAGES.some(p => b.key === 'nav-' + p.page)).map(b => b.props.label)
-    expect(onglets).toEqual(PAGES.map(p => p.titre))
+    expect(onglets).toEqual(PAGES.map(libelleOnglet))
     expect((await ui.find({ key: 'onglet-apercu' }))?.props.backgroundColor).toBeTruthy()
     expect(await ui.find({ key: 'carte-projet' })).toBeTruthy()
     await ui.unmount()

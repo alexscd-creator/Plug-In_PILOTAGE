@@ -63,7 +63,7 @@ test('trois chantiers : états avec libellé et icône, règle des 15 minutes, t
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
     expect(await texte(ui, 'En cours · 3')).toBeTruthy()
-    expect(await texte(ui, /Mis à jour toutes les 5 secondes à partir des fiches de chantier\./)).toBeTruthy()
+    expect(await texte(ui, /Mis à jour toutes les 5 secondes\./)).toBeTruthy()
     expect(await texte(ui, /en direct/)).toBeFalsy()
     expect(await texte(ui, /^Archivés · /)).toBeFalsy()
     const frais = await dans(ui, 'chantier-frais'), vieux = await dans(ui, 'chantier-vieux'), bloque = await dans(ui, 'chantier-bloque')
@@ -93,7 +93,7 @@ test('« Copier le nom de la session » copie le nom, l’interface dit ce qu’
     const ui = await monter($, surface)
     expect((await ui.find({ key: 'copier-session-a' }))?.props.label).toBe('Copier le nom de la session')
     expect(await ui.find({ key: 'copier-session-sans' })).toBeFalsy()
-    expect(await texte(ui, /Copier le nom de la session.*\/resume/)).toBeTruthy()
+    expect(await texte(ui, /copiez le nom, puis \/resume/)).toBeTruthy()
     await ui.press({ key: 'copier-session-a' })
     expect(l.at(-1)).toEqual({ text: 'sous-session a', surface })
     await ui.unmount()
@@ -207,7 +207,7 @@ test('Vue d’ensemble : les vrais chantiers en cours (mêmes lignes), les archi
   for (const surface of TOUTES) {
     const ui = await monter($, surface, 'apercu')
     expect(await texte(ui, 'Chantiers en cours')).toBeTruthy()
-    expect(await texte(ui, 'Mis à jour toutes les 5 secondes à partir des fiches de chantier.')).toBeTruthy()
+    expect(await texte(ui, 'Mis à jour toutes les 5 secondes.')).toBeTruthy()
     expect(await texte(ui, /Rafraîchi automatiquement|en direct/)).toBeFalsy()
     expect(await texte(ui, 'Le suivi des chantiers arrive bientôt.')).toBeFalsy()
     expect(await dans(ui, 'chantier-a')).toContain('Un en cours')

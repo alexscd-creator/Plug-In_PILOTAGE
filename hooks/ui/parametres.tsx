@@ -18,7 +18,7 @@ const THEMES: { id: ChoixTheme; label: string }[] = [
 function carteApparence(c: Ctx, d: DonneesParametres) {
   const { Box, Text, Button } = c.ui
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Apparence', 'Le thème ne change que ce panneau, pas vos fichiers.')}</Box>,
+    <Box key="entete">{titreSection(c, 'Apparence', 'Ne change que ce panneau.')}</Box>,
     <Box key="themes" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
       <Text color={c.j.texte}>Thème</Text>
       {THEMES.map(t => <Button key={`theme-${t.id}`} label={t.label} variant={d.theme === t.id ? 'primary' : 'secondary'} onPress={(() => d.choisirTheme(t.id)) as never} />)}
@@ -31,7 +31,7 @@ function carteType(c: Ctx, d: DonneesParametres) {
   const p = d.projet
   const type = libelle(p, 'type')
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Type de projet', `Les réglages suivent le type de projet « ${type} ».`)}</Box>,
+    <Box key="entete">{titreSection(c, 'Type de projet', `Réglages du type « ${type} ».`)}</Box>,
     <Box key="identite" flexDirection="column" gap="xs">
       <Text color={c.j.texte} weight="semibold">{type}</Text>
       <Text size="footnote" color={c.j.texteSec}>{`${libelle(p, 'nomDuProjet')} : ${p.nom}`}</Text>

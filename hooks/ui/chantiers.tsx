@@ -83,18 +83,18 @@ export function pageChantiers(c: Ctx, d: DonneesChantiers) {
   const lecture = cartesLecture(c, d.erreursChantiers)
   const clesEnCours = cles(enCours), clesArchives = cles(archives)
   return [
-    <Text key="intro" color={c.j.texteSec}>Un chantier = une fiche + une sous-session. Mis à jour toutes les 5 secondes à partir des fiches de chantier. Les archivés gardent leur trace.</Text>,
+    <Text key="intro" color={c.j.texteSec}>Mis à jour toutes les 5 secondes.</Text>,
     ...lecture,
     ...(enCours.length === 0 && archives.length === 0 && d.erreursChantiers.length === 0 ? [carteVide(c)] : []),
     enCours.length > 0 ? (
       <Box key="section-en-cours" flexDirection="column" gap="lg">
-        {titreSection(c, `En cours · ${enCours.length}`, 'Session ouverte. « Copier le nom de la session » copie son nom : collez-le avec /resume pour revenir dans la sous-session du chantier.')}
+        {titreSection(c, `En cours · ${enCours.length}`, 'Pour y revenir : copiez le nom, puis /resume.')}
         {enCours.map((ch, i) => ligneChantier(c, d, ch, clesEnCours[i]!))}
       </Box>
     ) : null,
     archives.length > 0 ? (
       <Box key="section-archives" flexDirection="column" gap="lg">
-        {titreSection(c, `Archivés · ${archives.length}`, 'Session fermée. La trace reste : dates, tâches faites, passation, fichiers produits, agents intervenus.')}
+        {titreSection(c, `Archivés · ${archives.length}`, 'Leur trace reste consultable.')}
         {archives.map((ch, i) => ligneArchive(c, d, ch, clesArchives[i]!))}
       </Box>
     ) : null,

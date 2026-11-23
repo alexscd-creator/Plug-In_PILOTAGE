@@ -86,7 +86,7 @@ test('sections de la maquette pour le type Site web : libellés du vocabulaire e
     expect(await dans(ui, 'parametres-github')).toContain('Bientôt')
     expect(await dans(ui, 'parametres-equipe')).toContain('Léa')
     expect(await dans(ui, 'parametres-equipe')).toContain('Sam')
-    expect(await texte(ui, 'Les réglages suivent le type de projet « Site web ».')).toBeTruthy()
+    expect(await texte(ui, 'Réglages du type « Site web ».')).toBeTruthy()
     expect(await ui.find({ type: 'Text', text: 'Bientôt' })).toBeTruthy()
     await ui.unmount()
   }
@@ -353,7 +353,6 @@ test('désactiver un agent : le texte et le toast disent la vérité (pris en co
   const ui = await monter($, 'desktop')
   const aide = await dans(ui, 'parametres-agents')
   expect(aide).toContain('pris en compte au prochain démarrage de la session')
-  expect(aide).toContain('reste appelable d’ici là')
   expect(aide).not.toContain('n’est plus proposé')
   await ui.press({ key: 'agent-actif-a1' })
   expect(b.toasts.at(-1)).toContain('Désactivé : pris en compte au prochain démarrage de la session ; l’agent reste appelable d’ici là.')
