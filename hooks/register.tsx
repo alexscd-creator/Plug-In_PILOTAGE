@@ -10,6 +10,9 @@ import { creerRegistre, lireFiches, lireSkills, specsProjet } from './model/agen
 import { chantierDeSession, grouperChantiers } from './model/chantiers.ts'
 import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
 import { RAPPEL_TRI, ressembleIdeeOuRetour } from './model/detecteur.ts'
+import { lancerNote } from './model/lancer-note.ts'
+import type { NoteLue } from './model/lecture.ts'
+import { resumerPhases } from './model/synthese.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { ecritureSure, MESSAGE_LIEN_PANNEAU } from './model/liens.ts'
 import type { StatLien } from './model/liens.ts'
@@ -376,6 +379,23 @@ async function appliquerPatch($: any, racine: string, affiche: Projet, patch: Pa
   direReglage($, !r.ok ? 'Modification refusée : voir le panneau.' : patch.type === 'agentActiver' && !patch.actif ? TOAST_DESACTIVE : 'Réglage enregistré.')
   if (r.ok) synchroniserAgents($).catch(() => undefined)
   await update($, tick, n => n + 1)
+}
+
+/**
+ * « Lancer en chantier » (page À faire) : la fiche est créée chez le membre, la note marquée (voir model/lancer-note.ts), jamais au
+ * travers d'un lien. Succès : toast, le panneau se relit. Échec : l'erreur en toast, rien d'autre ne change.
+ */
+async function lancerNoteDepuisPanneau($: any, racine: string, moi: string, n: NoteLue, phase: string): Promise<void> {
+  const r = await lancerNote(
+    {
+      read: async p => String((await $.fs.read(p)) ?? ''),
+      write: (p, t) => ecrireDansProjet($, racine, p, t),
+      list: p => listeSansLiens($, p, []),
+    },
+    racine, moi, n, phase, new Date(await horloge($)).toISOString(),
+  )
+  direReglage($, r.ok ? `Chantier créé : ${r.titre}` : r.erreur)
+  await update($, tick, x => x + 1)
 }
 
 /** « Mon workflow » (~/.claude/pilotage/mon-workflow.json) : null s'il est absent, illisible ou vide. Ne lève jamais. */
@@ -1026,6 +1046,10 @@ export const register: Register = on => {
                       projet: lecture.projet, racine, notes: notes.notes, erreursNotes: notes.erreurs, filtre: await read($, filtreIdees), copier: copierLeChemin,
                       filtrer: sur($, async (f: FiltreIdees) => { await update($, filtreIdees, () => f) }),
                       moi, dejaOuvert: await read($, dejaOuvert),
+                      ...(moi === '' ? {} : {
+                        lancer: sur($, (n: NoteLue) => lancerNoteDepuisPanneau($, racine, moi, n,
+                          resumerPhases(lecture.projet, lecture.taches, moi, lecture.portes).actuelle?.id ?? '')),
+                      }),
                       basculerDeja: sur($, async () => { await update($, dejaOuvert, x => !x) }),
                     })),
       ])

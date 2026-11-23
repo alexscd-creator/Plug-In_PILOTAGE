@@ -3,7 +3,7 @@ import { expect, test } from 'claude-code/testing'
 import { serializeNote } from '../hooks/model/notes.ts'
 import type { Note } from '../hooks/model/notes.ts'
 import { banc, demarrer } from './banc'
-import { PANE, SURFACES } from './disque'
+import { disque, PANE, SURFACES } from './disque'
 import { dossierPages, PROJET_PAGES } from './fixture-pages'
 
 const R = 'C:/Projet/.pilotage/equipe'
@@ -193,4 +193,49 @@ test('toutes les notes lancées : « Rien à faire », pas de filtres, la sectio
   expect(await ui.find({ key: 'filtre-tout' })).toBeFalsy()
   expect(await ui.find({ key: 'deja-en-chantier' })).toBeTruthy()
   await ui.unmount()
+})
+
+/** Banc où les écritures restent sur le faux disque (le panneau relit ce qu'il a écrit), toasts comptés. */
+function bancEcrivant(on: Function, fichiers: Record<string, string>) {
+  disque(on, fichiers)
+  const ecritures: string[] = [], toasts: string[] = []
+  on('fs.write', (_: unknown, e: { path: string; content?: string; text?: string; data?: string }) => {
+    const chemin = e.path.replaceAll(String.fromCharCode(92), '/')
+    ecritures.push(chemin)
+    fichiers[chemin] = String(e.content ?? e.text ?? e.data ?? '')
+    return { value: undefined }
+  })
+  on('ui.toast', (_: unknown, e: { text: string }) => { toasts.push(e.text); return { value: undefined } })
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', (_: unknown, e: { cwd: string }) => ({ cwd: e.cwd }))
+  on('session.cwd', () => ({ value: 'C:/Projet' }))
+  on('prompt.compose', () => ({ sections: [] }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  return { ecritures, toasts }
+}
+
+test('« Lancer en chantier » : seulement sur ses propres notes ; un appui crée la fiche chez soi, marque la note, la range dans « Déjà en chantier »', async ($, on) => {
+  const fichiers = dossier(TROIS)
+  const { ecritures, toasts } = bancEcrivant(on, fichiers)
+  await demarrer($)
+  const ui = await monter($, 'desktop')
+  expect((await ui.find({ key: 'lancer-lea-2026-11-20-lancer-les-defis' }))?.props.label).toBe('▶  Lancer en chantier')
+  expect(await ui.find({ key: 'lancer-sam-2026-11-21-mode-sombre' })).toBeFalsy()
+  await ui.press({ key: 'lancer-lea-2026-11-20-lancer-les-defis' })
+  expect(ecritures).toEqual([`${R}/lea/chantiers/lancer-les-defis.md`, `${R}/lea/idees/2026-11-20-lancer-les-defis.md`])
+  expect(fichiers[`${R}/lea/chantiers/lancer-les-defis.md`]).toContain('etat: attente')
+  expect(fichiers[`${R}/lea/idees/2026-11-20-lancer-les-defis.md`]).toContain('lance: lancer-les-defis')
+  expect(toasts.at(-1)).toBe('Chantier créé : Lancer les défis')
+  expect(await ui.find({ key: 'note-lea-2026-11-20-lancer-les-defis' })).toBeFalsy()
+  expect(await dans(ui, 'deja-en-chantier')).toContain('Lancer les défis → chantier « lancer-les-defis »')
+  await ui.unmount()
+})
+
+test('« Lancer en chantier » : aucune écriture chez un autre membre, même sur le terminal', async ($, on) => {
+  const { ecritures } = bancEcrivant(on, dossier([['sam', C]]))
+  await demarrer($)
+  const ui = await monter($, 'terminal')
+  expect(await ui.find({ key: 'lancer-sam-2026-11-21-mode-sombre' })).toBeFalsy()
+  await ui.unmount()
+  expect(ecritures).toEqual([])
 })
