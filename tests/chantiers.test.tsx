@@ -303,6 +303,20 @@ test('session d’un chantier : le panneau s’ouvre sur ce chantier, puis garde
   await encore.unmount()
 })
 
+test('sous-session liée après l’ouverture du panneau : il passe seul sur le chantier au rafraîchissement suivant', async ($, on) => {
+  const fichiers: Record<string, string> = dossier([fiche('lobby', { titre: 'Carte du lobby' })])
+  banc(on, fichiers)
+  on('session.id', () => ({ value: 's1' }))
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'chantier-ouvert-lobby' })).toBeFalsy()
+  // /pilotage:chantier ouvrir lobby écrit le lien de session (lier-session) pendant que le panneau est ouvert.
+  fichiers[`${D}/sessions.json`] = JSON.stringify({ s1: 'lobby' })
+  await ui.press({ key: 'nav-rafraichir' })
+  expect(await dans(ui, 'chantier-ouvert-lobby')).toContain('Carte du lobby')
+  await ui.unmount()
+})
+
 test('hors session de chantier : le panneau s’ouvre sur l’Aperçu', async ($, on) => {
   banc(on, dossier([fiche('lobby')], [], { s1: 'lobby' }))
   on('session.id', () => ({ value: 'autre' }))
