@@ -76,3 +76,19 @@ test('fiches : sans projet, deux tables vides', async () => {
   const r = await lireProjetComplet(fsDe({}), 'C:/Projet', 'Léa')
   assert.deepEqual([r.fichesAgents, r.fichesSkills], [{}, {}])
 })
+
+test('skillsDisponibles : tous les fichiers .md valides de .pilotage/skills (cités ou non), triés ; sauvegardes, noms invalides et copies de conflit écartés', async () => {
+  const f = base({
+    [`${R}/skills/luau.md`]: '#', [`${R}/skills/zeta.md`]: '#', [`${R}/skills/alpha.md`]: '#',
+    [`${R}/skills/alpha.md.bak`]: '#', [`${R}/skills/Mauvais Nom.md`]: '#', [`${R}/skills/notes.txt`]: '#',
+    [`${R}/skills/${'x'.repeat(61)}.md`]: '#',
+  })
+  const r = await lireProjetComplet(fsDe(f), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.skillsDisponibles, ['alpha', 'luau', 'zeta'])
+})
+
+test('skillsDisponibles : dossier absent ou liste en panne : liste vide, rien ne lève', async () => {
+  assert.deepEqual((await lireProjetComplet(fsDe(base()), 'C:/Projet', 'Léa')).skillsDisponibles, [])
+  const r = await lireProjetComplet(fsDe(base({ [`${R}/skills/a.md`]: '#' }), [`${R}/skills`]), 'C:/Projet', 'Léa')
+  assert.deepEqual(r.skillsDisponibles, [])
+})

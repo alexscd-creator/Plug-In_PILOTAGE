@@ -22,6 +22,8 @@ export type LectureProjet = {
   fichesAgents: Record<string, boolean>
   /** Pour chaque skill cité par un agent : sa fiche `.pilotage/skills/<skill>.md` existe-t-elle ? */
   fichesSkills: Record<string, boolean>
+  /** Tous les skills du dossier `.pilotage/skills` (fichiers `<id>.md` valides), cités par un agent ou non ; triés. */
+  skillsDisponibles: string[]
   /** Fiches de chantier valides de toute l'équipe (en cours et archivées). */
   chantiers: Chantier[]
   /** Une phrase par fiche ou dossier de chantier illisible ou invalide. */
@@ -41,7 +43,7 @@ const liste = async (fs: FsLike, dossier: string): Promise<string[] | null> => {
 }
 
 export async function lireProjetComplet(fs: FsLike, racine: string, moi: string): Promise<LectureProjet> {
-  const sortie: LectureProjet = { projet: null, taches: [], portes: {}, fichesAgents: {}, fichesSkills: {}, chantiers: [], erreursChantiers: [], erreurs: [] }
+  const sortie: LectureProjet = { projet: null, taches: [], portes: {}, fichesAgents: {}, fichesSkills: {}, skillsDisponibles: [], chantiers: [], erreursChantiers: [], erreurs: [] }
   try {
     if (typeof racine !== 'string' || racine.trim() === '') {
       sortie.erreurs.push('Aucun dossier de projet n’est indiqué.')
@@ -97,6 +99,7 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
     const f = await lireExistences(fs, dossier, r.projet)
     sortie.fichesAgents = f.agents
     sortie.fichesSkills = f.skills
+    sortie.skillsDisponibles = f.disponibles
     const c = await lireChantiersDetail(fs, dossier, r.projet.equipe)
     sortie.chantiers = c.chantiers
     // Les liens sautés pendant toute la lecture (fiches, dossiers, plan, portes...) : dits une fois, jamais lus.
@@ -104,20 +107,21 @@ export async function lireProjetComplet(fs: FsLike, racine: string, moi: string)
     return sortie
   } catch {
     // Dernier filet : une anomalie imprévue ne doit jamais faire tomber le panneau.
-    return { projet: null, taches: [], portes: {}, fichesAgents: {}, fichesSkills: {}, chantiers: [], erreursChantiers: [], erreurs: ['Le projet n’a pas pu être lu.'] }
+    return { projet: null, taches: [], portes: {}, fichesAgents: {}, fichesSkills: {}, skillsDisponibles: [], chantiers: [], erreursChantiers: [], erreurs: ['Le projet n’a pas pu être lu.'] }
   }
 }
 
 const ID_FICHE = /^[a-z0-9-]+$/
 
 /** Quelles fiches `agents/<id>.md` et `skills/<skill>.md` existent (liste du dossier, jamais de lecture) ; copies de conflit ignorées. Ne lève jamais. */
-async function lireExistences(fs: FsLike, dossier: string, projet: Projet): Promise<{ agents: Record<string, boolean>; skills: Record<string, boolean> }> {
+async function lireExistences(fs: FsLike, dossier: string, projet: Projet): Promise<{ agents: Record<string, boolean>; skills: Record<string, boolean>; disponibles: string[] }> {
   const noms = async (sous: string): Promise<Set<string>> =>
     new Set(((await liste(fs, `${dossier}/${sous}`)) ?? []).filter(n => !estCopieDeConflit(n)))
   const presents = (vus: Set<string>, id: string): boolean => ID_FICHE.test(id) && vus.has(`${id}.md`)
-  const sortie = { agents: {} as Record<string, boolean>, skills: {} as Record<string, boolean> }
+  const sortie = { agents: {} as Record<string, boolean>, skills: {} as Record<string, boolean>, disponibles: [] as string[] }
   try {
     const [a, s] = [await noms('agents'), await noms('skills')]
+    sortie.disponibles = [...s].filter(n => n.endsWith('.md')).map(n => n.slice(0, -3)).filter(id => ID_FICHE.test(id) && id.length <= 60).sort().slice(0, 200)
     for (const ag of projet.agents) {
       sortie.agents[ag.id] = presents(a, ag.id)
       for (const sk of ag.skills) sortie.skills[sk] = presents(s, sk)
