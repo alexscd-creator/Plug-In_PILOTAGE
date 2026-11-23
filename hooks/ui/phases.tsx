@@ -111,15 +111,21 @@ function portesFranchies(c: Ctx, d: DonneesPhases) {
   const { Box, Text } = c.ui
   const franchies = frisePhases(d.projet, d.taches, d.moi, d.portes).filter(et => et.franchie)
   if (franchies.length === 0) return null
-  return carte(c, [
-    titreSection(c, 'Portes franchies'),
-    ...franchies.map(et => (
-      <Box key={`porte-franchie-${et.phase.id}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
-        {chipPorte(c, et.franchie!)}
-        <Text color={c.j.texteSec}>{et.phase.titre}</Text>
-      </Box>
-    )),
-  ], { cle: 'portes-franchies' })
+  // Compacte : un titre discret et une seule rangée de pastilles « 🔒 Phase · type de porte ».
+  return (
+    <Box key="portes-franchies" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm" paddingX="lg" paddingY="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.surface}>
+      <Text size="footnote" weight="semibold" color={c.j.texteDim}>Portes franchies</Text>
+      {franchies.map(et => {
+        const t = et.franchie === 'forcee' ? c.j.etats.attente : { fg: c.j.accent, soft: c.j.accentSoft }
+        return (
+          <Box key={`porte-franchie-${et.phase.id}`} flexDirection="row" alignItems="center" gap="xs" paddingX="sm" borderStyle="round" borderColor={t.soft} backgroundColor={t.soft}>
+            {iconeEl(c, 'verrou', 12, t.fg)}
+            <Text size="footnote" weight="semibold" color={t.fg}>{`${et.phase.titre} · ${FRANCHIE[et.franchie!]}`}</Text>
+          </Box>
+        )
+      })}
+    </Box>
+  )
 }
 
 function ligneFichier(c: Ctx, chemin: string, copier: DonneesPhases['copier']) {
