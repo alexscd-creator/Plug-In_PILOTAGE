@@ -107,17 +107,17 @@ export function carteAgents(c: Ctx, d: DonneesParametres) {
       const ouvert = d.edition === `agent-${a.id}`
       return (
         <Box key={`reglage-agent-${a.id}`} flexDirection="column" gap="sm" paddingX="md" paddingY="sm" borderStyle="round" borderColor={c.j.releve} backgroundColor={c.j.releve}>
-          <Box key="tete" flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
-            <Box flexDirection="row" alignItems="center" gap="md" flexShrink={1}>
+          <Box key="tete" flexDirection="row" alignItems="center" justifyContent="space-between" gap="md" {...(c.mobile ? { flexWrap: 'wrap' as const } : {})}>
+            <Box flexDirection="row" alignItems="center" gap="md" flexGrow={1} flexShrink={1} minWidth={0}>
               {bulle(c, 'agent', 36, actif ? teinte : undefined)}
-              <Box flexDirection="column" flexShrink={1}>
+              <Box flexDirection="column" flexShrink={1} minWidth={0}>
                 <Text weight="semibold" color={actif ? c.j.texte : c.j.texteDim}>{a.titre}</Text>
                 {a.pourquoi !== '' ? <Text size="caption" color={c.j.texteDim} wrap="truncate-end">{actif ? a.pourquoi : `Désactivé · ${a.pourquoi}`}</Text> : null}
               </Box>
             </Box>
             <Box flexDirection="row" alignItems="center" gap="sm" flexShrink={0}>
               {boutonEditer(c, d, `agent-editer-${a.id}`, `agent-${a.id}`)}
-              {interrupteur(c, d, `agent-actif-${a.id}`, 'État', actif, 'Actif', 'Désactivé', () => d.modifier({ type: 'agentActiver', id: a.id, actif: !actif }))}
+              {interrupteur(c, d, `agent-actif-${a.id}`, '', actif, 'Actif', 'Désactivé', () => d.modifier({ type: 'agentActiver', id: a.id, actif: !actif }))}
             </Box>
           </Box>
           {ouvert ? champTexte(c, d, `agent-titre-${a.id}`, 'Rôle', a.titre, v => d.modifier({ type: 'agentRole', id: a.id, titre: v, pourquoi: a.pourquoi })) : null}

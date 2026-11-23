@@ -64,7 +64,7 @@ export function interrupteur(c: Ctx, d: DonneesParametres, cle: string, label: s
   const etat = actif ? vrai : faux
   return (
     <Box key={`ligne-${cle}`} flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
-      <Text weight="semibold" color={c.j.texte}>{label}</Text>
+      {label !== '' ? <Text weight="semibold" color={c.j.texte}>{label}</Text> : null}
       {modifiable(d)
         ? <Button key={cle} label={etat} variant={actif ? 'primary' : 'secondary'} onPress={(() => basculer()) as never} />
         : <Text weight="semibold" color={actif ? c.j.accent : c.j.texteDim}>{etat}</Text>}
