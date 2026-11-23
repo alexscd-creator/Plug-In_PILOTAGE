@@ -5,6 +5,7 @@ import type { AgentDef } from '../model/projet.ts'
 import { detailAgent } from './agent-detail'
 import { boutonVoir, cheminSkill, poleAgent } from './agents-base'
 import type { DonneesAgents } from './agents-base'
+import { GLYPHES } from './icones'
 import { bulle, carte, chipPole, iconeEl, pastille, pointEl } from './kit'
 import type { Ctx } from './kit'
 import { couleurPole, ETATS } from './theme'
@@ -12,16 +13,16 @@ import type { Teinte } from './theme'
 
 export type { DonneesAgents }
 
+/** Skill installé : la chip est le bouton (œil + nom, copie le chemin), comme la maquette. Absent : chip grise et mention. */
 function chipSkill(c: Ctx, d: DonneesAgents, a: AgentDef, skill: string, k: number) {
   const { Box, Text } = c.ui
-  const installe = d.fichesSkills[skill] === true
+  if (d.fichesSkills[skill] === true) {
+    return <Box key={`chip-skill-${a.id}-${k}`}>{boutonVoir(c, `skill-${a.id}-${k}`, `${GLYPHES.oeil} ${skill}`, cheminSkill(skill), d.copier)}</Box>
+  }
   return (
     <Box key={`chip-skill-${a.id}-${k}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="xs" paddingX="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.releve}>
-      {iconeEl(c, 'oeil', 14, c.j.texteSec)}
-      <Text weight="semibold" size="footnote" color={c.j.texte}>{skill}</Text>
-      {installe
-        ? boutonVoir(c, `skill-${a.id}-${k}`, 'Voir le skill', cheminSkill(skill), d.copier)
-        : <Text key={`absent-${a.id}-${k}`} size="caption" color={c.j.texteDim}>skill non installé</Text>}
+      <Text weight="semibold" size="footnote" color={c.j.texteDim}>{skill}</Text>
+      <Text key={`absent-${a.id}-${k}`} size="caption" color={c.j.texteDim}>skill non installé</Text>
     </Box>
   )
 }
@@ -61,9 +62,9 @@ function carteAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
 function legende(c: Ctx) {
   const { Box, Text } = c.ui
   return (
-    <Box key="legende-etats" flexDirection="column" gap="sm">
-      <Text size="caption" weight="semibold" color={c.j.texteDim}>États</Text>
-      <Box flexDirection="row" flexWrap="wrap" gap="sm">{ETATS.map(e => pastille(c, e))}</Box>
+    <Box key="legende-etats" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
+      <Text size="footnote" weight="semibold" color={c.j.texteSec}>États :</Text>
+      {ETATS.map(e => pastille(c, e))}
     </Box>
   )
 }
@@ -77,12 +78,10 @@ function filtres(c: Ctx, d: DonneesAgents, filtre: string) {
     </Box>
   )
   return (
-    <Box key="filtres" flexDirection="column" gap="sm">
-      <Text size="caption" weight="semibold" color={c.j.texteDim}>Pôles</Text>
-      <Box flexDirection="row" flexWrap="wrap" gap="sm">
-        {bouton('filtre-tous', '', 'Tous')}
-        {d.projet.poles.map((p, i) => bouton(`filtre-${p.id}`, p.id, p.titre, couleurPole(p.couleur, i)))}
-      </Box>
+    <Box key="filtres" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
+      <Text size="footnote" weight="semibold" color={c.j.texteSec}>Pôles :</Text>
+      {bouton('filtre-tous', '', 'Tous')}
+      {d.projet.poles.map((p, i) => bouton(`filtre-${p.id}`, p.id, p.titre, couleurPole(p.couleur, i)))}
     </Box>
   )
 }
@@ -120,7 +119,10 @@ export function pageAgents(c: Ctx, d: DonneesAgents) {
   const visibles = agents.filter(a => filtre === '' || a.pole === filtre)
   const { Box } = c.ui
   return [
-    <Text key="intro" color={c.j.texteSec}>Les agents du projet. L’état vient des appels en cours dans cette session et des fiches de chantier : sans signe, un agent est « Arrêté ».</Text>,
+    <Box key="intro" flexDirection="column" gap="xs">
+      <Text key="titre-page" weight="bold" size="title" color={c.j.texte}>Agents</Text>
+      <Text color={c.j.texteSec}>Les agents du projet, colorés par pôle. La pastille donne leur état en direct.</Text>
+    </Box>,
     carteInstaller(c, d),
     filtres(c, d, filtre),
     legende(c),

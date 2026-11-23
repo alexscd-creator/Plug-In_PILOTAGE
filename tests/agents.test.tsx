@@ -107,7 +107,7 @@ test('carte d’agent : tête = robot en bulle teintée (pas l’initiale), skil
     expect(svgs.every(s => String(s.props.alt ?? '').trim().length > 0)).toBe(true)
     expect(sources.some(s => s.includes('viewBox="-12 -12 48 48"') && s.includes(sombre.poles.vert.soft))).toBe(true)
     expect(JSON.stringify(carte)).not.toContain('"mono"')
-    expect(sources.some(s => s.includes('r="3"') && s.includes('stroke="' + sombre.texteSec + '"'))).toBe(true)
+    expect(String((await ui.find({ key: 'skill-a-travail-0' }))?.props.label)).toMatch(/^◉ /)
     await ui.unmount()
   }
 })
@@ -180,7 +180,7 @@ test('skills : présent = bouton « Voir le skill » qui copie le chemin ; absen
     expect((await ui.findAll({ type: 'Text', text: 'skill non installé' })).length).toBe(2)
     const boutons = (await ui.findAll({ type: 'Button' })).filter(b => String(b.key).startsWith('skill-a-travail-'))
     expect(boutons.map(b => b.key)).toEqual(['skill-a-travail-0'])
-    expect(boutons[0]?.props.label).toBe('Voir le skill')
+    expect(boutons[0]?.props.label).toBe('◉ luau')
     await ui.press({ key: 'skill-a-travail-0' })
     expect(l.at(-1)).toEqual({ text: '.pilotage/skills/luau.md', surface })
     await ui.unmount()
