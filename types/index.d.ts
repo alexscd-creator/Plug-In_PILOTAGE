@@ -46,6 +46,8 @@ declare module 'claude-code' {
       agentsLive: Shaped<AgentsLive>
       /** Erreurs de la dernière modification refusée dans Paramètres (vide : rien à dire). */
       erreursReglages: Shaped<string[]>
+      /** Ligne de Paramètres ouverte en modification ('' : aucune) : 'workflow', 'pole-<id>' ou 'agent-<id>'. */
+      ligneEditee: Shaped<string>
       /** Dernière erreur d'écriture de l'état des agents dans une fiche ('' : la dernière écriture a réussi). Affichée nulle part pour l'instant. */
       erreurEcriture: Shaped<string>
     }

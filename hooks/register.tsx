@@ -82,6 +82,8 @@ const retour = atom({ plugin: 'pilotage', key: 'retourCommande' } as const, '', 
 
 // Erreurs de la dernière modification refusée dans Paramètres (vide : rien à dire).
 const erreursReglages = atom({ plugin: 'pilotage', key: 'erreursReglages' } as const, [] as string[], { shape: 'erreurs-reglages-1' })
+// Ligne de Paramètres ouverte en modification ('' : aucune).
+const ligneEditee = atom({ plugin: 'pilotage', key: 'ligneEditee' } as const, '', { shape: 'ligne-editee-1' })
 
 // Agents suivis en direct (appels de l'outil Agent en cours, issue du dernier appel, questions en attente) : état de session, jamais sur disque.
 const agentsLive = atom({ plugin: 'pilotage', key: 'agentsLive' } as const, LIVE_VIDE as Live, { shape: 'agents-live-1' })
@@ -992,6 +994,8 @@ export const register: Register = on => {
                   : courante === 'parametres'
                     ? pageParametres(ctx, {
                         projet, moi, theme: choix, erreurs: await read($, erreursReglages),
+                        edition: await read($, ligneEditee),
+                        editer: sur($, async (cle: string) => { await update($, ligneEditee, x => (x === cle ? '' : cle)) }),
                         choisirTheme: sur($, async (t: ChoixTheme) => { await update($, theme, () => t) }),
                         modifier: sur($, (patch: Patch) => appliquerPatch($, racine, projet, patch, moi)),
                         monWorkflow, chargerWorkflow: sur($, async () => { if (monWorkflow) await chargerMonWorkflow($, racine, projet, moi, monWorkflow) }),

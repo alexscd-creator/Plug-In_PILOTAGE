@@ -22,6 +22,10 @@ export type DonneesParametres = {
   monWorkflow: Workflow | null
   /** Remplace le workflow du projet par `monWorkflow`, après confirmation. */
   chargerWorkflow: () => void | Promise<void>
+  /** Ligne ouverte en modification ('' : aucune). */
+  edition: string
+  /** Ouvre la ligne `cle` en modification, ou la referme si elle l'était. */
+  editer: (cle: string) => void | Promise<void>
 }
 
 export const modifiable = (d: DonneesParametres): boolean => d.moi !== ''
@@ -59,11 +63,25 @@ export function interrupteur(c: Ctx, d: DonneesParametres, cle: string, label: s
   const { Box, Button, Text } = c.ui
   const etat = actif ? vrai : faux
   return (
-    <Box key={`ligne-${cle}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
-      <Text color={c.j.texte}>{label}</Text>
+    <Box key={`ligne-${cle}`} flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
+      <Text weight="semibold" color={c.j.texte}>{label}</Text>
       {modifiable(d)
         ? <Button key={cle} label={etat} variant={actif ? 'primary' : 'secondary'} onPress={(() => basculer()) as never} />
         : <Text weight="semibold" color={actif ? c.j.accent : c.j.texteDim}>{etat}</Text>}
+    </Box>
+  )
+}
+
+/** Ligne de réglage façon maquette : libellé et aide à gauche, contrôle à droite. */
+export function ligneReglage(c: Ctx, cle: string, label: string, aide: string | undefined, controle: unknown) {
+  const { Box, Text } = c.ui
+  return (
+    <Box key={cle} flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
+      <Box flexDirection="column" flexShrink={1}>
+        <Text weight="semibold" color={c.j.texte}>{label}</Text>
+        {aide ? <Text size="caption" color={c.j.texteDim}>{aide}</Text> : null}
+      </Box>
+      <Box flexShrink={0}>{controle as never}</Box>
     </Box>
   )
 }

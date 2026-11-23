@@ -6,7 +6,7 @@ import { libelle } from '../model/presets.ts'
 import { banniere, carte, titreSection } from './kit'
 import type { Ctx } from './kit'
 import { carteAgents, carteEquipe, cartePoles, carteWorkflow } from './parametres-edition'
-import { champChoix, champTexte, interrupteur, modifiable } from './parametres-base'
+import { champChoix, champTexte, interrupteur, ligneReglage, modifiable } from './parametres-base'
 import type { DonneesParametres } from './parametres-base'
 
 export type { DonneesParametres }
@@ -18,12 +18,38 @@ const THEMES: { id: ChoixTheme; label: string }[] = [
 function carteApparence(c: Ctx, d: DonneesParametres) {
   const { Box, Text, Button } = c.ui
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Apparence', 'Ne change que ce panneau.')}</Box>,
-    <Box key="themes" flexDirection="row" flexWrap="wrap" alignItems="center" gap="sm">
-      <Text color={c.j.texte}>Thème</Text>
-      {THEMES.map(t => <Button key={`theme-${t.id}`} label={t.label} variant={d.theme === t.id ? 'primary' : 'secondary'} onPress={(() => d.choisirTheme(t.id)) as never} />)}
-    </Box>,
+    <Box key="entete">{titreSection(c, 'Apparence')}</Box>,
+    ligneReglage(c, 'themes', 'Thème', 'Ne change que ce panneau.', (
+      <Box flexDirection="row" flexWrap="wrap" gap="xs">
+        {THEMES.map(t => <Button key={`theme-${t.id}`} label={t.label} variant={d.theme === t.id ? 'primary' : 'secondary'} onPress={(() => d.choisirTheme(t.id)) as never} />)}
+      </Box>
+    )),
   ], { cle: 'parametres-apparence' })
+}
+
+/** Carte « Projet » : type (pastille), nom et objectif avec le vocabulaire du type. */
+function carteProjet(c: Ctx, d: DonneesParametres) {
+  const { Box, Text } = c.ui
+  const p = d.projet
+  const type = libelle(p, 'type')
+  const champ = (cle: string, label: string, valeur: string) => (
+    <Box key={cle} flexDirection="column" gap="xs">
+      <Text size="caption" weight="semibold" color={c.j.texteDim}>{label}</Text>
+      <Box paddingX="md" paddingY="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.releve}>
+        <Text color={c.j.texte}>{valeur}</Text>
+      </Box>
+    </Box>
+  )
+  return carte(c, [
+    <Box key="entete" flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
+      {titreSection(c, 'Projet')}
+      <Box key="type-projet" paddingX="sm" borderStyle="round" borderColor={c.j.accentSoft} backgroundColor={c.j.accentSoft}>
+        <Text weight="semibold" size="footnote" color={c.j.accent}>{type}</Text>
+      </Box>
+    </Box>,
+    champ('projet-nom', libelle(p, 'nomDuProjet'), p.nom),
+    champ('projet-objectif', libelle(p, 'objectif'), p.but),
+  ], { cle: 'parametres-projet' })
 }
 
 function carteType(c: Ctx, d: DonneesParametres) {
@@ -31,12 +57,7 @@ function carteType(c: Ctx, d: DonneesParametres) {
   const p = d.projet
   const type = libelle(p, 'type')
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Type de projet', `Réglages du type « ${type} ».`)}</Box>,
-    <Box key="identite" flexDirection="column" gap="xs">
-      <Text color={c.j.texte} weight="semibold">{type}</Text>
-      <Text size="footnote" color={c.j.texteSec}>{`${libelle(p, 'nomDuProjet')} : ${p.nom}`}</Text>
-      <Text size="footnote" color={c.j.texteSec}>{`${libelle(p, 'objectif')} : ${p.but}`}</Text>
-    </Box>,
+    <Box key="entete">{titreSection(c, `Réglages · ${type}`, `Réglages du type « ${type} ».`)}</Box>,
     p.reglagesDef.length === 0 ? <Text key="aucun" color={c.j.texteDim}>Ce type de projet n’a pas de réglage propre.</Text> : null,
     ...p.reglagesDef.map(def => {
       const v = p.reglages[def.id] ?? def.defaut
@@ -72,13 +93,18 @@ function carteGithub(c: Ctx) {
 export function pageParametres(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   return [
+    <Box key="intro" flexDirection="column" gap="xs">
+      <Text key="titre-page" weight="bold" size="title" color={c.j.texte}>Paramètres</Text>
+      <Text color={c.j.texteSec}>Les réglages suivent le type de projet.</Text>
+    </Box>,
     ...(!modifiable(d) ? [<Text key="lecture-seule" color={c.j.texteSec}>Indiquez votre prénom pour modifier les réglages</Text>] : []),
     ...(d.erreurs.length > 0 ? [<Box key="parametres-erreurs" flexDirection="column">{banniere(c, 'erreur', 'Modification refusée', d.erreurs.join(' '))}</Box>] : []),
-    carteApparence(c, d),
+    carteProjet(c, d),
     carteType(c, d),
+    carteApparence(c, d),
+    cartePoles(c, d),
     carteWorkflow(c, d),
     carteAgents(c, d),
-    cartePoles(c, d),
     carteEquipe(c, d),
     carteGithub(c),
   ]
