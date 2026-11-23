@@ -83,7 +83,10 @@ export function pageChantiers(c: Ctx, d: DonneesChantiers) {
   const lecture = cartesLecture(c, d.erreursChantiers)
   const clesEnCours = cles(enCours), clesArchives = cles(archives)
   return [
-    <Text key="intro" color={c.j.texteSec}>Mis à jour toutes les 5 secondes.</Text>,
+    <Box key="intro" flexDirection="column" gap="xs">
+      <Text key="titre-page" weight="bold" size="title" color={c.j.texte}>Chantiers</Text>
+      <Text color={c.j.texteSec}>Un chantier = une fiche + une sous-session. Mis à jour toutes les 5 secondes.</Text>
+    </Box>,
     ...lecture,
     ...(enCours.length === 0 && archives.length === 0 && d.erreursChantiers.length === 0 ? [carteVide(c)] : []),
     enCours.length > 0 ? (

@@ -113,7 +113,10 @@ export function ligneChantier(c: Ctx, d: DonneesLigne, ch: Chantier, cle: string
       <Text size="caption" color={j.texteDim}>{`${pluriel(p.faites, 'tâche faite', 'tâches faites')} sur ${p.total}`}</Text>
     </Box>,
     <Box key="actions" flexDirection="row" flexWrap="wrap" alignItems="center" justifyContent="space-between" gap="md">
-      <Text size="footnote" color={j.texteSec}>{noms.length === 0 ? 'Aucun agent appelé' : `${noms.length > 1 ? 'Agents' : 'Agent'} : ${noms.join(', ')}`}</Text>
+      <Box key="agents" flexDirection="row" alignItems="center" gap="sm" flexShrink={1}>
+        {noms.slice(0, 3).map((n, k) => <Box key={`avatar-${k}`}>{avatar(c, n, pole.teinte)}</Box>)}
+        <Text size="footnote" color={j.texteSec}>{noms.length === 0 ? 'Aucun agent appelé' : `${noms.length > 1 ? 'Agents' : 'Agent'} : ${noms.join(', ')}`}</Text>
+      </Box>
       <Box flexDirection="row" flexWrap="wrap" gap="sm">
         {d.basculer ? (
           <Button key={`detail-${cle}`} label={ouvert ? 'Masquer le détail' : 'Voir le détail'} variant="secondary" onPress={() => d.basculer!(ouvert ? '' : cle)} />
