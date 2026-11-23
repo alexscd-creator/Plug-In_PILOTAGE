@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { avatar, barreProgression, boutonCopier, bulle, cadre, carte, chipPole, creerCtx, pastille, titreSection } from '../hooks/ui/kit'
+import { avatar, barreProgression, boutonCopier, bulle, cadre, carte, chipPole, creerCtx, iconeEl, pastille, titreSection } from '../hooks/ui/kit'
 import type { Ctx } from '../hooks/ui/kit'
 import { GLYPHES } from '../hooks/ui/icones'
 import { barreHaut, navigation, PAGES } from '../hooks/ui/nav'
@@ -196,11 +196,30 @@ test('Barre du haut : « Pilotage · type », nom du projet, rafraîchir et para
   }
 })
 
-test('icônes décoratives : alt vide (le libellé est écrit à côté), jamais le nom technique de l’icône', async ($, on) => {
+test('Svg : jamais de texte alternatif vide (le moteur n’affiche pas un Svg sans alt) : pastille, chip de pôle, bulle, icône', async ($, on) => {
   const monter = banc(on)
-  const ui = await monter($, 'desktop', c => <c.ui.Box>{pastille(c, 'travail')}{bulle(c, 'dossier', 64)}</c.ui.Box>)
-  const svgs = await ui.findAll({ type: 'Svg' })
-  expect(svgs.length).toBe(2)
-  for (const s of svgs) expect(s.props.alt).toBe('')
-  await ui.unmount()
+  for (const surface of ['desktop', 'vscode', 'mobile'] as const) {
+    const ui = await monter($, surface, c => <c.ui.Box flexDirection="column">{[pastille(c, 'arrete'), chipPole(c, 'Code', 'bleu'), bulle(c, 'agent', 40, 'vert'), iconeEl(c, 'oeil', 14)]}</c.ui.Box>)
+    const svgs = await ui.findAll({ type: 'Svg' })
+    expect(svgs.length).toBeGreaterThanOrEqual(4)
+    for (const s of svgs) expect(String(s.props.alt ?? '').trim().length).toBeGreaterThan(0)
+    await ui.unmount()
+  }
+})
+
+test('BarreProgression : le pourcentage ne passe jamais à la ligne et la barre s’adapte à la place', async ($, on) => {
+  const monter = banc(on)
+  const etroit = await monter($, 'desktop', c => barreProgression(c, 'x', 0, 'bleu', { partage: 2 }), { colonnes: 90 })
+  const pct = await etroit.find({ type: 'Text', text: '0 %' })
+  expect(pct?.props.wrap).toBe('truncate-end')
+  const boite = await etroit.find({ key: 'pourcentage' })
+  expect(boite?.props.flexShrink).toBe(0)
+  expect(typeof boite?.props.width).toBe('number')
+  const svg = await etroit.find({ type: 'Svg' })
+  expect(svg?.props.width).toBeLessThan(280)
+  expect(svg?.props.width).toBeGreaterThanOrEqual(80)
+  await etroit.unmount()
+  const large = await monter($, 'desktop', c => barreProgression(c, 'x', 0.5), { colonnes: 200 })
+  expect((await large.find({ type: 'Svg' }))?.props.width).toBe(280)
+  await large.unmount()
 })

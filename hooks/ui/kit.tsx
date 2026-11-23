@@ -5,7 +5,7 @@ import type { ElementTable } from 'claude-code'
 
 import { avatarSvg, barreSvg, GLYPHES, icone, iconeRonde, pointSvg } from './icones'
 import type { NomIcone } from './icones'
-import { estMobile, largeurColonne, LIBELLES_ETAT } from './theme'
+import { estMobile, largeurColonne, LIBELLES_ETAT, PX_PAR_COLONNE } from './theme'
 import type { EtatStatut, Jetons, Teinte } from './theme'
 
 export type Kit = ElementTable
@@ -26,11 +26,15 @@ export function creerCtx(ui: Kit, j: Jetons, surface: string, colonnes: number):
 // Le terminal ne dessine pas de Svg (la table en donne tout de même un élément vide) : on le teste par la surface.
 const avecSvg = (c: Ctx) => (c.surface === 'terminal' ? undefined : (c.ui as { Svg?: unknown }).Svg) as any
 
+/** Texte alternatif d'une icône (jamais vide). */
+const altIcone = (nom: NomIcone): string => `Icône ${nom}`
+
 /** Icône : un Svg là où la surface en dessine, sinon le glyphe texte (terminal). */
 export function iconeEl(c: Ctx, nom: NomIcone, taille = 16, couleur: string = c.j.accent) {
   const Svg = avecSvg(c)
   const { Text } = c.ui
-  if (Svg) return <Svg source={icone(nom, couleur, taille)} alt="" width={taille} height={taille} />
+  // Un alt vide marque l'image décorative et le moteur ne la dessine pas (constat sur l'application) : toujours un alt.
+  if (Svg) return <Svg source={icone(nom, couleur, taille)} alt={altIcone(nom)} width={taille} height={taille} />
   return <Text color={couleur}>{GLYPHES[nom]}</Text>
 }
 
@@ -39,7 +43,7 @@ export function bulle(c: Ctx, nom: NomIcone, taille = 40, teinte?: Teinte) {
   const Svg = avecSvg(c)
   const { Text } = c.ui
   const { fg, soft } = teinte ? c.j.poles[teinte] : { fg: c.j.accent, soft: c.j.accentSoft }
-  if (Svg) return <Svg source={iconeRonde(nom, soft, fg, taille)} alt="" width={taille} height={taille} />
+  if (Svg) return <Svg source={iconeRonde(nom, soft, fg, taille)} alt={altIcone(nom)} width={taille} height={taille} />
   return <Text color={fg}>{GLYPHES[nom]}</Text>
 }
 
@@ -72,7 +76,7 @@ export function carte(c: Ctx, enfants: unknown, o: OptionsCarte = {}) {
     <Box
       key={o.cle ?? 'carte'}
       flexDirection="column"
-      gap="lg"
+      gap="md"
       padding={c.mobile ? 'lg' : 'xl'}
       borderStyle="round"
       borderColor={o.bord ?? (o.actif ? c.j.accent : c.j.bord)}
@@ -117,10 +121,16 @@ export function pastille(c: Ctx, etat: EtatStatut) {
   )
 }
 
+/** Point de 8 px à la couleur d'un pôle (glyphe ● dans le terminal). */
+export function pointEl(c: Ctx, couleur: string, nom: string) {
+  const Svg = avecSvg(c)
+  const { Text } = c.ui
+  return Svg ? <Svg source={pointSvg(couleur)} alt={`Pôle ${nom}`} width={8} height={8} /> : <Text color={couleur}>●</Text>
+}
+
 /** Chip de pôle : point de 8 px et nom, à la teinte du pôle. */
 export function chipPole(c: Ctx, nom: string, teinte: Teinte) {
   const { Box, Text } = c.ui
-  const Svg = avecSvg(c)
   const t = c.j.poles[teinte]
   return (
     <Box
@@ -134,7 +144,7 @@ export function chipPole(c: Ctx, nom: string, teinte: Teinte) {
       borderColor={t.soft}
       backgroundColor={t.soft}
     >
-      {Svg ? <Svg source={pointSvg(t.fg)} alt="" width={8} height={8} /> : <Text color={t.fg}>●</Text>}
+      {pointEl(c, t.fg, nom)}
       <Text weight="semibold" size="footnote" color={t.fg}>{nom}</Text>
     </Box>
   )
@@ -153,19 +163,36 @@ export function avatar(c: Ctx, nom: string, teinte?: Teinte) {
   )
 }
 
-/** Barre de progression de 0 à 1 (bornée ; illisible : 0) : le pourcentage est toujours écrit. */
-export function barreProgression(c: Ctx, label: string, valeur: number, teinte?: Teinte) {
+const LARGEUR_PCT = 6 // colonnes : « 100 % » tient, « 0 % » ne passe jamais à la ligne
+const GAP_BARRE = 8
+const PX_PCT = LARGEUR_PCT * PX_PAR_COLONNE
+
+/** Largeur (px) de la barre : tout ce qui reste dans la carte une fois le pourcentage posé, entre 80 et 280. */
+export function largeurBarre(c: Ctx, partage: 1 | 2 = 1): number {
+  const colonne = largeurColonne(c.colonnes, c.mobile) * PX_PAR_COLONNE
+  const cellule = partage === 2 && !c.mobile ? (colonne - 16) / 2 : colonne
+  const interne = cellule - 2 * (c.mobile ? 16 : 24) - 2
+  return Math.max(80, Math.min(280, Math.floor(interne - GAP_BARRE - PX_PCT)))
+}
+
+/**
+ * Barre de progression de 0 à 1 (bornée ; illisible : 0) : le pourcentage est toujours écrit, sur une seule ligne (boîte de
+ * largeur fixe qui ne rétrécit pas) ; la barre prend la place restante. `partage` : 2 pour une carte en demi-colonne.
+ */
+export function barreProgression(c: Ctx, label: string, valeur: number, teinte?: Teinte, o: { partage?: 1 | 2 } = {}) {
   const { Box, Text, Progress } = c.ui
   const Svg = avecSvg(c)
   const v = Number.isFinite(valeur) ? Math.max(0, Math.min(1, valeur)) : 0
   const pct = `${Math.round(v * 100)} %`
   const couleur = teinte ? c.j.poles[teinte].fg : c.j.accent
   if (!Svg) return <Progress label={label} value={v} valueText={pct} color={couleur} />
-  const largeur = c.mobile ? 160 : 280
+  const largeur = largeurBarre(c, o.partage)
   return (
     <Box flexDirection="row" alignItems="center" gap="sm">
       <Svg source={barreSvg(v, c.j.survol, couleur, largeur)} alt={`${label} ${pct}`} width={largeur} height={8} />
-      <Text weight="semibold" size="footnote" tabular color={c.j.texte}>{pct}</Text>
+      <Box key="pourcentage" width={LARGEUR_PCT} flexShrink={0}>
+        <Text weight="semibold" size="footnote" tabular color={c.j.texte} wrap="truncate-end">{pct}</Text>
+      </Box>
     </Box>
   )
 }

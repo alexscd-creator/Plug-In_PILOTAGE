@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { contraste, couleurPole, ESPACES, ETATS, jetons, LIBELLES_ETAT, RAYONS, TEINTES, TYPO } from '../hooks/ui/theme.ts'
-import { GLYPHES, icone, NOMS_ICONES, tracer } from '../hooks/ui/icones.ts'
+import { avatarSvg, barreSvg, GLYPHES, icone, iconeRonde, NOMS_ICONES, pointSvg, tracer } from '../hooks/ui/icones.ts'
 
 test('les jetons clair et sombre sont ceux de la maquette et diffèrent', () => {
   const c = jetons('clair'), s = jetons('sombre')
@@ -94,4 +94,38 @@ test('thème de l’application : « light » et « dark » (et leurs variantes)
   assert.equal(modeDeTheme('auto'), null)
   assert.equal(modeDeTheme(undefined), null)
   assert.equal(modeDeTheme(42), null)
+})
+
+// Le moteur de dessin du panneau ne reçoit pas de style hérité : une forme sans ses propres attributs de peinture
+// n'est pas tracée (constat sur l'application : barres et avatars, à fill explicite, s'affichent ; icônes à trait hérité, non).
+const FORMES = /<(path|circle|rect|line|polyline|polygon|ellipse)\b[^>]*>/g
+const TRAIT = ['fill="none"', 'stroke="#123456"', 'stroke-width="2"', 'stroke-linecap="round"', 'stroke-linejoin="round"']
+const INTERDITS = [/currentColor/i, /\bclass=/, /\bstyle=/, /<use\b/, /<style\b/, /gradient/i, /<defs\b/, /<g\b/]
+
+test('icônes : chaque forme porte elle-même fill, stroke, épaisseur et terminaisons (rien d’hérité de la racine)', () => {
+  for (const n of NOMS_ICONES) {
+    const svg = icone(n, '#123456', 14)
+    const formes = svg.match(FORMES) ?? []
+    assert.ok(formes.length > 0, n)
+    for (const f of formes) for (const a of TRAIT) assert.ok(f.includes(a), `${n} : ${f} sans ${a}`)
+    for (const re of INTERDITS) assert.doesNotMatch(svg, re, n)
+  }
+})
+
+test('icônes rondes : le rond a son fill, chaque forme de l’icône son trait complet, aucun groupe ni style hérité', () => {
+  for (const n of NOMS_ICONES) {
+    const svg = iconeRonde(n, '#abcdef', '#123456', 40)
+    const formes = svg.match(FORMES) ?? []
+    assert.ok(formes.length > 1, n)
+    assert.ok(formes[0]!.includes('fill="#abcdef"'), n)
+    for (const f of formes.slice(1)) for (const a of TRAIT) assert.ok(f.includes(a), `${n} : ${f} sans ${a}`)
+    for (const re of INTERDITS) assert.doesNotMatch(svg, re, n)
+  }
+})
+
+test('barre, avatar et point : fill explicite sur chaque forme, sans style hérité', () => {
+  for (const svg of [barreSvg(0.5, '#111111', '#222222', 200), pointSvg('#333333'), avatarSvg('Léa', '#444444', '#555555', 28)]) {
+    for (const f of svg.match(FORMES) ?? []) assert.match(f, /fill="#[0-9a-f]{6}"/)
+    for (const re of INTERDITS) assert.doesNotMatch(svg, re)
+  }
 })

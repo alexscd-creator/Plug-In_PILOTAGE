@@ -65,19 +65,28 @@ export const GLYPHES: Record<NomIcone, string> = {
 /** Le contenu du tracé (sans balise svg). */
 export const tracer = (nom: NomIcone): string => T[nom]
 
-const ATTR_TRAIT = 'fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+const FORME = /<(path|circle|rect|line|polyline|polygon|ellipse)\b/g
+
+/**
+ * Écrit la peinture sur CHAQUE forme du tracé. Le moteur de dessin du panneau n'hérite ni du trait ni du remplissage posés sur
+ * la racine ou sur un groupe (constat : barres et avatars, dont les formes portent leur `fill`, s'affichent ; pas les icônes
+ * dont le trait est sur la racine). Pas de `currentColor`, de classe, de style, de `<use>` ni de dégradé.
+ */
+export function peindre(trace: string, couleur: string): string {
+  return trace.replace(FORME, m => `${m} fill="none" stroke="${couleur}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`)
+}
 
 /** Source SVG de l'icône, à la couleur et à la taille (px) données. */
 export function icone(nom: NomIcone, couleur: string, taille: number): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${taille}" height="${taille}" ${ATTR_TRAIT} stroke="${couleur}">${T[nom]}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${taille}" height="${taille}">${peindre(T[nom], couleur)}</svg>`
 }
 
-/** Icône dans un rond plein (bulle de la maquette) : fond teinté, icône au centre. */
+/** Icône dans un rond plein (bulle de la maquette) : fond teinté, icône au centre (cadre décalé de -12 : ni groupe ni transformation). */
 export function iconeRonde(nom: NomIcone, fond: string, couleur: string, taille: number): string {
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="${taille}" height="${taille}">` +
-    `<circle cx="24" cy="24" r="24" fill="${fond}"/>` +
-    `<g transform="translate(12 12)" ${ATTR_TRAIT} stroke="${couleur}">${T[nom]}</g></svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 48 48" width="${taille}" height="${taille}">` +
+    `<circle cx="12" cy="12" r="24" fill="${fond}"/>` +
+    `${peindre(T[nom], couleur)}</svg>`
   )
 }
 
