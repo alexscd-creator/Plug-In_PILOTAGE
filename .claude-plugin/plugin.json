@@ -1,6 +1,6 @@
 {
   "name": "pilotage",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Outil générique de gestion de projet : chantiers, idées et suivi dans un panneau.",
   "keywords": ["gestion de projet", "chantiers", "phases", "agents", "suivi", "panneau"],
   "author": { "name": "Pilotage" },
