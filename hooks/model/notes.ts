@@ -1,7 +1,7 @@
 // Notes d'idée et de retour (`equipe/<prénom>/idees/<id>.md`, `equipe/<prénom>/feedback/<id>.md`) : logique pure, sans fs ni process.
 // Format, écrit et relu tel quel (un membre peut l'éditer à la main) :
 //   ---
-//   id: <date>-<titre en tirets> | type: idee|feedback | titre: ... | date: <ISO UTC> | auteur: <prénom> | phase: <id> | chantier: <id>   (un champ par ligne ; phase et chantier facultatifs)
+//   id: <date>-<titre en tirets> | type: idee|feedback | titre: ... | date: <ISO UTC> | auteur: <prénom> | phase: <id> | chantier: <id> | lance: <id>   (un champ par ligne ; phase, chantier et lance facultatifs)
 //   ---
 //   texte libre, jusqu'à la fin du fichier (une ligne `---` ou `## ...` y est du texte, jamais un champ ni une section)
 // L'auteur qui fait foi est le membre dont le dossier contient la note (on n'écrit que chez soi) ; le champ `auteur` ne sert qu'à
@@ -21,6 +21,8 @@ export type Note = {
   /** Phase ou chantier liés (identifiants) ; vide : aucun lien. */
   phase: string
   chantier: string
+  /** Chantier lancé depuis cette note (bouton « Lancer en chantier ») ; vide : note encore à faire. */
+  lance: string
   texte: string
 }
 /** `avertissements` : anomalies sans gravité ; `auteurDeclare` : l'auteur écrit dans le fichier (jamais celui qui s'affiche). */
@@ -93,19 +95,19 @@ export function parseNote(texte: string, auteur: string): ResultatNote {
     else if (titre.length > MAX_TITRE_NOTE) erreurs.push(`Le titre est trop long (${MAX_TITRE_NOTE} caractères au plus).`)
     const date = cles.date ?? ''
     if (!dateStricte(date)) erreurs.push('La date (date) est absente ou invalide (attendu : date ISO UTC, ex. 2026-11-21T10:00:00Z).')
-    const lien = (cle: 'phase' | 'chantier'): string => {
+    const lien = (cle: 'phase' | 'chantier' | 'lance'): string => {
       const v = cles[cle] ?? ''
       if (v !== '' && (!ID_RE.test(v) || v.length > MAX_ID)) erreurs.push(`Le champ « ${cle} » (« ${v.slice(0, 40)} ») est invalide : lettres minuscules, chiffres et tirets.`)
       return v
     }
-    const phase = lien('phase'), chantier = lien('chantier')
+    const phase = lien('phase'), chantier = lien('chantier'), lance = lien('lance')
     if (erreurs.length) return { ok: false, erreurs }
 
     const auteurDeclare = (cles.auteur ?? '').slice(0, MAX_TITRE_NOTE)
     const avertissements: string[] = []
     if (auteurDeclare !== '' && !memeMembre(auteurDeclare, auteur))
       avertissements.push(`L’auteur écrit dans la note (« ${auteurDeclare.slice(0, 40)} ») n’est pas le membre du dossier : c’est le dossier qui fait foi.`)
-    return { ok: true, avertissements, auteurDeclare, note: { id, type, titre, date, auteur, phase, chantier, texte: corpsNet(lignes.slice(i).join('\n')) } }
+    return { ok: true, avertissements, auteurDeclare, note: { id, type, titre, date, auteur, phase, chantier, lance, texte: corpsNet(lignes.slice(i).join('\n')) } }
   } catch {
     return { ok: false, erreurs: ['La note n’a pas pu être lue.'] }
   }
@@ -123,6 +125,7 @@ export function serializeNote(n: Note): string {
   ]
   if (idNet(n.phase) !== '') sortie.push(`phase: ${idNet(n.phase).slice(0, MAX_ID)}`)
   if (idNet(n.chantier) !== '') sortie.push(`chantier: ${idNet(n.chantier).slice(0, MAX_ID)}`)
+  if (idNet(n.lance) !== '') sortie.push(`lance: ${idNet(n.lance).slice(0, MAX_ID)}`)
   sortie.push('---', corpsNet(n.texte))
   return sortie.join('\n') + '\n'
 }
@@ -135,7 +138,7 @@ export function validerNote(n: Note): string[] {
   if (!estType(String(n?.type))) e.push(`Le type « ${String(n?.type).slice(0, 40)} » est inconnu (attendus : ${TYPES_NOTE.join(', ')}).`)
   if (texteNet(n?.titre) === '') e.push('Le titre de la note est vide.')
   if (!dateStricte(String(n?.date ?? ''))) e.push('La date est absente ou invalide (attendu : date ISO UTC existante, ex. 2026-11-21T10:00:00Z).')
-  for (const k of ['phase', 'chantier'] as const) {
+  for (const k of ['phase', 'chantier', 'lance'] as const) {
     const v = String(n?.[k] ?? '')
     if (v !== '' && (!ID_RE.test(v) || v.length > MAX_ID)) e.push(`Le champ « ${k} » (« ${v.slice(0, 40)} ») est invalide : lettres minuscules, chiffres et tirets, ${MAX_ID} caractères au plus.`)
   }

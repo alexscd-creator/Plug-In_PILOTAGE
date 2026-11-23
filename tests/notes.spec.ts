@@ -5,7 +5,7 @@ import type { Note } from '../hooks/model/notes.ts'
 
 const note = (extra: Partial<Note> = {}): Note => ({
   id: '2026-11-21-menu-plus-clair', type: 'idee', titre: 'Un menu plus clair', date: '2026-11-21T10:00:00Z', auteur: 'Léa',
-  phase: '', chantier: '', texte: 'Regrouper les réglages.\nGarder trois entrées.', ...extra,
+  phase: '', chantier: '', lance: '', texte: 'Regrouper les réglages.\nGarder trois entrées.', ...extra,
 })
 
 test('écrite puis relue, une note est identique (avec phase et chantier)', () => {
@@ -93,4 +93,17 @@ test('validerNote : id, type, titre, date et liens vérifiés avant l’écritur
   assert.ok(validerNote(note({ date: '2026-02-31T10:00:00Z' })).length > 0)
   assert.ok(validerNote(note({ phase: 'A B' })).length > 0)
   assert.ok(validerNote(note({ chantier: 'x'.repeat(61) })).length > 0)
+})
+
+test('lance : écrit s’il est donné, relu tel quel ; absent, il vaut "" ; invalide, erreur', () => {
+  const s = serializeNote(note({ lance: 'menu-clair' }))
+  assert.match(s, /^lance: menu-clair$/m)
+  const r = parseNote(s, 'Léa')
+  assert.ok(r.ok && r.note.lance === 'menu-clair')
+  assert.doesNotMatch(serializeNote(note()), /^lance:/m)
+  const sans = parseNote(serializeNote(note()), 'Léa')
+  assert.ok(sans.ok && sans.note.lance === '')
+  const mauvais = parseNote(serializeNote(note()).replace('---\n', '---\nlance: Pas Valide!\n'), 'Léa')
+  assert.ok(!mauvais.ok && mauvais.erreurs.some(e => e.includes('lance')))
+  assert.ok(validerNote(note({ lance: 'Pas Valide' })).length > 0)
 })

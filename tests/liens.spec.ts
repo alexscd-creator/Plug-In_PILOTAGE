@@ -70,7 +70,7 @@ test('chantiers, sessions et notes : les liens sont sautés avec un avertissemen
     [`${R}/.pilotage/equipe/lea/chantiers/a.md`]: serializeChantier(c),
     [`${R}/.pilotage/equipe/lea/chantiers/b.md`]: serializeChantier({ ...c, id: 'b', titre: 'B' }),
     [`${R}/.pilotage/equipe/lea/sessions.json`]: '{"s1":"a"}',
-    [`${R}/.pilotage/equipe/lea/idees/2026-01-01-x.md`]: serializeNote({ id: '2026-01-01-x', type: 'idee', titre: 'X', date: '2026-01-01T00:00:00Z', auteur: 'Léa', phase: '', chantier: '', texte: 't' }),
+    [`${R}/.pilotage/equipe/lea/idees/2026-01-01-x.md`]: serializeNote({ id: '2026-01-01-x', type: 'idee', titre: 'X', date: '2026-01-01T00:00:00Z', auteur: 'Léa', phase: '', chantier: '', lance: '', texte: 't' }),
   }
   const fs = disque(fichiers, [`${R}/.pilotage/equipe/lea/chantiers/b.md`, `${R}/.pilotage/equipe/lea/archive`])
   const l = await lireProjetComplet(fs, R, 'Léa')

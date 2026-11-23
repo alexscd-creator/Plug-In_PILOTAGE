@@ -29,7 +29,7 @@ function fsDe(fichiers: Record<string, string>, panne: string[] = []): FsLike {
   }
 }
 const note = (id: string, extra: Partial<Note> = {}): Note => ({
-  id, type: 'idee', titre: `Note ${id}`, date: '2026-11-21T10:00:00Z', auteur: 'Léa', phase: '', chantier: '', texte: 'Texte.', ...extra,
+  id, type: 'idee', titre: `Note ${id}`, date: '2026-11-21T10:00:00Z', auteur: 'Léa', phase: '', chantier: '', lance: '', texte: 'Texte.', ...extra,
 })
 const f = (membre: string, sous: string, n: Note) => ({ [`${E}/${membre}/${sous}/${n.id}.md`]: serializeNote(n) })
 

@@ -10,7 +10,7 @@ const R = 'C:/Projet/.pilotage/equipe'
 const VIDE = 'Aucune idée ni retour classé pour l’instant. Lancez une idée dans la conversation : elle sera classée automatiquement.'
 
 const note = (id: string, extra: Partial<Note> = {}): Note => ({
-  id, type: 'idee', titre: `Titre ${id}`, date: '2026-11-21T10:00:00Z', auteur: 'Léa', phase: '', chantier: '', texte: `Texte de ${id}.`, ...extra,
+  id, type: 'idee', titre: `Titre ${id}`, date: '2026-11-21T10:00:00Z', auteur: 'Léa', phase: '', chantier: '', lance: '', texte: `Texte de ${id}.`, ...extra,
 })
 const fichier = (membre: string, n: Note) => ({ [`${R}/${membre}/${n.type === 'idee' ? 'idees' : 'feedback'}/${n.id}.md`]: serializeNote(n) })
 const dossier = (notes: [string, Note][], brut: Record<string, string> = {}) => ({

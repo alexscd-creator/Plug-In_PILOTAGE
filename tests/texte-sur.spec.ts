@@ -46,7 +46,7 @@ test('un texte de 1 Mo est traité vite', () => {
 
 test('relecture : zéro largeur, bidi et contrôles sont retirés des notes et des fiches', () => {
   assert.equal(retirerInvisibles('a\u200b\u202eb\u0000c'), 'abc')
-  const n = serializeNote({ id: 'x', type: 'idee', titre: 'T', date: '2026-11-21T10:00:00Z', auteur: 'L', phase: '', chantier: '', texte: 't' })
+  const n = serializeNote({ id: 'x', type: 'idee', titre: 'T', date: '2026-11-21T10:00:00Z', auteur: 'L', phase: '', chantier: '', lance: '', texte: 't' })
   const r = parseNote(n.replace('titre: T', 'titre: Ti\u200b\u202etre'), 'L')
   assert.ok(r.ok)
   if (r.ok) assert.equal(r.note.titre, 'Titre')

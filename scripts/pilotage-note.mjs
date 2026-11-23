@@ -120,7 +120,7 @@ function creer(type, d, projet, membre, racine, rel) {
     if (n > MAX_COLLISIONS) echec(`Plus de ${MAX_COLLISIONS} notes portent déjà ce titre aujourd'hui : en choisir un autre. Rien n'est écrit.`, 3)
     id = `${base}-${n}`
   }
-  const note = { id, type, titre, date, auteur: membre.prenom, phase, chantier, texte: corps }
+  const note = { id, type, titre, date, auteur: membre.prenom, phase, chantier, lance: '', texte: corps }
   const e = validerNote(note)
   if (e.length) echec(e)
   const sortie = serializeNote(note)
