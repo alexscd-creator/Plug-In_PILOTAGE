@@ -107,16 +107,28 @@ export function chipEtatPhase(c: Ctx, etat: keyof typeof ETATS_PHASE) {
 function cartePhase(c: Ctx, cle: string, titre: string, etat: keyof typeof ETATS_PHASE | null, taches: Tache[], copier: DonneesPlan['copier'], pied?: string) {
   const { Box, Text } = c.ui
   const g = avancementGlobal(taches)
+  const faites = taches.filter(t => t.statut === 'termine').length
+  const sousTitre = etat === 'a-venir'
+    ? pluriel(taches.length, 'tâche prévue', 'tâches prévues')
+    : `${pluriel(taches.length, 'tâche', 'tâches')} · ${pluriel(faites, 'terminée', 'terminées')}`
   return carte(c, [
-    <Box key="entete" flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
-      <Text weight="semibold" size="heading" color={c.j.texte}>{titre}</Text>
-      {etat ? chipEtatPhase(c, etat) : null}
+    <Box key="entete" flexDirection="column" gap="xs">
+      <Box key="ligne" flexDirection="row" flexWrap="wrap" alignItems="center" gap="md">
+        <Text weight="semibold" size="heading" color={c.j.texte}>{titre}</Text>
+        {etat ? chipEtatPhase(c, etat) : null}
+      </Box>
+      <Text key="sous-titre" size="caption" color={c.j.texteDim}>{sousTitre}</Text>
     </Box>,
     barreProgression(c, `Avancement : ${titre}`, g.pourcent / 100),
     taches.length === 0
       ? <Text key="vide" size="footnote" color={c.j.texteDim}>Aucune tâche dans cette phase.</Text>
       : <Box key="taches" flexDirection="column">{taches.map(t => ligneTache(c, t, copier))}</Box>,
-    pied ? <Text key="pied" size="footnote" weight="semibold" color={c.j.etats.attente.fg}>{pied}</Text> : null,
+    pied ? (
+      <Box key="pied" flexDirection="row" alignItems="center" gap="sm" paddingTop="sm">
+        {iconeEl(c, 'verrou', 14, c.j.texteDim)}
+        <Text size="footnote" color={c.j.texteSec}>{pied}</Text>
+      </Box>
+    ) : null,
   ], { cle })
 }
 
@@ -124,8 +136,8 @@ export function pagePlan(c: Ctx, d: DonneesPlan) {
   const { Box, Text } = c.ui
   const intro = (
     <Box key="intro" flexDirection="column" gap="xs">
+      <Text key="titre-page" weight="bold" size="title" color={c.j.texte}>Plan</Text>
       <Text color={c.j.texteSec}>Le cahier des charges est le plan de travail : chaque point à faire est une tâche.</Text>
-      <Text color={c.j.texteSec}>Chaque tâche liée à un fichier a un bouton « Copier le chemin » pour l’ouvrir dans votre éditeur.</Text>
     </Box>
   )
   if (d.taches.length === 0) {

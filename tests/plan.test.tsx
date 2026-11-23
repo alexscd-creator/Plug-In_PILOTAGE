@@ -17,7 +17,7 @@ test('plan : intro, légende des 5 états (icône et libellé), une carte par ph
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
     expect(await texte(ui, /Le cahier des charges est le plan de travail : chaque point à faire est une tâche\./)).toBeTruthy()
-    expect(await texte(ui, 'Chaque tâche liée à un fichier a un bouton « Copier le chemin » pour l’ouvrir dans votre éditeur.')).toBeTruthy()
+    expect(await texte(ui, 'Plan')).toBeTruthy()
     expect(await texte(ui, /Cliquez une ligne/)).toBeFalsy()
     expect(await texte(ui, 'États d’une tâche')).toBeTruthy()
     const dedans = JSON.stringify(await ui.find({ key: 'carte-legende' }))
