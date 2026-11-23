@@ -423,3 +423,16 @@ test('skillRattacher / skillRetirer ne modifient jamais leur entrée', () => {
   ok(p, { type: 'skillRetirer', agent: 'a1', skill: 'luau' })
   assert.equal(serializeProjet(p), avant)
 })
+
+test('membreAjouter : ajoute un prénom à l\'équipe (3 au plus, pas de doublon, nom de dossier sûr)', () => {
+  const p = base()
+  const n = ok(p, { type: 'membreAjouter', prenom: '  Mika ' })
+  assert.deepEqual(n.equipe, ['Léa', 'Sam', 'Mika'])
+  refus(p, { type: 'membreAjouter', prenom: 'lea' }, /même membre/)
+  refus(p, { type: 'membreAjouter', prenom: '' })
+  refus(p, { type: 'membreAjouter', prenom: 'Mi"ka' })
+  refus(p, { type: 'membreAjouter', prenom: 'a/b' })
+  refus(p, { type: 'membreAjouter', prenom: '日本' })
+  refus(p, { type: 'membreAjouter', prenom: 'x'.repeat(41) })
+  refus(ok(p, { type: 'membreAjouter', prenom: 'Mika' }), { type: 'membreAjouter', prenom: 'Zoé' }, /3 membres/)
+})

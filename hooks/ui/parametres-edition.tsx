@@ -99,7 +99,7 @@ export function cartePoles(c: Ctx, d: DonneesParametres) {
 export function carteEquipe(c: Ctx, d: DonneesParametres) {
   const { Box, Text } = c.ui
   return carte(c, [
-    <Box key="entete">{titreSection(c, 'Équipe', 'Les membres du projet (lecture seule).')}</Box>,
+    <Box key="entete">{titreSection(c, 'Équipe', d.moi !== '' && d.projet.equipe.length < 3 ? 'Les membres du projet (3 au plus). Ajoutez un associé pour qu’il puisse choisir son prénom à son premier lancement.' : 'Les membres du projet.')}</Box>,
     ...d.projet.equipe.map(m => (
       <Box key={`membre-${m}`} flexDirection="row" alignItems="center" gap="md">
         {avatar(c, m)}
@@ -107,5 +107,6 @@ export function carteEquipe(c: Ctx, d: DonneesParametres) {
         {d.moi !== '' && memeMembre(m, d.moi) ? <Text size="footnote" color={c.j.accent}>Vous</Text> : null}
       </Box>
     )),
+    d.projet.equipe.length < 3 ? champTexte(c, d, 'membre-ajout', 'Ajouter un membre (son prénom)', '', v => d.modifier({ type: 'membreAjouter', prenom: v })) : null,
   ], { cle: 'parametres-equipe' })
 }

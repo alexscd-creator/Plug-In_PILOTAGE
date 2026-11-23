@@ -126,3 +126,24 @@ test('sans prénom connu : pas de bouton d\'installation (lecture seule)', async
   expect(await ui.find({ key: 'skills-installer' })).toBeFalsy()
   await ui.unmount()
 })
+
+test('Paramètres > Équipe : « Ajouter un membre » inscrit un prénom dans projet.json (3 membres au plus)', async ($, on) => {
+  const b = banc(on, { config: '{"prenom":"lea"}' })
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'nav-reglages' })
+  await ui.input({ key: 'membre-ajout', text: 'Mika' })
+  expect(JSON.parse(b.fichiers[`${D}/projet.json`]!).equipe).toEqual([...PROJET.equipe, 'Mika'])
+  expect(await ui.find({ key: 'membre-ajout' })).toBeFalsy() // l'équipe est au complet
+  await ui.unmount()
+})
+
+test('Paramètres > Équipe : un doublon est refusé et rien n\'est écrit ; sans prénom connu, pas de champ', async ($, on) => {
+  const b = banc(on, { config: '{"prenom":"lea"}' })
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'nav-reglages' })
+  await ui.input({ key: 'membre-ajout', text: PROJET.equipe[0]!.toLowerCase() })
+  expect(b.ecrits).toEqual([])
+  await ui.unmount()
+})

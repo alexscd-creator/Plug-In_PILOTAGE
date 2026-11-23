@@ -6,7 +6,7 @@
 //    dans `projet.json.bak` (écrite AVANT, et le message l'indique). Jamais d'écriture ailleurs que `.pilotage/projet.json(.bak)` et
 //    `~/.claude/pilotage/mon-workflow.json`. Rien ne lève : tout échec est un résultat `{ ok: false, erreurs }`.
 import { parseMonWorkflow } from './presets.ts'
-import { memeMembre, parseProjet, serializeProjet, TEINTES_POLE } from './projet.ts'
+import { dossierMembre, memeMembre, parseProjet, prenomPerdDesLettres, serializeProjet, TEINTES_POLE } from './projet.ts'
 import type { Projet, ResultatProjet, Workflow } from './projet.ts'
 
 export type Patch =
@@ -24,12 +24,14 @@ export type Patch =
   | { type: 'poleCouleur'; id: string; couleur: string }
   | { type: 'poleAjouter'; id: string; titre: string; couleur?: string }
   | { type: 'poleRetirer'; id: string }
+  | { type: 'membreAjouter'; prenom: string }
 
 export type Retour = { ok: true } | { ok: false; erreurs: string[] }
 const echec = (...erreurs: string[]): { ok: false; erreurs: string[] } => ({ ok: false, erreurs })
 const ID_POLE = /^[a-z0-9-]+$/
 const ID_SKILL = /^[a-z0-9-]+$/
 const MAX_ID = 60
+const PRENOM_MEMBRE = /^[\p{L}\p{N}][\p{L}\p{N} '.-]{0,39}$/u
 const MAX_SKILLS = 20
 
 /** Applique le patch à une copie puis revalide le résultat entier : aucune règle n'est dupliquée ici. */
@@ -130,6 +132,13 @@ function appliquer(n: Projet, patch: Patch): string | null {
       const libre = TEINTES_POLE.find(t => !n.poles.some(p => p.couleur === t))
       const couleur = patch.couleur ?? libre
       n.poles.push({ id: patch.id, titre: patch.titre, ...(couleur ? { couleur } : {}) })
+      return null
+    }
+    case 'membreAjouter': {
+      const prenom = typeof patch.prenom === 'string' ? patch.prenom.trim() : ''
+      if (!PRENOM_MEMBRE.test(prenom)) return "Le prénom doit tenir en 40 caractères : lettres latines, chiffres, espaces, tirets ou apostrophes (ni guillemet ni barre oblique)."
+      if (dossierMembre(prenom) === '' || prenomPerdDesLettres(prenom)) return "Ce prénom ne donne pas un nom de dossier valide : l'écrire en lettres latines (a-z)."
+      n.equipe.push(prenom)
       return null
     }
     case 'poleRetirer': {
