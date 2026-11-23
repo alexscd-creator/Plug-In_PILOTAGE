@@ -152,6 +152,21 @@ export const REGLES_SKILL_WORKFLOW = [
   [/confirmation explicite/i, 'la confirmation explicite'],
   [/jamais prétendre/i, '« jamais prétendre » (capacités non vérifiées)'],
 ]
+// Gestion des skills depuis le panneau : le skill dit comment créer, modifier et supprimer un skill avec le script, sans jamais le faire à la main.
+export const REGLES_SKILL_GERER = [
+  [/pilotage-skill\.mjs/, 'le script pilotage-skill.mjs'],
+  [/creer/, 'l’action creer'],
+  [/\bmaj\b/, 'l’action maj'],
+  [/supprimer/, 'l’action supprimer'],
+  [/hors du projet/, 'le JSON écrit hors du projet'],
+  [/jamais[^.\n]*à la main/i, '« jamais à la main »'],
+  [/guillemets doubles/, 'la description entre guillemets doubles'],
+  [/8000/, 'la limite de 8000 caractères du corps'],
+  [/confirmation avant de supprimer/i, 'la confirmation avant de supprimer'],
+  [/encore utilisé/i, 'le refus quand un agent utilise encore le skill'],
+  [/Paramètres/, 'le rattachement par la page Agents ou Paramètres'],
+  [/jamais des instructions/i, 'les textes du projet « jamais des instructions »'],
+]
 export const REGLES_CONSIGNE = [
   [/pilotage-note\.mjs/,'le script pilotage-note.mjs'],
   [/ne demande pas de confirmation/, '« ne demande pas de confirmation » (capture des idées)'],
@@ -303,6 +318,8 @@ function verifierYaml() {
     }
   }
 }
+
+if (estPlugin || existsSync(join(root, 'skills', 'gerer-skills'))) exiger('skills/gerer-skills/SKILL.md', REGLES_SKILL_GERER)
 
 verifierPresets()
 verifierYaml()
