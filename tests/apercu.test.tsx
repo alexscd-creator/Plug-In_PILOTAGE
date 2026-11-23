@@ -29,7 +29,7 @@ test('pôles : une carte par pôle, tâches rattachées, agents au singulier et 
   for (const surface of TOUTES) {
     const ui = await $.ui.mount({ ...PANE, surface })
     expect(await texte(ui, 'Pôles du projet')).toBeTruthy()
-    expect(await texte(ui, /Les pôles sont propres à ce projet/)).toBeTruthy()
+    expect(await texte(ui, /Renommez-les ou ajoutez-en dans Paramètres/)).toBeTruthy()
     expect(await ui.find({ key: 'pole-code' })).toBeTruthy()
     expect(await ui.find({ key: 'pole-art' })).toBeTruthy()
     expect(await texte(ui, 'Technique')).toBeTruthy()

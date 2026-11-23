@@ -27,8 +27,10 @@ export function navigation(c: Ctx, courante: Page, aller: (p: Page) => void | Pr
     <Box
       key="navigation"
       flexDirection="row"
-      gap="xs"
-      padding="xs"
+      gap="sm"
+      padding="sm"
+      justifyContent="center"
+      alignItems="center"
       borderStyle="round"
       borderColor={j.bord}
       backgroundColor={j.surface}
@@ -45,7 +47,7 @@ export function navigation(c: Ctx, courante: Page, aller: (p: Page) => void | Pr
             {...(actif ? { backgroundColor: j.accentSoft } : {})}
             {...(cadres ? { borderStyle: 'round', borderColor: actif ? j.accentSoft : j.surface } : {})}
           >
-            <Button key={`nav-${p.page}`} label={p.titre} onPress={() => aller(p.page)}>
+            <Button key={`nav-${p.page}`} label={p.titre} variant={actif ? 'primary' : 'secondary'} onPress={() => aller(p.page)}>
               <Text color={fg} weight={actif ? 'semibold' : 'regular'}>{`${GLYPHES[p.icone]} ${p.titre}`}</Text>
             </Button>
           </Box>

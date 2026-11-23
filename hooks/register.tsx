@@ -32,7 +32,7 @@ import { bandeauChantier } from './ui/bandeau'
 import { pageChantiers } from './ui/chantiers'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
-import { barreHaut, navigation, PAGES } from './ui/nav'
+import { barreHaut, navigation } from './ui/nav'
 import type { NomIcone } from './ui/icones'
 import { pageParametres } from './ui/parametres'
 import { pageIdees } from './ui/idees'
@@ -945,8 +945,6 @@ export const register: Register = on => {
       }
       const monWorkflow = courante === 'parametres' ? await lireMonWorkflow($) : null
       const aller = sur($, async (p: Page) => { await update($, erreursReglages, () => []); await update($, page, () => p) })
-      const { Text } = ui
-      const titre = PAGES.find(p => p.page === courante)?.titre ?? ''
       return cadre(ctx, [
         barreHaut(ctx, {
           type: libelle(lecture.projet, 'type'),
@@ -958,7 +956,6 @@ export const register: Register = on => {
         ...(moi === '' ? [carteIdentite(ctx, { equipe: projet.equipe, choisir: sur($, (p: string) => choisirPrenom($, projet.equipe, p)) })] : []),
         ...(chantierCourant ? [bandeauChantier(ctx, { chantier: chantierCourant, projet: lecture.projet, maintenant })] : []),
         navigation(ctx, courante, aller),
-        <Text key="titre-page" weight="bold" size="title" color={ctx.j.texte}>{titre}</Text>,
         ...(courante === 'apercu'
           ? pageApercu(ctx, {
               projet: lecture.projet, taches: lecture.taches, moi, portes: lecture.portes,

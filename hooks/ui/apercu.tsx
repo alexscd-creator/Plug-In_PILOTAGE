@@ -101,7 +101,7 @@ function sectionPoles(c: Ctx, d: DonneesApercu) {
   for (let i = 0; i < cartes.length; i += c.mobile ? 1 : 2) rangees.push(cartes.slice(i, i + (c.mobile ? 1 : 2)))
   return (
     <Box key="poles" flexDirection="column" gap="lg">
-      {titreSection(c, 'Pôles du projet', 'Les pôles sont propres à ce projet : renommez-les, changez leur couleur ou ajoutez-en dans Paramètres.')}
+      {titreSection(c, 'Pôles du projet', 'Renommez-les ou ajoutez-en dans Paramètres.')}
       {cartes.length === 0 ? <Text color={c.j.texteDim}>Aucun pôle défini pour ce projet.</Text> : null}
       {rangees.map((r, k) => (
         <Box key={`rangee-${k}`} flexDirection="row" gap="lg">
