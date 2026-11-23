@@ -206,3 +206,12 @@ test('identifiant de la session : jamais retiré par le plafond (partie fixe)', 
   assert.ok(t.length <= MAX_CONSIGNE)
   assert.ok(t.includes('Identifiant de cette session : sess-1'))
 })
+
+test('chef de projet : la ligne juste après le titre donne le rôle, nomme le skill et les trois suites ; partie fixe < 3000', () => {
+  const l = partieFixe(projet()).split('\n')
+  assert.equal(l[0], '# Projet Pilotage')
+  assert.ok(l[1]!.includes('chef de projet'), l[1])
+  for (const s of ['`chef-de-projet`', 'ici', 'note', 'chantier', 'sous-session']) assert.ok(l[1]!.includes(s), s)
+  const tous = projet({ workflow: { outils: ['Figma', 'Gemini', 'Blender', 'Mesh AI', 'GitHub', 'Vault', 'Roblox'].map(o => ({ role: 'r', outil: o })) } })
+  assert.ok(partieFixe(tous, 'abc-123').length < 3000, String(partieFixe(tous, 'abc-123').length))
+})

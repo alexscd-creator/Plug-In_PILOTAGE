@@ -50,6 +50,8 @@ declare module 'claude-code' {
       ligneEditee: Shaped<string>
       /** Dernière erreur d'écriture de l'état des agents dans une fiche ('' : la dernière écriture a réussi). Affichée nulle part pour l'instant. */
       erreurEcriture: Shaped<string>
+      /** Vrai dès que l'utilisateur a choisi une page : la page « Chantier ouvert » n'est plus ouverte d'office. */
+      pageChoisie: Shaped<boolean>
     }
   }
 }
