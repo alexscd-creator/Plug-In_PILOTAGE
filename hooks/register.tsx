@@ -7,7 +7,7 @@ import type { FsLike } from './model/activation.ts'
 import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
 import { creerRegistre, lireFiches, lireSkills, specsProjet } from './model/agents-registre.ts'
-import { chantierDeSession } from './model/chantiers.ts'
+import { chantierDeSession, grouperChantiers } from './model/chantiers.ts'
 import { construireConsigne, construireEtat, entreeDepuisLecture } from './model/consigne.ts'
 import { creerEcrivain, majFiche } from './model/ecriture-chantier.ts'
 import { ecritureSure, MESSAGE_LIEN_PANNEAU } from './model/liens.ts'
@@ -30,6 +30,7 @@ import { pageAgents } from './ui/agents'
 import { carteIdentite } from './ui/identite'
 import { bandeauChantier } from './ui/bandeau'
 import { pageChantiers } from './ui/chantiers'
+import { cles } from './ui/ligne-chantier'
 import { cadre, creerCtx } from './ui/kit'
 import type { Ctx } from './ui/kit'
 import { barreHaut, navigation } from './ui/nav'
@@ -65,8 +66,10 @@ const erreursMarqueur = atom({ plugin: 'pilotage', key: 'erreursMarqueur' } as c
 const page = atom({ plugin: 'pilotage', key: 'page' } as const, 'apercu' as Page, { shape: 'page-1' })
 // Phase ouverte dans la page Phases ('' : la phase en cours).
 const phaseOuverte = atom({ plugin: 'pilotage', key: 'phaseOuverte' } as const, '', { shape: 'phase-ouverte-1' })
-// Chantier dont le détail est ouvert dans la page Chantiers ('' : aucun).
+// Chantier ouvert dans la page Chantiers (page « Chantier ouvert ») ; '' : la liste.
 const chantierOuvert = atom({ plugin: 'pilotage', key: 'chantierOuvert' } as const, '', { shape: 'chantier-ouvert-1' })
+// Vrai dès que le membre a choisi une page ou un chantier : le panneau n'ouvre plus d'office le chantier de la session.
+const pageChoisie = atom({ plugin: 'pilotage', key: 'pageChoisie' } as const, false, { shape: 'page-choisie-1' })
 // Pôle filtré dans la page Agents ('' : tous les pôles).
 const filtrePole = atom({ plugin: 'pilotage', key: 'filtrePole' } as const, '', { shape: 'filtre-pole-1' })
 // Agent dont le détail est ouvert dans la page Agents ('' : la grille).
@@ -934,9 +937,12 @@ export const register: Register = on => {
       const chantierCourant = chantierDeSession(lecture.chantiers, cacheLecture.sessions, idSession)
       if (!lecture.projet) return lecture.erreurs.length > 0 ? erreurs(lecture.erreurs) : await vide()
 
-      const courante = await read($, page)
+      // Dans la session d'un chantier, le panneau s'ouvre sur ce chantier tant que le membre n'a pas choisi une autre page.
+      const dOffice = chantierCourant !== null && !(await read($, pageChoisie))
+      const courante: Page = dOffice ? 'chantiers' : await read($, page)
       const ouverte = await read($, phaseOuverte)
-      const detailOuvert = await read($, chantierOuvert)
+      const enCours = grouperChantiers(lecture.chantiers).enCours
+      const detailOuvert = dOffice ? (cles(enCours)[enCours.indexOf(chantierCourant!)] ?? '') : await read($, chantierOuvert)
       const donneesAgents = courante === 'agents' ? await lireDonneesAgents($, lecture, maintenant) : null
       const projet = lecture.projet
       // Les idées et retours ne se lisent que sur leur page (même cache que le projet : relus à chaque rafraîchissement).
@@ -946,7 +952,12 @@ export const register: Register = on => {
         notes = cacheNotes.valeur
       }
       const monWorkflow = courante === 'parametres' ? await lireMonWorkflow($) : null
-      const aller = sur($, async (p: Page) => { await update($, erreursReglages, () => []); await update($, page, () => p) })
+      const aller = sur($, async (p: Page) => {
+        await update($, erreursReglages, () => [])
+        await update($, pageChoisie, () => true)
+        if (p === 'chantiers') await update($, chantierOuvert, () => '')
+        await update($, page, () => p)
+      })
       return cadre(ctx, [
         barreHaut(ctx, {
           type: libelle(lecture.projet, 'type'),
@@ -975,7 +986,11 @@ export const register: Register = on => {
                 ? pageChantiers(ctx, {
                     projet: lecture.projet, chantiers: lecture.chantiers, erreursChantiers: lecture.erreursChantiers, maintenant,
                     copier: copierLeChemin, ouvert: detailOuvert,
-                    basculer: sur($, async (cle: string) => { await update($, chantierOuvert, () => cle) }),
+                    ouvrir: sur($, async (cle: string) => {
+                      await update($, chantierOuvert, () => cle)
+                      await update($, page, () => 'chantiers')
+                      await update($, pageChoisie, () => true)
+                    }),
                   })
                 : courante === 'agents' && donneesAgents
                   ? pageAgents(ctx, {

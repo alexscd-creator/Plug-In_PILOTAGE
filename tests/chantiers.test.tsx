@@ -251,30 +251,67 @@ test('pôle : les tâches des chantiers comptent avec leur pôle, détail du pro
   await ui.unmount()
 })
 
-test('détail d’un chantier : atome chantierOuvert, tâches, fichiers et agents sollicités', async ($, on) => {
+test('chantier ouvert : la page remplace la liste, progression, agents, tâches, fichiers, retour à la liste', async ($, on) => {
   const c = fiche('a', {
     taches: [{ titre: 'Poser le sol', statut: 'termine' }, { titre: 'Peindre', statut: 'a faire' }], fichiers: ['src/lobby.luau'],
-    agents: [{ id: 'a1', etat: 'en-travail', quoi: 'Écrit le lobby' }], passation: '',
+    agents: [{ id: 'a1', etat: 'en-travail', quoi: 'Écrit le lobby' }], passation: '', maj: il(12 * MIN),
   })
   banc(on, dossier([c, fiche('b')]))
   const l = copies(on)
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
-    expect(await ui.find({ key: 'detail-chantier-a' })).toBeFalsy()
-    await ui.press({ key: 'detail-a' })
-    const d = await dans(ui, 'detail-chantier-a')
-    for (const s of ['Agents sollicités', 'Écrit le lobby', 'Tâches du chantier', 'Poser le sol', 'Peindre', 'Fichiers du chantier', 'src/lobby.luau']) expect(d).toContain(s)
-    expect(await ui.find({ key: 'detail-chantier-b' })).toBeFalsy()
+    expect(await ui.find({ key: 'chantier-ouvert-a' })).toBeFalsy()
+    await ui.press({ key: 'ouvrir-a' })
+    expect(await dans(ui, 'chantier-ouvert-a')).toContain('Chantier a')
+    expect(await dans(ui, 'chantier-ouvert-a')).toContain('ouvert le')
+    const prog = await dans(ui, 'progression-chantier-a')
+    for (const s of ['Progression du chantier', '50 %', '1 tâche terminée sur 2', 'mis à jour il y a 12 min']) expect(prog).toContain(s)
+    expect(await dans(ui, 'agents-sollicites')).toContain('Écrit le lobby')
+    const t = await dans(ui, 'taches-chantier-a')
+    for (const s of ['Tâches du chantier', 'Poser le sol', 'Peindre']) expect(t).toContain(s)
+    expect(await dans(ui, 'fichiers-chantier-a')).toContain('src/lobby.luau')
+    // La liste a disparu : ni l'autre chantier, ni la section « En cours ».
+    expect(await ui.find({ key: 'chantier-b' })).toBeFalsy()
+    expect(await texte(ui, /^En cours · /)).toBeFalsy()
     await ui.press({ key: 'copier-fichier-a-0' })
     expect(l.at(-1)).toEqual({ text: 'src/lobby.luau', surface })
-    await ui.press({ key: 'detail-b' })
-    expect(await ui.find({ key: 'detail-chantier-a' })).toBeFalsy()
-    expect(await ui.find({ key: 'detail-chantier-b' })).toBeTruthy()
-    await ui.press({ key: 'detail-b' })
-    expect(await ui.find({ key: 'detail-chantier-b' })).toBeFalsy()
+    await ui.press({ key: 'tous-les-chantiers' })
+    expect(await ui.find({ key: 'chantier-ouvert-a' })).toBeFalsy()
+    expect(await ui.find({ key: 'chantier-b' })).toBeTruthy()
+    await ui.press({ key: 'ouvrir-b' })
+    expect(await ui.find({ key: 'chantier-ouvert-b' })).toBeTruthy()
+    // L'onglet Chantiers ramène toujours à la liste.
+    await ui.press({ key: 'nav-chantiers' })
+    expect(await ui.find({ key: 'chantier-ouvert-b' })).toBeFalsy()
     await ui.unmount()
   }
+})
+
+test('session d’un chantier : le panneau s’ouvre sur ce chantier, puis garde la page choisie', async ($, on) => {
+  banc(on, dossier([fiche('lobby', { titre: 'Carte du lobby' }), fiche('autre')], [], { s1: 'lobby' }))
+  on('session.id', () => ({ value: 's1' }))
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await dans(ui, 'chantier-ouvert-lobby')).toContain('Carte du lobby')
+  expect(await ui.find({ key: 'bandeau-chantier' })).toBeTruthy()
+  await ui.press({ key: 'nav-plan' })
+  expect(await ui.find({ key: 'chantier-ouvert-lobby' })).toBeFalsy()
+  await ui.unmount()
+  const encore = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await encore.find({ key: 'chantier-ouvert-lobby' })).toBeFalsy()
+  await encore.unmount()
+})
+
+test('hors session de chantier : le panneau s’ouvre sur l’Aperçu', async ($, on) => {
+  banc(on, dossier([fiche('lobby')], [], { s1: 'lobby' }))
+  on('session.id', () => ({ value: 'autre' }))
+  await demarrer($)
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'chantier-ouvert-lobby' })).toBeFalsy()
+  expect(await ui.find({ key: 'tous-les-chantiers' })).toBeFalsy()
+  expect(await ui.find({ key: 'chantier-lobby' })).toBeTruthy()
+  await ui.unmount()
 })
 
 test('disque en panne ou fiches absentes : le panneau reste affiché', async ($, on) => {

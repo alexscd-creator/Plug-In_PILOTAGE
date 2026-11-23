@@ -1,4 +1,4 @@
-// Page « Vue d'ensemble » (maquette §6, écran 01) : carte projet, pôles, plan, chantiers en cours. LIT seulement.
+// Page « Aperçu » (maquette §6, écran 01) : carte projet, pôles, plan, chantiers en cours. LIT seulement.
 import type { Chantier } from '../model/chantier.ts'
 import { grouperChantiers, resumeErreurs, separerAvis } from '../model/chantiers.ts'
 import type { Portes } from '../model/phases.ts'

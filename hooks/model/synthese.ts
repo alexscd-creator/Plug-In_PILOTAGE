@@ -25,7 +25,7 @@ export function avancementGlobal(taches: Tache[]): Avancement {
 
 /**
  * Phase où je travaille : celle que l'historique marque « en cours ». Null (rang 0) sans phase ou quand toutes les
- * phases sont franchies : la page Plan et la Vue d'ensemble lisent donc la même phase. Un membre inconnu n'a aucune
+ * phases sont franchies : la page Plan et l'Aperçu lisent donc la même phase. Un membre inconnu n'a aucune
  * porte à son nom : il est en phase 1.
  */
 export function resumerPhases(projet: Projet, _taches: Tache[], moi: string, portes: Record<string, Portes>) {

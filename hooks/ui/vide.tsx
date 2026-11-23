@@ -84,16 +84,6 @@ export function ecranErreur(c: Ctx, o: { erreurs: string[]; reessayer: () => Pro
   )
 }
 
-/** Page dont le contenu arrive dans une tâche suivante. */
-export function carteAVenir(c: Ctx, titre: string) {
-  const { Text } = c.ui
-  return carte(c, [
-    titreSection(c, titre),
-    <Text key="a-venir" weight="semibold" color={c.j.texteSec}>À venir</Text>,
-    <Text key="aide" size="caption" color={c.j.texteDim}>Cette page sera remplie dans une prochaine version.</Text>,
-  ], { cle: 'carte-a-venir' })
-}
-
 /** Le panneau n'a pas pu se dessiner : on le dit, sans jamais planter. */
 export function carteErreurRendu(c: Ctx) {
   return banniere(c, 'erreur', 'Le panneau n’a pas pu s’afficher', 'Appuyez sur Rafraîchir ; si le problème reste, relancez la session.')

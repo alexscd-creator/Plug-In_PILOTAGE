@@ -1,4 +1,4 @@
-// Aides pures pour les chantiers affichés (liste, bandeau, Vue d'ensemble) : regroupement, tri, résolution
+// Aides pures pour les chantiers affichés (liste, bandeau, Aperçu) : regroupement, tri, résolution
 // session -> chantier, textes courts. Pas de fs ni de process (les hooks tournent hors Node).
 import { etatAffiche } from './chantier.ts'
 import type { Chantier, EtatChantier } from './chantier.ts'

@@ -41,7 +41,7 @@ Projets d'exemple : **Boutique de céramique** (type Site web) et **Obby des vol
   - **Ligne de fichier** : bouton « Copier le chemin » en `Forme=Icône seule` (nom accessible conservé).
 - Ordre vertical de chaque page : Barre du haut → (Bandeau de chantier si on est dans un chantier) → Navigation → En-tête de page → contenu.
 - **Barre du haut** : bulle 40 px (icône du type de projet, `accent/soft` + `accent/default`), surtitre « Pilotage · <Type> » (Overline, `text/muted`), nom du projet (Body/Strong). À droite : boutons icône « Rafraîchir » et « Paramètres » (38 px).
-- **Navigation** : conteneur `bg/surface`, bordure `border/subtle`, rayon 16, padding 4, écart 4. Onglets dans cet ordre : Vue d'ensemble (icône `apercu`), Plan (`plan`), Phases (`phase`), Chantiers (`chantier`), Agents (`agent`), Idées (`idee`), Paramètres (`reglages`). Onglet actif : fond `accent/soft`, texte + icône `accent/default`. Inactif : sans fond, `text/secondary`.
+- **Navigation** : conteneur `bg/surface`, bordure `border/subtle`, rayon 16, padding 4, écart 4. Onglets dans cet ordre : Aperçu (« Vue d'ensemble » dans Figma, icône `apercu`), Plan (`plan`), Phases (`phase`), Chantiers (`chantier`), Agents (`agent`), Idées (`idee`), Paramètres (`reglages`). Onglet actif : fond `accent/soft`, texte + icône `accent/default`. Inactif : sans fond, `text/secondary`.
 
 ## 3. Jetons de couleur (collection « Color », modes Light / Dark)
 

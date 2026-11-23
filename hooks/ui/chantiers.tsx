@@ -1,9 +1,11 @@
 // Page « Chantiers » (maquette §6, écran 04) : « En cours » et « Archivés », une carte non bloquante pour les fiches
-// illisibles ou à avertissement. LIT seulement : les fiches se créent avec /pilotage:chantier, jamais d'ici.
+// illisibles ou à avertissement ; un chantier ouvert remplace la liste (écran 05, ui/chantier-ouvert.tsx). LIT seulement :
+// les fiches se créent avec /pilotage:chantier, jamais d'ici.
 import { progressionChantier } from '../model/chantier.ts'
 import type { Chantier } from '../model/chantier.ts'
 import { grouperChantiers, nomAgent, resumeErreurs, resumePassation, separerAvis } from '../model/chantiers.ts'
 import { pluriel } from './apercu'
+import { pageChantierOuvert } from './chantier-ouvert'
 import { banniere, bulle, carte, iconeEl, titreSection } from './kit'
 import type { Ctx } from './kit'
 import { cles, ligneChantier, ligneFichier } from './ligne-chantier'
@@ -82,6 +84,8 @@ export function pageChantiers(c: Ctx, d: DonneesChantiers) {
   const { enCours, archives } = grouperChantiers(d.chantiers)
   const lecture = cartesLecture(c, d.erreursChantiers)
   const clesEnCours = cles(enCours), clesArchives = cles(archives)
+  const i = d.ouvert ? clesEnCours.indexOf(d.ouvert) : -1
+  if (i >= 0 && d.ouvrir) return pageChantierOuvert(c, { ...d, fermer: () => d.ouvrir!('') }, enCours[i]!, clesEnCours[i]!)
   return [
     <Box key="intro" flexDirection="column" gap="xs">
       <Text key="titre-page" weight="bold" size="title" color={c.j.texte}>Chantiers</Text>
