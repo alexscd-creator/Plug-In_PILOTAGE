@@ -74,6 +74,14 @@ Résultat : (à remplir)
 
 Résultat : (à remplir)
 
+## I bis. Associé (deuxième poste) et skills à installer
+
+1. Sur un poste sans `~/.claude/pilotage/config.json`, ouvrir Claude dans le dossier du projet : la carte « Qui êtes-vous ? » propose chaque membre de l'équipe, le reste est en lecture seule.
+2. Choisir son prénom : la carte disparaît, `config.json` contient `{"prenom": ...}`, les réglages et la gestion des skills s'ouvrent. Avec un autre prénom déjà enregistré : une confirmation est demandée avant de le remplacer.
+3. Sur un projet dont des skills manquent, la page Agents affiche « Installer les skills du preset » : le bouton envoie la demande à Claude, qui lance `installer-skills.mjs` ; relancer ne change rien, un skill modifié n'est jamais écrasé.
+
+Résultat : (à remplir)
+
 ## J. Paramètres
 
 1. Changer un réglage du type, puis le workflow (essayer « Charger mon workflow » avec et sans `~/.claude/pilotage/mon-workflow.json`), un pôle, le rôle d'un agent, le thème (clair, sombre, système).

@@ -22,6 +22,14 @@ Gérer les skills avec `scripts/pilotage-skill.mjs`, actions creer, maj et suppr
 
 Codes de sortie : 0 fait ; 1 données invalides ou refus (rien n'est changé) ; 3 le skill existe déjà ; 4 écriture impossible (tout est remis comme avant) ; 5 dossier ou projet introuvable ; 64 usage incorrect. En cas d'échec, le dire en une ligne et ne pas insister en boucle.
 
+## Installer les skills du preset
+
+Un projet créé avant la livraison des skills (ou dont un fichier de skill a été supprimé) a des agents dont les skills sont « non installés ». Le bouton « Installer les skills du preset » (page Agents) envoie cette demande. Lancer, depuis la conversation principale :
+
+`node "${CLAUDE_PLUGIN_ROOT}/scripts/installer-skills.mjs" "<dossier du projet>"`
+
+Le script copie, pour chaque skill cité par un agent et absent de `.pilotage/skills/`, le fichier du preset du projet (sinon un modèle « à compléter »). Il ne remplace JAMAIS un skill déjà présent, même modifié, et défait tout en cas d'échec (codes : 0 fait, 1 refus, 4 écriture impossible, 5 dossier ou projet introuvable, 64 usage). Dire à l'utilisateur ce qui a été installé et ce qui était déjà là, puis de rafraîchir le panneau.
+
 ## Rattacher à un agent
 
 Le script ne rattache pas : un skill créé n'est utilisé que lorsqu'il figure dans les skills d'un agent. Dire à l'utilisateur de le rattacher dans le panneau (page Agents, détail de l'agent, « Ajouter un skill », ou page Paramètres, section Agents) ; ne pas modifier `projet.json` à la main.

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { trouverProjet, membreCourant, lirePrenomConfig } from '../hooks/model/activation.ts'
+import { trouverProjet, membreCourant, lirePrenomConfig, ecrireConfigPrenom } from '../hooks/model/activation.ts'
 import type { FsLike } from '../hooks/model/activation.ts'
 const BS = String.fromCharCode(92)
 const win = (s: string): string => s.replaceAll('/', BS)
@@ -103,4 +103,68 @@ test('lirePrenomConfig : lit le prénom, sinon null', async () => {
   assert.equal(await lirePrenomConfig('C:/Users/Jo', async () => '{"prenom":3}'), null)
   assert.equal(await lirePrenomConfig(undefined, async () => '{"prenom":"a"}'), null)
   assert.equal(await lirePrenomConfig('C:/Users/Jo', async () => { throw new Error('x') }), null)
+})
+
+// ---- « Qui êtes-vous ? » : choisir son prénom écrit ~/.claude/pilotage/config.json ----
+const moyens = (existant: string | null) => {
+  const ecrits: { chemin: string; texte: string }[] = []
+  return {
+    ecrits,
+    fs: {
+      read: async (_p: string) => { if (existant === null) throw new Error('absent'); return existant },
+      write: async (chemin: string, texte: string) => { ecrits.push({ chemin, texte }) },
+    },
+  }
+}
+
+test('ecrireConfigPrenom : écrit {"prenom"} pour un membre de l\'équipe, sans fichier existant', async () => {
+  const m = moyens(null)
+  const r = await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa', 'Sam'], 'Sam', async () => { throw new Error('pas de question') })
+  assert.deepEqual(r, { ok: true })
+  assert.equal(m.ecrits.length, 1)
+  assert.equal(m.ecrits[0]!.chemin, 'C:/Users/Jo/.claude/pilotage/config.json')
+  assert.deepEqual(JSON.parse(m.ecrits[0]!.texte), { prenom: 'Sam' })
+  assert.equal(await lirePrenomConfig('C:/Users/Jo', async () => m.ecrits[0]!.texte), 'Sam') // se relit
+})
+
+test('ecrireConfigPrenom : refuse un prénom hors équipe ou au nom non sûr, rien n\'est écrit', async () => {
+  const m = moyens(null)
+  for (const mauvais of ['Paul', '', 'Sa"m', 'a/b']) {
+    const r = await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa', 'Sam', 'Sa"m', 'a/b'].filter(x => x !== 'Paul'), mauvais, async () => true)
+    assert.equal(r.ok, false, mauvais)
+  }
+  assert.equal(m.ecrits.length, 0)
+})
+
+test('ecrireConfigPrenom : sans dossier personnel, refuse', async () => {
+  const m = moyens(null)
+  assert.equal((await ecrireConfigPrenom(m.fs, '', ['Léa'], 'Léa', async () => true)).ok, false)
+  assert.equal(m.ecrits.length, 0)
+})
+
+test('ecrireConfigPrenom : un autre prénom déjà enregistré demande confirmation (refus : rien ne change)', async () => {
+  const m = moyens('{"prenom":"Alex"}')
+  const questions: string[] = []
+  const non = await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa'], 'Léa', async q => { questions.push(q); return false })
+  assert.equal(non.ok, false)
+  assert.equal(m.ecrits.length, 0)
+  assert.match(questions[0]!, /Alex/)
+  assert.match(questions[0]!, /Léa/)
+  const oui = await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa'], 'Léa', async () => true)
+  assert.deepEqual(oui, { ok: true })
+  assert.equal(m.ecrits.length, 1)
+})
+
+test('ecrireConfigPrenom : même prénom déjà enregistré : aucune question', async () => {
+  const m = moyens('{"prenom":"lea"}')
+  const r = await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa'], 'Léa', async () => { throw new Error('pas de question') })
+  assert.deepEqual(r, { ok: true })
+})
+
+test('ecrireConfigPrenom : un fichier existant illisible est remplacé sans question ; une écriture qui échoue est dite', async () => {
+  const m = moyens('pas du json')
+  assert.deepEqual(await ecrireConfigPrenom(m.fs, 'C:/Users/Jo', ['Léa'], 'Léa', async () => { throw new Error('non') }), { ok: true })
+  const casse = { read: async () => { throw new Error('absent') }, write: async () => { throw new Error('disque plein') } }
+  const r = await ecrireConfigPrenom(casse, 'C:/Users/Jo', ['Léa'], 'Léa', async () => true)
+  assert.equal(r.ok, false)
 })

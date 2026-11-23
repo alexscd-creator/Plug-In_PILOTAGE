@@ -7,8 +7,7 @@
 // Les garanties communes (transaction, noms sûrs, dossier valide, import du modèle) viennent de scripts/lib/ecriture.mjs.
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, verifierChemin } from './lib/ecriture.mjs'
+import { CheminNonSur, ID, Transaction, dossierExistant, echec, erreursNom, importerModele, ligne, texteSkill, verifierChemin } from './lib/ecriture.mjs'
 
 const [dossierArg, reponsesArg] = process.argv.slice(2)
 if (!dossierArg || !reponsesArg) {
@@ -93,21 +92,4 @@ try {
   echec(`Écriture impossible (${e instanceof Error ? e.message : 'erreur inconnue'}) : rien n'est resté.`, 4)
 }
 console.log(`projet écrit : ${fichiers.join(', ')}`)
-}
-
-/** Texte d'un skill : le fichier du preset s'il existe (preset au nom sûr seulement), sinon un modèle minimal. */
-function texteSkill(preset, sk) {
-  if (typeof preset === 'string' && ID.test(preset)) {
-    const f = fileURLToPath(new URL(`../presets/skills/${preset}/${sk}.md`, import.meta.url))
-    try { if (statSync(f).isFile()) return readFileSync(f, 'utf8') } catch { /* pas de fichier de preset : modèle */ }
-  }
-  return `---
-name: ${sk}
-description: "Skill du projet, à compléter."
----
-
-# ${sk}
-
-À compléter : décrire ici la méthode, les règles et les pièges de ce skill. Un fait y porte sa source et sa date de vérification.
-`
 }

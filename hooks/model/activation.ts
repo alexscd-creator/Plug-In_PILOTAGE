@@ -76,3 +76,51 @@ export async function lirePrenomConfig(
     return null
   }
 }
+
+/** Chemin de `config.json` (barres obliques) ; vide si le dossier personnel est inconnu. */
+export function cheminConfig(home: string | undefined): string {
+  const h = typeof home === 'string' ? normaliser(home) : ''
+  return h === '' ? '' : `${h}/.claude/pilotage/config.json`
+}
+
+/** Un prénom qui s'écrit tel quel dans config.json : lettres, chiffres, espaces, tirets, apostrophes, points ; ni guillemet ni barre. */
+const PRENOM_SUR = /^[\p{L}\p{N}][\p{L}\p{N} '.-]{0,39}$/u
+
+export type RetourConfig = { ok: true } | { ok: false; erreurs: string[] }
+export type FsConfig = { read(p: string): Promise<string>; write(p: string, texte: string): Promise<void> }
+
+/**
+ * « Qui êtes-vous ? » : enregistre le prénom choisi dans `~/.claude/pilotage/config.json` (`{"prenom": ...}`). Le prénom doit être un membre de
+ * l'équipe du projet. Un autre prénom déjà enregistré (ce fichier vaut pour tous les projets de la machine) n'est remplacé qu'après
+ * `confirmer(question)` ; un fichier absent ou illisible est écrit sans question. Ne lève jamais.
+ */
+export async function ecrireConfigPrenom(
+  fs: FsConfig, home: string | undefined, equipe: string[], choisi: string, confirmer: (question: string) => Promise<boolean>,
+): Promise<RetourConfig> {
+  const non = (m: string): RetourConfig => ({ ok: false, erreurs: [m] })
+  try {
+    const chemin = cheminConfig(home)
+    if (chemin === '') return non("Le dossier personnel est introuvable : le prénom n'est pas enregistré.")
+    const membre = equipe.find(m => m === choisi)
+    if (membre === undefined) return non("Ce prénom n'est pas dans l'équipe du projet : rien n'est enregistré.")
+    if (!PRENOM_SUR.test(membre)) return non("Ce prénom contient des caractères qui ne peuvent pas s'enregistrer (guillemet, barre oblique...) : rien n'est enregistré.")
+    const actuel = await lirePrenomConfig(home, p => fs.read(p))
+    if (actuel !== null && !memeMembre(actuel, membre)) {
+      let accord = false
+      try {
+        accord = (await confirmer(`Votre prénom enregistré est « ${actuel} » (il vaut pour tous vos projets). Le remplacer par « ${membre} » ?`)) === true
+      } catch {
+        accord = false
+      }
+      if (!accord) return non(`Prénom inchangé : « ${actuel} » reste enregistré.`)
+    }
+    try {
+      await fs.write(chemin, JSON.stringify({ prenom: membre }, null, 2) + String.fromCharCode(10))
+    } catch {
+      return non("Le prénom n'a pas pu être enregistré.")
+    }
+    return { ok: true }
+  } catch {
+    return non("Le prénom n'a pas pu être enregistré.")
+  }
+}

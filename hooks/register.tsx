@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { ChoixTheme, Page } from '../types'
-import { lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
+import { ecrireConfigPrenom, lirePrenomConfig, membreCourant, trouverProjet } from './model/activation.ts'
 import type { FsLike } from './model/activation.ts'
 import { agentDeSousType, appelEnFond, attenteEnCours, classerResultat, cleDAppel, debutAppel, debutAttente, finAppel, finAttente, fusionnerEtats, LIVE_VIDE } from './model/agents-live.ts'
 import type { Live } from './model/agents-live.ts'
@@ -27,6 +27,7 @@ import type { Projet, Workflow } from './model/projet.ts'
 import { encoderRetour } from './model/retour-commande.ts'
 import { pageApercu } from './ui/apercu'
 import { pageAgents } from './ui/agents'
+import { carteIdentite } from './ui/identite'
 import { bandeauChantier } from './ui/bandeau'
 import { pageChantiers } from './ui/chantiers'
 import { cadre, creerCtx } from './ui/kit'
@@ -384,6 +385,8 @@ async function lireMonWorkflow($: any): Promise<Workflow | null> {
 }
 
 const CHARGER = 'Charger'
+/** Ce que le bouton « Installer les skills du preset » dit à Claude (le script ne remplace jamais un skill déjà présent). */
+const DEMANDE_INSTALLER_SKILLS = "Installe les skills du preset qui manquent dans le projet : charge le skill pilotage:gerer-skills et lance son script installer-skills.mjs sur le dossier du projet. Il ne remplace aucun skill déjà présent."
 
 /** « Charger mon workflow » : la question montre la liste ; seule la réponse exacte « Charger » applique, tout le reste (refus, absence de $.ui.ask) vaut non. */
 async function chargerMonWorkflow($: any, racine: string, affiche: Projet, moi: string, w: Workflow): Promise<void> {
@@ -407,6 +410,20 @@ async function enregistrerMonWorkflow($: any, workflow: Workflow): Promise<void>
   )
   await update($, erreursReglages, () => (r.ok ? [] : r.erreurs))
   direReglage($, r.ok ? 'Workflow enregistré pour vos prochains projets.' : 'Workflow non enregistré : voir le panneau.')
+}
+
+/** « Qui êtes-vous ? » : enregistre le prénom choisi (~/.claude/pilotage/config.json), puis le panneau passe en mode membre. Ne lève jamais. */
+async function choisirPrenom($: any, equipe: string[], prenom: string): Promise<void> {
+  const home = String((await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? '')
+  const r = await ecrireConfigPrenom(
+    { read: async p => String((await $.fs.read(p)) ?? ''), write: async (p, t) => void (await $.fs.write(p, t)) },
+    home, equipe, prenom,
+    async question => (await $.ui.ask(question, ['Remplacer', 'Garder'])) === 'Remplacer',
+  )
+  if (!r.ok) return direReglage($, r.erreurs[0] ?? "Le prénom n'a pas pu être enregistré.")
+  await update($, membre, () => prenom)
+  await update($, tick, n => n + 1)
+  direReglage($, `Prénom enregistré : ${prenom}.`)
 }
 
 /** Copie le texte sur la surface donnée ; faux si rien n'a pu être copié. Ne lève jamais. */
@@ -938,6 +955,7 @@ export const register: Register = on => {
           rafraichir: sur($, async () => { await update($, tick, n => n + 1) }),
           reglages: () => aller('parametres'),
         }),
+        ...(moi === '' ? [carteIdentite(ctx, { equipe: projet.equipe, choisir: sur($, (p: string) => choisirPrenom($, projet.equipe, p)) })] : []),
         ...(chantierCourant ? [bandeauChantier(ctx, { chantier: chantierCourant, projet: lecture.projet, maintenant })] : []),
         navigation(ctx, courante, aller),
         <Text key="titre-page" weight="bold" size="title" color={ctx.j.texte}>{titre}</Text>,
@@ -963,7 +981,9 @@ export const register: Register = on => {
                 : courante === 'agents' && donneesAgents
                   ? pageAgents(ctx, {
                       ...donneesAgents, projet: lecture.projet, maintenant, copier: copierLeChemin,
-                      ...(moi === '' ? {} : { gestion: {
+                      ...(moi === '' ? {} : {
+                        installer: sur($, () => envoyer($, DEMANDE_INSTALLER_SKILLS)),
+                        gestion: {
                         ajouter: sur($, (agent: string) => ajouterSkill($, racine, projet, agent, lecture.skillsDisponibles, moi)),
                         retirer: sur($, (agent: string, skill: string) => appliquerPatch($, racine, projet, { type: 'skillRetirer', agent, skill }, moi)),
                         supprimer: sur($, (skill: string) => supprimerSkill($, projet, skill)),

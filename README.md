@@ -20,6 +20,8 @@ claude plugin marketplace add alexscd-creator/Plug-In_PILOTAGE
 claude plugin install pilotage@pilotage-local
 ```
 
+**Premier lancement d'un associé.** Ouvrir Claude dans le dossier partagé du projet (celui qui contient `.pilotage/`, par exemple sur Drive) : le panneau s'ouvre tout seul. Il montre une carte « Qui êtes-vous ? » : choisir son prénom dans l'équipe l'enregistre dans `~/.claude/pilotage/config.json`, sur cet ordinateur. Le projet, le type et les skills viennent du dossier partagé : rien d'autre à configurer. Si les skills du type manquent (projet créé avant leur livraison), la page Agents propose « Installer les skills du preset » (`scripts/installer-skills.mjs`, qui n'écrase jamais).
+
 Si le dépôt est privé, l'associé doit être invité sur GitHub et connecté à son compte sur son poste (Git Credential Manager ou `gh auth login`).
 
 Depuis un dossier local (cloné ou copié) :

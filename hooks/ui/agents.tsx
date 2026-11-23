@@ -87,6 +87,29 @@ function filtres(c: Ctx, d: DonneesAgents, filtre: string) {
   )
 }
 
+/** Skills cités par les agents dont le fichier manque dans le projet (sans doublon). */
+export const skillsManquants = (d: DonneesAgents): string[] => [...new Set(d.projet.agents.flatMap(a => a.skills))].filter(s => d.fichesSkills[s] !== true)
+
+/** Invite à installer les skills du preset : seulement quand il en manque et qu'on peut agir (prénom connu). */
+function carteInstaller(c: Ctx, d: DonneesAgents) {
+  const manquants = d.installer ? skillsManquants(d) : []
+  if (!d.installer || manquants.length === 0) return null
+  const { Box, Text, Button } = c.ui
+  const installer = d.installer
+  return carte(c, [
+    <Box key="entete" flexDirection="row" alignItems="center" gap="md">
+      {iconeEl(c, 'oeil', 18, c.j.accent)}
+      <Text weight="semibold" color={c.j.texte}>{manquants.length === 1 ? '1 skill du projet n’est pas installé' : `${manquants.length} skills du projet ne sont pas installés`}</Text>
+    </Box>,
+    <Text key="aide" size="footnote" color={c.j.texteSec}>
+      Les skills du type de projet sont copiés dans le projet sans rien écraser : ceux que vous avez déjà ou modifiés restent tels quels.
+    </Text>,
+    <Box key="actions" alignSelf="flex-start">
+      <Button key="skills-installer" label="Installer les skills du preset" variant="primary" onPress={(() => installer()) as never} />
+    </Box>,
+  ], { cle: 'carte-installer-skills', actif: true })
+}
+
 export function pageAgents(c: Ctx, d: DonneesAgents) {
   const { Text } = c.ui
   const agents = d.projet.agents
@@ -98,6 +121,7 @@ export function pageAgents(c: Ctx, d: DonneesAgents) {
   const { Box } = c.ui
   return [
     <Text key="intro" color={c.j.texteSec}>Les agents du projet. L’état vient des appels en cours dans cette session et des fiches de chantier : sans signe, un agent est « Arrêté ».</Text>,
+    carteInstaller(c, d),
     filtres(c, d, filtre),
     legende(c),
     <Box key="grille" flexDirection="row" flexWrap="wrap" gap="lg" width="100%">

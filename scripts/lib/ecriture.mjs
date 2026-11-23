@@ -4,6 +4,7 @@
 //   5 dossier introuvable ou qui n'est pas un dossier ; 64 usage incorrect.
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const ID = /^[a-z0-9-]+$/
 export const RESERVES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/
@@ -31,6 +32,23 @@ export function dossierExistant(arg) {
     echec(`Le dossier « ${dossier} » est introuvable : rien n'est créé.`, 5)
   }
   return dossier
+}
+
+/** Texte d'un skill : le fichier du preset s'il existe (preset au nom sûr seulement), sinon un modèle minimal « à compléter ». */
+export function texteSkill(preset, sk) {
+  if (typeof preset === 'string' && ID.test(preset)) {
+    const f = fileURLToPath(new URL(`../../presets/skills/${preset}/${sk}.md`, import.meta.url))
+    try { if (statSync(f).isFile()) return readFileSync(f, 'utf8') } catch { /* pas de fichier de preset : modèle */ }
+  }
+  return `---
+name: ${sk}
+description: "Skill du projet, à compléter."
+---
+
+# ${sk}
+
+À compléter : décrire ici la méthode, les règles et les pièges de ce skill. Un fait y porte sa source et sa date de vérification.
+`
 }
 
 /** Titre en identifiant (chantier) : minuscules sans accent, a-z 0-9 et tirets ('' si rien ne reste). Le dossier d'un membre suit, lui, `dossierMembre` (hooks/model/projet.ts). */
