@@ -6,7 +6,7 @@ import { GLYPHES } from './icones'
 import type { NomIcone } from './icones'
 
 export const PAGES: { page: Page; titre: string; icone: NomIcone }[] = [
-  { page: 'apercu', titre: 'Vue d’ensemble', icone: 'apercu' },
+  { page: 'apercu', titre: 'Aperçu', icone: 'apercu' },
   { page: 'plan', titre: 'Plan', icone: 'plan' },
   { page: 'phases', titre: 'Phases', icone: 'phase' },
   { page: 'chantiers', titre: 'Chantiers', icone: 'chantier' },
