@@ -107,18 +107,30 @@ test('carte d’agent : tête = robot en bulle teintée (pas l’initiale), skil
     expect(svgs.every(s => String(s.props.alt ?? '').trim().length > 0)).toBe(true)
     expect(sources.some(s => s.includes('viewBox="-12 -12 48 48"') && s.includes(sombre.poles.vert.soft))).toBe(true)
     expect(JSON.stringify(carte)).not.toContain('"mono"')
-    expect(String((await ui.find({ key: 'skill-a-travail-0' }))?.props.label)).toMatch(/^◉ /)
+    expect(String((await ui.find({ key: 'skill-a-travail-0' }))?.props.label)).toBe('luau')
     await ui.unmount()
   }
 })
 
-test('grille : rôle, « Pourquoi spécialisé » et pas de ligne quand il est vide', async ($, on) => {
+test('grille : « Pourquoi spécialisé » n’est pas sur la carte, il reste dans le détail de l’agent', async ($, on) => {
   banc(on, fichiers())
   await demarrer($)
   const ui = await monter($, 'desktop')
-  expect(await dans(ui, 'agent-a-travail')).toContain('Pourquoi spécialisé : Écrit le code serveur.')
-  expect(await dans(ui, 'agent-a-arrete')).not.toContain('Pourquoi spécialisé')
+  expect(await dans(ui, 'agent-a-travail')).not.toContain('Pourquoi spécialisé')
+  expect(await dans(ui, 'agent-a-travail')).not.toContain('Écrit le code serveur.')
+  await ui.press({ key: 'ouvrir-a-travail' })
+  expect(JSON.stringify(await ui.find({ type: 'Box' }))).toContain('Écrit le code serveur.')
   await ui.unmount()
+})
+
+test('grille : carte compacte, sans hauteur minimale forcée', async ($, on) => {
+  banc(on, fichiers())
+  await demarrer($)
+  for (const surface of TOUTES) {
+    const ui = await monter($, surface)
+    expect(await dans(ui, 'agent-a-travail')).not.toContain('"minHeight"')
+    await ui.unmount()
+  }
 })
 
 test('six états : libellé ET icône pour chaque agent, la règle des 15 minutes et « arrêté » sans signe', async ($, on) => {
@@ -166,24 +178,27 @@ test('pas de légende des états : chaque carte porte déjà sa pastille (icône
   }
 })
 
-test('skills : présent = bouton « Voir le skill » qui copie le chemin ; absent = « skill non installé » sans bouton', async ($, on) => {
+test('skills : liste « Skills » avec les noms seuls ; installé = bouton qui ouvre le détail de l’agent ; absent = nom grisé', async ($, on) => {
   banc(on, fichiers())
-  const l = copies(on)
   await demarrer($)
   for (const surface of TOUTES) {
     const ui = await monter($, surface)
     const carte = await dans(ui, 'agent-a-travail')
+    expect(carte).toContain('Skills')
     expect(carte).toContain('luau')
     expect(carte).toContain('secu')
     expect(carte).toContain('rojo')
-    expect((await ui.findAll({ type: 'Text', text: 'skill non installé' })).length).toBe(2)
+    expect(carte).not.toContain('skill non installé')
     const boutons = (await ui.findAll({ type: 'Button' })).filter(b => String(b.key).startsWith('skill-a-travail-'))
     expect(boutons.map(b => b.key)).toEqual(['skill-a-travail-0'])
-    expect(boutons[0]?.props.label).toBe('◉ luau')
-    await ui.press({ key: 'skill-a-travail-0' })
-    expect(l.at(-1)).toEqual({ text: '.pilotage/skills/luau.md', surface })
+    expect(boutons[0]?.props.label).toBe('luau')
     await ui.unmount()
   }
+  const ui = await monter($, 'desktop')
+  await ui.press({ key: 'skill-a-travail-0' })
+  expect(await ui.find({ key: 'ouvrir-a-travail' })).toBeFalsy()
+  expect((await ui.findAll({ type: 'Text', text: 'skill non installé' })).length).toBe(2)
+  await ui.unmount()
 })
 
 test('filtre par pôle : un seul pôle, puis tous', async ($, on) => {

@@ -3,9 +3,8 @@
 import { etatStatut } from '../model/chantiers.ts'
 import type { AgentDef } from '../model/projet.ts'
 import { detailAgent } from './agent-detail'
-import { boutonVoir, cheminSkill, poleAgent } from './agents-base'
+import { poleAgent } from './agents-base'
 import type { DonneesAgents } from './agents-base'
-import { GLYPHES } from './icones'
 import { bulle, carte, chipPole, iconeEl, pastille, pointEl } from './kit'
 import type { Ctx } from './kit'
 import { couleurPole } from './theme'
@@ -13,16 +12,22 @@ import type { Teinte } from './theme'
 
 export type { DonneesAgents }
 
-/** Skill installé : la chip est le bouton (œil + nom, copie le chemin), comme la maquette. Absent : chip grise et mention. */
+/**
+ * Skill sur la carte : son nom seulement. Installé, c'est un bouton qui ouvre le détail de l'agent, où la carte « Skills » donne ses
+ * spécificités (chemin, copier, modifier, retirer). Absent : nom grisé ; « skill non installé » est dit dans le détail.
+ */
 function chipSkill(c: Ctx, d: DonneesAgents, a: AgentDef, skill: string, k: number) {
-  const { Box, Text } = c.ui
+  const { Box, Text, Button } = c.ui
   if (d.fichesSkills[skill] === true) {
-    return <Box key={`chip-skill-${a.id}-${k}`}>{boutonVoir(c, `skill-${a.id}-${k}`, `${GLYPHES.oeil} ${skill}`, cheminSkill(skill), d.copier)}</Box>
+    return (
+      <Box key={`chip-skill-${a.id}-${k}`}>
+        <Button key={`skill-${a.id}-${k}`} label={skill} variant="secondary" onPress={(() => d.ouvrir(a.id)) as never} />
+      </Box>
+    )
   }
   return (
-    <Box key={`chip-skill-${a.id}-${k}`} flexDirection="row" flexWrap="wrap" alignItems="center" gap="xs" paddingX="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.releve}>
+    <Box key={`chip-skill-${a.id}-${k}`} paddingX="sm" borderStyle="round" borderColor={c.j.bord} backgroundColor={c.j.releve}>
       <Text weight="semibold" size="footnote" color={c.j.texteDim}>{skill}</Text>
-      <Text key={`absent-${a.id}-${k}`} size="caption" color={c.j.texteDim}>skill non installé</Text>
     </Box>
   )
 }
@@ -46,17 +51,20 @@ function carteAgent(c: Ctx, d: DonneesAgents, a: AgentDef) {
       </Box>
     </Box>,
     etat && etat.quoi !== '' ? <Text key="quoi" size="footnote" color={c.j.texteSec}>{etat.quoi}</Text> : null,
-    a.pourquoi !== '' ? <Text key="pourquoi" size="footnote" color={c.j.texteSec}>{`Pourquoi spécialisé : ${a.pourquoi}`}</Text> : null,
+    // « Pourquoi spécialisé » n'est pas sur la carte : il est dans la définition, au détail de l'agent.
     a.skills.length > 0 ? (
-      <Box key="skills" flexDirection="row" flexWrap="wrap" gap="sm">
-        {a.skills.map((s, k) => chipSkill(c, d, a, s, k))}
+      <Box key="skills" flexDirection="column" gap="xs">
+        <Text key="skills-titre" size="caption" weight="semibold" color={c.j.texteDim}>{a.skills.length > 1 ? 'Skills' : 'Skill'}</Text>
+        <Box key="skills-liste" flexDirection="row" flexWrap="wrap" gap="xs">
+          {a.skills.map((s, k) => chipSkill(c, d, a, s, k))}
+        </Box>
       </Box>
     ) : null,
     <Box key="espace" flexGrow={1} />,
     <Box key="actions" flexDirection="row" gap="sm">
       <Button key={`ouvrir-${a.id}`} label="Voir le détail" variant="secondary" onPress={() => d.ouvrir(a.id)} />
     </Box>,
-  ], { cle: `agent-${a.id}`, grandir: true, ...(c.mobile ? {} : { hauteurMin: 380 }), ...(actif ? {} : { fond: c.j.releve }) })
+  ], { cle: `agent-${a.id}`, grandir: true, ...(actif ? {} : { fond: c.j.releve }) })
 }
 
 function filtres(c: Ctx, d: DonneesAgents, filtre: string) {
